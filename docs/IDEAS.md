@@ -20,6 +20,11 @@
 | 20 | Backups to Google Drive / USB / any folder | Offline USB catches up when reconnected |
 | 21 | Use Afterburner's sensors | Avoids double polling |
 
+## Built (v0.3.8), batch 4
+Core parking off while playing, background CPU limiter, DXVK for DX9/DX11, Ryzen undervolt ladder, adaptive idle cap,
+in-game quick menu (View + LB), sleep/resume safety, crash watcher + roll back, per-game report card.
+Deferred: automatic AMD driver features (needs an ADLX native binding tested on real hardware).
+
 ## Not building (your call)
 11 auto-import Steam/Epic, 13 pausing other launchers (you only use repacks), 17 HowLongToBeat dashboard, 18 Discord.
 

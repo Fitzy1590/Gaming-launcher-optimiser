@@ -17,6 +17,8 @@ public sealed class GameModeRestoreState
     public List<int> SuspendedPids { get; set; } = [];
     public Dictionary<int, ProcessPriorityClass> LoweredPriorities { get; set; } = [];
     public bool TimerResolutionSet { get; set; }
+    /// <summary>Core parking minimum (AC index, percent) before we set it to 100; null if untouched.</summary>
+    public int? PreviousCoreParkingMin { get; set; }
 }
 
 /// <summary>
@@ -32,11 +34,23 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
     public bool IsActive => _state is not null;
 
     /// <summary>Runs before the game starts: quick steps that help the game's first load.</summary>
-    public List<string> ActivatePreLaunch(GameModeOptions o, GameModeTuning tuning)
+    public List<string> ActivatePreLaunch(GameModeOptions o, GameModeTuning tuning, bool coreParkingOff = false)
     {
         var report = new List<string>();
         _state = new GameModeRestoreState();
         Persist();
+
+        // Keep every core awake while playing (not on X3D: its scheduling relies on parking).
+        if (coreParkingOff && !tuning.IsX3D)
+        {
+            var current = PowerPlans.GetCoreParkingMin();
+            if (current is { } c && c < 100 && PowerPlans.SetCoreParkingMin(100))
+            {
+                _state.PreviousCoreParkingMin = c;
+                Persist();
+                report.Add("Core parking off (all cores awake)");
+            }
+        }
 
         if (o.SwitchPowerPlan && tuning.SwitchToHighPerformancePlan)
         {
@@ -261,6 +275,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
         }
 
         if (s.TimerResolutionSet) Native.NtSetTimerResolution(5000, false, out _);
+        if (s.PreviousCoreParkingMin is { } park && PowerPlans.SetCoreParkingMin(park)) report.Add("Core parking restored");
 
         // Restart services in the background; nothing is waiting on them.
         var services = s.StoppedServices.ToList();

@@ -18,7 +18,16 @@ public sealed class QuickSwitchWatcher : IDisposable
     [DllImport("xinput1_4.dll", EntryPoint = "XInputGetState")]
     private static extern int GetState(int index, out XInputState state);
 
-    private const ushort DpadUp = 0x0001, DpadDown = 0x0002, Back = 0x0020;
+    private const ushort DpadUp = 0x0001, DpadDown = 0x0002, DpadLeft = 0x0004, DpadRight = 0x0008, Back = 0x0020, LeftShoulder = 0x0100;
+    private uint _lastPacket;
+
+    /// <summary>Last time the controller state changed (for the adaptive idle cap).</summary>
+    public DateTime LastInput { get; private set; } = DateTime.UtcNow;
+    public bool HudOpen { get; private set; }
+    /// <summary>Quick HUD open/closed (View + LB held).</summary>
+    public event Action<bool>? Hud;
+    /// <summary>Power limit step while the HUD is open: +1 right, -1 left.</summary>
+    public event Action<int>? PowerStep;
     private readonly Timer _timer;
     private ushort _last;
     private bool _disabled;
@@ -35,15 +44,24 @@ public sealed class QuickSwitchWatcher : IDisposable
         try
         {
             for (var i = 0; i < 4; i++)
-                if (GetState(i, out var s) == 0) { buttons = s.Pad.Buttons; break; }
+            {
+                if (GetState(i, out var s) != 0) continue;
+                buttons = s.Pad.Buttons;
+                if (s.Packet != _lastPacket) { _lastPacket = s.Packet; LastInput = DateTime.UtcNow; }
+                break;
+            }
         }
         catch (DllNotFoundException) { _disabled = true; return; }
 
         var pressed = (ushort)(buttons & ~_last);
         _last = buttons;
+        var hud = (buttons & Back) != 0 && (buttons & LeftShoulder) != 0;
+        if (hud != HudOpen) { HudOpen = hud; Hud?.Invoke(hud); }
         if ((buttons & Back) == 0) return;
         if ((pressed & DpadUp) != 0) Step?.Invoke(+1);
         else if ((pressed & DpadDown) != 0) Step?.Invoke(-1);
+        else if (hud && (pressed & DpadRight) != 0) PowerStep?.Invoke(+1);
+        else if (hud && (pressed & DpadLeft) != 0) PowerStep?.Invoke(-1);
     }
 
     public void Dispose() => _timer.Dispose();

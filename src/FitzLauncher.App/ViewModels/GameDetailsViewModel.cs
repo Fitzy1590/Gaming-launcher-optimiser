@@ -192,6 +192,12 @@ public sealed partial class GameDetailsViewModel : ObservableObject
 
     private async Task ApplyTweakAsync(TweakViewModel t)
     {
+        if (t.Tweak.Id == FitzLauncher.Core.Upscalers.DxvkPlanner.TweakId && !_s.Dxvk.IsReady)
+        {
+            t.Message = "Downloading DXVK…";
+            var (ok, msg) = await _s.Dxvk.EnsureAsync();
+            if (!ok) { t.Message = msg; return; }
+        }
         var r = await Task.Run(() => _s.Tweaks.Apply(Game.AppliedChanges, t.Tweak, Game));
         t.Message = r.Success ? (t.NeedsRestart ? "Applied: restart Windows to take effect" : "Applied") : r.Message;
         t.IsApplied = TweakEngine.IsApplied(Game.AppliedChanges, t.Tweak);

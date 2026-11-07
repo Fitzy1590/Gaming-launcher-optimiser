@@ -66,8 +66,60 @@ public sealed partial class GameDetailsViewModel
         LoadExtras();
     }
 
+    // ------------------------------------------------------------------ report card + crash rollback
+
+    [ObservableProperty] private bool _hasReport;
+    [ObservableProperty] private string _reportGrade = "";
+    [ObservableProperty] private string _reportScore = "";
+    [ObservableProperty] private string _reportSmoothness = "";
+    [ObservableProperty] private string _reportTemps = "";
+    [ObservableProperty] private string _reportStability = "";
+    [ObservableProperty] private string _reportNext = "";
+    [ObservableProperty] private bool _hasCrash;
+    [ObservableProperty] private string _crashText = "";
+    [ObservableProperty] private bool _canRollBack;
+
+    private void LoadReport()
+    {
+        var card = ReportCards.Compute(Game, _s.Store.LoadSessions(Game.Id), _s.Settings);
+        HasReport = card is not null;
+        if (card is not null)
+        {
+            ReportGrade = card.Grade;
+            ReportScore = $"{card.Score}/100";
+            ReportSmoothness = card.Smoothness;
+            ReportTemps = card.Temps;
+            ReportStability = card.Stability;
+            ReportNext = card.NextStep;
+            if (Game.ReportGrade != card.Grade) { Game.ReportGrade = card.Grade; Card.Refresh(); }
+        }
+        var crash = Game.LastCrash;
+        HasCrash = crash is not null && (Game.LastGoodSession is null || crash.When > Game.LastGoodSession);
+        CrashText = crash is null ? "" : $"{crash.When.ToLocalTime():d MMM HH:mm}: {CrashAdvisor.Explain(Game, crash)}";
+        CanRollBack = HasCrash && CrashAdvisor.Suspects(Game).Count > 0;
+    }
+
+    /// <summary>Reverts every change made since the last session that ended cleanly.</summary>
+    [RelayCommand]
+    private async Task RollBackAsync()
+    {
+        var suspects = CrashAdvisor.Suspects(Game).Select(c => c.TweakId).Distinct().ToList();
+        if (suspects.Count == 0) { Status = "Nothing to roll back: no changes since the last clean session."; return; }
+        var errors = new List<string>();
+        await Busy("Rolling back recent changes…", async () =>
+        {
+            await Task.Run(() => { foreach (var id in suspects) errors.AddRange(_s.Tweaks.RevertAll(Game.AppliedChanges, Game, id)); });
+            _s.SaveLibrary();
+        });
+        RebuildPlan();
+        LoadReport();
+        Card.Refresh();
+        Status = errors.Count == 0 ? $"Rolled back {suspects.Count} change(s) made since the last clean session." : "Some changes couldn't be reverted: " + string.Join("; ", errors);
+    }
+
     private void LoadExtras()
     {
+        LoadReport();
         foreach (var o in StatusOptions) o.IsSelected = o.Value == Game.Status;
         foreach (var o in PinningOptions) o.IsSelected = o.Value == Game.CorePinning;
         var plan = CpuAffinityPlanner.Plan(_s.CpuTopology, Game.CorePinning);

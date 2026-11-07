@@ -323,6 +323,13 @@ public sealed partial class MainViewModel : ObservableObject
         var display = await Task.Run(() => PrepareDisplay(game));
         var limiterMode = await Task.Run(() => PrepareLimiterMode(game));
         var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto ? _s.RyzenAdj : null;
+        // Undervolt ladder: first undervolted session starts one step in.
+        var st = _s.Settings;
+        st.UndervoltTarget = Math.Clamp(st.UndervoltTarget, -30, 0);
+        if (st.UndervoltEnabled && st.UndervoltCurrent == 0 && !st.UndervoltSettled && st.UndervoltTarget < 0) st.UndervoltCurrent = -UndervoltLadder.Step;
+        // Undervolt works without power control; it needs RyzenAdj and a Ryzen APU.
+        var undervolt = _s.Settings.UndervoltEnabled && _s.Settings.UndervoltCurrent < 0 && _s.Hardware?.IsApu == true
+                        && RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is { } uvPath ? new RyzenAdjClient(uvPath, _s.Paths) : null;
         var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology)
         {
             Display = display?.Display,
@@ -330,12 +337,28 @@ public sealed partial class MainViewModel : ObservableObject
             EffectiveCap = display?.EffectiveCap,
             RenderScale = display?.RenderScale ?? 100,
             LimiterMode = limiterMode,
-            RyzenAdj = ryzenAdj,
+            RyzenAdj = ryzenAdj ?? undervolt,
+            UndervoltOffset = undervolt is null ? null : _s.Settings.UndervoltCurrent,
             PowerWatts = ryzenAdj is null ? null : PowerTuner.WattsFor(game, _s.Settings),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };
-        using var quick = _s.Settings.QuickSwitch ? new QuickSwitchWatcher() : null;
-        if (quick is not null) quick.Step += session.ChangeTarget;
+        using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap ? new QuickSwitchWatcher() : null;
+        if (quick is not null)
+        {
+            if (_s.Settings.QuickSwitch) quick.Step += session.ChangeTarget;
+            if (_s.Settings.QuickMenu)
+            {
+                quick.Hud += session.SetHud;
+                quick.PowerStep += session.ChangePower;
+            }
+        }
+        // Controller activity feeds the adaptive idle cap.
+        if (quick is not null) session.WithControllerInput(() => quick.LastInput);
+        void OnPower(object? _, Microsoft.Win32.PowerModeChangedEventArgs e)
+        {
+            if (e.Mode == Microsoft.Win32.PowerModes.Resume) _ = Task.Run(session.OnResume);
+        }
+        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPower;
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
@@ -349,9 +372,10 @@ public sealed partial class MainViewModel : ObservableObject
             game.LastPlayed = summary.Start;
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
+            var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
-                PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary) };
+                PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary), crashNote };
             if (session.FinalTarget is { } kept && kept != game.FpsTarget) notes.Add(await Task.Run(() => KeepTarget(game, kept)));
             tune = string.Join(" ", notes.Where(n => !string.IsNullOrEmpty(n)));
             if (tune.Length == 0) tune = null;
@@ -368,6 +392,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         finally
         {
+            Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPower;
             _session = null;
             IsPlaying = false;
             vm.IsRunning = false;
@@ -417,6 +442,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
     public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>
+    /// Crash: remember it (module, undervolt state), back the undervolt off, explain what likely caused it.
+    /// Clean session (2+ minutes): this becomes the "last good" point for Roll back, and the undervolt can step on.
+    /// </summary>
+    private string? RecordCrashOrClean(Game game, SessionSummary summary, bool undervoltActive)
+    {
+        if (summary.Crashed)
+        {
+            var crash = new CrashInfo { When = summary.End, FaultingModule = summary.FaultingModule, UndervoltActive = undervoltActive };
+            game.LastCrash = crash;
+            game.CrashCount++;
+            if (undervoltActive && UndervoltLadder.AfterCrash(_s.Settings) is { } uv) { _s.Log.Write(uv); _s.SaveSettings(); }
+            return CrashAdvisor.Explain(game, crash);
+        }
+        if (summary.Duration < TimeSpan.FromMinutes(2)) return null;
+        game.LastGoodSession = summary.End;
+        if (!undervoltActive) return null;
+        var step = UndervoltLadder.AfterCleanSession(_s.Settings);
+        if (step is not null) _s.SaveSettings();
+        return step;
+    }
 
     /// <summary>
     /// Writes the RTSS limiter mode to test (or the one that won) into the game's RTSS profile.

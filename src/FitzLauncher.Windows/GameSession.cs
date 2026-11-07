@@ -43,6 +43,19 @@ public sealed class GameSession(
     /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
     public int? LimiterMode { get; init; }
 
+    /// <summary>Curve Optimizer all-core offset for this session (negative = undervolt), via RyzenAdj.</summary>
+    public int? UndervoltOffset { get; init; }
+    /// <summary>When the controller was last touched (for the adaptive idle cap).</summary>
+    public Func<DateTime>? LastControllerInput { get; private set; }
+
+    public GameSession WithControllerInput(Func<DateTime>? lastInput)
+    {
+        LastControllerInput = lastInput;
+        return this;
+    }
+    /// <summary>True if the undervolt was active this session (for crash handling).</summary>
+    public bool UndervoltApplied { get; private set; }
+
     /// <summary>Target chosen in-game with the quick switch, if any (kept as the game's new target).</summary>
     public int? FinalTarget => _quickCap;
 
@@ -76,6 +89,43 @@ public sealed class GameSession(
             Note($"Target {next}");
             Status?.Invoke($"FPS target changed to {next} in-game");
         }
+    }
+
+    private int? _livePower;
+    private bool _hud;
+
+    /// <summary>Quick HUD (View + LB held): shows the target and power line until released.</summary>
+    public void SetHud(bool open) => _hud = open;
+
+    /// <summary>In-game power change, ±5 W per press (needs RyzenAdj).</summary>
+    public void ChangePower(int direction)
+    {
+        lock (_capLock)
+        {
+            if (RyzenAdj is null || _livePower is not { } now) { Note("Power control needs RyzenAdj"); return; }
+            var next = Math.Clamp(now + direction * 5, 10, PowerMaxWatts);
+            if (next == now) { Note($"Power {now} W"); return; }
+            if (!RyzenAdj.Apply(next, PowerMaxWatts)) { Note("Couldn't change power"); return; }
+            _livePower = next;
+            Note($"Power {next} W");
+            Status?.Invoke($"Power limit changed to {next} W in-game");
+        }
+    }
+
+    /// <summary>
+    /// After sleep/resume the firmware resets power limits and the Curve Optimizer, and RTSS can drop
+    /// its cap; put ours back.
+    /// </summary>
+    public void OnResume()
+    {
+        lock (_capLock)
+        {
+            if (RyzenAdj is not null && _livePower is { } w) RyzenAdj.Apply(w, PowerMaxWatts);
+            if (RyzenAdj is not null && UndervoltApplied && UndervoltOffset is { } uv) RyzenAdj.ApplyUndervolt(uv);
+            if (_rtss is not null && (_guard?.CurrentCap ?? Cap) is { } cap) { _rtss.ReloadProfile(_renderExe); _rtss.SetFramerateLimit(_renderExe, cap); }
+            Note("Settings restored after sleep");
+        }
+        Status?.Invoke("Resumed from sleep: power, undervolt and FPS cap re-applied");
     }
 
     private void Note(string text)
@@ -117,7 +167,7 @@ public sealed class GameSession(
         if (useGameMode)
         {
             Status?.Invoke("Game Mode: preparing…");
-            foreach (var line in await Task.Run(() => gameMode.ActivatePreLaunch(settings.GameMode, tuning), ct)) Status?.Invoke(line);
+            foreach (var line in await Task.Run(() => gameMode.ActivatePreLaunch(settings.GameMode, tuning, settings.CoreParkingOff), ct)) Status?.Invoke(line);
         }
 
         var start = DateTimeOffset.Now;
@@ -165,6 +215,15 @@ public sealed class GameSession(
             powerSet = RyzenAdj.Apply(watts, PowerMaxWatts);
             Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
         }
+        if (powerSet) lock (_capLock) _livePower = PowerWatts;
+
+        // ---------------------------------------------------------------- Curve Optimizer undervolt
+        if (RyzenAdj is not null && UndervoltOffset is { } uvOffset and < 0)
+        {
+            UndervoltApplied = RyzenAdj.ApplyUndervolt(uvOffset);
+            Status?.Invoke(UndervoltApplied ? $"Undervolt {uvOffset} (Curve Optimizer)" : "Couldn't apply the undervolt; this APU or BIOS may not allow it");
+            if (!UndervoltApplied) RyzenAdj.ClearCrashMarker();
+        }
         if (settings.ThermalGuard.Enabled && game.ThermalGuard && rtss is null && game.FpsTarget is not null)
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
         var overlayStyle = settings.RtssOverlay ? settings.Overlay : OverlayStyle.Off;
@@ -211,6 +270,12 @@ public sealed class GameSession(
         int cpuSamples = 0, gpuSamples = 0, alerts = 0, emptyPolls = 0, tick = 0;
         DateTime? cpuHotSince = null, gpuHotSince = null, lastCpuAlert = null, lastGpuAlert = null;
         var priorityRaised = new HashSet<int>(tracker.Pids);
+        using var crashWatch = new CrashDetector.Watch();
+        crashWatch.Track(tracker.Pids);
+        var limiter = settings.BackgroundLimiter ? new BackgroundLimiter() : null;
+        if (limiter is not null) limiter.Throttled += msg => Status?.Invoke(msg);
+        var idleGov = settings.AdaptiveCap && rtss is not null ? new IdleCapGovernor(settings.AdaptiveIdleSeconds, settings.AdaptiveIdleCap) : null;
+        var idleCapUsed = false;
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
         try
@@ -226,6 +291,8 @@ public sealed class GameSession(
                     emptyPolls = alive == 0 ? emptyPolls + 1 : 0;
                     if (emptyPolls >= 2 && graceOver) break;
                     Pin(tracker.Pids);
+                    crashWatch.Track(tracker.Pids);
+                    limiter?.Tick(tracker.Pids);
                     if (useGameMode && settings.GameMode.RaiseGamePriority)
                     {
                         var fresh = tracker.Pids.Where(priorityRaised.Add).ToList();
@@ -250,8 +317,24 @@ public sealed class GameSession(
                 if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
                     Status?.Invoke(currentGuard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
 
+                // Adaptive cap: no input for a while (menus, maps, cutscenes) → lower cap; any input → back.
+                // The thermal guard wins while it's cooling things down.
+                if (idleGov is not null && currentGuard is not { IsThrottling: true } && (currentGuard?.CurrentCap ?? Cap) is { } normalCap)
+                {
+                    var keys = InputIdle.SinceLastKeyboardOrMouse();
+                    var pad = LastControllerInput is { } lci ? DateTime.UtcNow - lci() : TimeSpan.MaxValue;
+                    var since = keys < pad ? keys : pad;
+                    if (idleGov.Update(since, normalCap) is { } idleCap && rtss!.SetFramerateLimit(renderExe, idleCap))
+                    {
+                        idleCapUsed = true;
+                        if (idleGov.Idle) Note($"Idle: cap {idleCap}");
+                    }
+                }
+
                 // Vendor apps sometimes re-apply their own power limit; re-assert ours every minute.
-                if (powerSet && tick % 30 == 0) RyzenAdj!.Apply(PowerWatts!.Value, PowerMaxWatts);
+                int? livePower;
+                lock (_capLock) livePower = _livePower;
+                if (powerSet && tick % 30 == 0 && livePower is { } lp) RyzenAdj!.Apply(lp, PowerMaxWatts);
 
                 CheckBenchmark(r.GpuTempC);
 
@@ -260,7 +343,7 @@ public sealed class GameSession(
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
                     DateTimeOffset.Now - start, currentGuard?.CurrentCap ?? Cap, currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
                     DateTime.Now < _noteUntil ? _note : null);
-                if (overlay) RtssClient.SetOsdText(OverlayLine(live, overlayStyle));
+                if (overlay) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayLine(live, overlayStyle));
                 Live?.Invoke(live);
             }
         }
@@ -274,13 +357,16 @@ public sealed class GameSession(
         if (overlay) RtssClient.ClearOsd();
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
-        if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null)
+        limiter?.RestoreAll();
+        if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null || idleCapUsed)
         {
             // Put back what should stay: an in-game choice, the optimised cap, or no cap if none was set.
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
             rtss!.SetFramerateLimit(renderExe, _quickCap ?? (hadCap && game.FpsTarget is { } original ? original : 0));
         }
         if (powerSet) RyzenAdj!.Restore();
+        // Clear the undervolt; the crash marker stays only if we never get here (freeze / power loss).
+        if (UndervoltApplied) RyzenAdj!.ClearUndervolt();
         if (useGameMode)
         {
             foreach (var line in gameMode.Restore()) Status?.Invoke(line);
@@ -300,6 +386,16 @@ public sealed class GameSession(
         summary.AvgGpuLoad = gpuLoadSamples > 0 ? gpuLoadSum / gpuLoadSamples : null;
         summary.PowerWatts = powerSet ? PowerWatts : null;
         summary.LimiterMode = LimiterMode;
+
+        // Crash check: abnormal exit code, or Windows logged an "Application Error" for the game exe.
+        var crashCode = crashWatch.CrashExitCode();
+        var module = await Task.Run(() => CrashDetector.FaultingModule(renderExe, start)).ConfigureAwait(false);
+        if (crashCode is not null || module is not null)
+        {
+            summary.Crashed = true;
+            summary.FaultingModule = module ?? $"exit code 0x{crashCode:X8}";
+            Status?.Invoke($"{game.Name} crashed ({summary.FaultingModule})");
+        }
 
         store.AppendSession(summary);
         return summary;
@@ -349,6 +445,18 @@ public sealed class GameSession(
         Native.MessageBeep(0x40);
         Status?.Invoke($"Benchmark done: avg {result.AverageFps:0}, 1% low {result.OnePercentLowFps:0}");
         BenchmarkCompleted?.Invoke(result);
+    }
+
+    /// <summary>Quick HUD line while View + LB is held.</summary>
+    internal static string HudLine(LiveStats l, int? powerW)
+    {
+        var parts = new List<string> { $"{l.Fps:0} FPS", $"target {l.Cap?.ToString() ?? "none"}" };
+        if (powerW is { } w) parts.Add($"power {w} W");
+        if (l.GpuTempC is { } g) parts.Add($"GPU {g:0}°C");
+        if (l.CpuTempC is { } c) parts.Add($"CPU {c:0}°C");
+        parts.Add(powerW is null ? "D-pad up/down: target" : "D-pad up/down: target, left/right: power");
+        if (l.Note is { } note) parts.Add(note);
+        return string.Join("  ·  ", parts);
     }
 
     /// <summary>

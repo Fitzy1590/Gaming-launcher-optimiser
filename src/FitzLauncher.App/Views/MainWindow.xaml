@@ -275,7 +275,11 @@
                                     </Border.Background>
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" />
-                                        <TextBlock Text="{Binding PlayTimeText}" FontSize="12" Foreground="#B3FFFFFF" />
+                                        <DockPanel>
+                                            <TextBlock DockPanel.Dock="Right" Text="{Binding Grade}" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Accent}"
+                                                       Visibility="{Binding HasGrade, Converter={StaticResource Vis}}" ToolTip="Report card grade from recent sessions" />
+                                            <TextBlock Text="{Binding PlayTimeText}" FontSize="12" Foreground="#B3FFFFFF" />
+                                        </DockPanel>
                                         <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Height="3" Margin="0,4,0,0"
                                                      Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
                                     </StackPanel>

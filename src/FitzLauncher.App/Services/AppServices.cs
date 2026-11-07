@@ -103,6 +103,7 @@ public sealed class AppServices : IDisposable
     {
         var list = PresetCatalog.For(game, scan, PresetCatalog.Load(Paths.Presets)).ToList();
         list.AddRange(UpscalerLibrary.Upgrades(scan, BestUpscalerDlls()));
+        if (DxvkPlanner.Plan(game, scan, Dxvk.Root, Hardware) is { } dxvk) list.Add(dxvk);
         return list;
     }
 
@@ -124,6 +125,8 @@ public sealed class AppServices : IDisposable
 
     /// <summary>Backup destinations that are reachable now (USB plugged in, Drive folder present).</summary>
     public List<string> BackupTargets() => BackupDestinations.Resolve(Settings.Backups.Destinations);
+
+    public DxvkService Dxvk => new(Path.Combine(Paths.Root, "dxvk"));
 
     public ArtworkService Artwork => new(Http, Paths.ArtworkDir, Settings.SteamGridDbApiKey);
 

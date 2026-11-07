@@ -67,6 +67,32 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
     public bool Apply(PowerLimits l) =>
         Run($"--stapm-limit={(int)(l.StapmW * 1000)} --slow-limit={(int)(l.SlowW * 1000)} --fast-limit={(int)(l.FastW * 1000)}").code == 0;
 
+    private string UndervoltMarker => Path.Combine(paths.Root, "undervolt-active");
+
+    /// <summary>
+    /// All-core Curve Optimizer offset (negative = undervolt). A marker file is written first, so if the
+    /// PC crashes or freezes before it's cleared, the next start knows and backs the offset off.
+    /// </summary>
+    public bool ApplyUndervolt(int offset)
+    {
+        File.WriteAllText(UndervoltMarker, offset.ToString(CultureInfo.InvariantCulture));
+        return Run($"--set-coall={FitzLauncher.Core.Optimization.UndervoltLadder.Encode(offset)}").code == 0;
+    }
+
+    public void ClearUndervolt()
+    {
+        Run("--set-coall=0");
+        try { File.Delete(UndervoltMarker); } catch (IOException) { }
+    }
+
+    /// <summary>True when the last undervolted session never finished (crash, freeze, power loss).</summary>
+    public bool UndervoltCrashedLastTime() => File.Exists(UndervoltMarker);
+
+    public void ClearCrashMarker()
+    {
+        try { File.Delete(UndervoltMarker); } catch (IOException) { }
+    }
+
     /// <summary>Reads and stores the current limits so they can be put back.</summary>
     public PowerLimits? SaveOriginal()
     {

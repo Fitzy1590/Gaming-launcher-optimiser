@@ -318,6 +318,35 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Report card -->
+                <Border Style="{StaticResource Card}" Margin="0,0,0,24" Visibility="{Binding HasCrash, Converter={StaticResource Vis}}" BorderBrush="{StaticResource Bad}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Roll back" VerticalAlignment="Top" Margin="12,0,0,0" Command="{Binding RollBackCommand}"
+                                Visibility="{Binding CanRollBack, Converter={StaticResource Vis}}" ToolTip="Undo every change made since the last session that ended normally" />
+                        <StackPanel>
+                            <TextBlock Text="Last session crashed" Foreground="{StaticResource Bad}" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding CrashText}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+                <StackPanel Visibility="{Binding HasReport, Converter={StaticResource Vis}}" Margin="0,0,0,24">
+                    <TextBlock Text="Report card" Style="{StaticResource H2}" />
+                    <Border Style="{StaticResource Card}">
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Left" Width="72" VerticalAlignment="Top">
+                                <TextBlock Text="{Binding ReportGrade}" Style="{StaticResource Figure}" FontSize="40" Foreground="{StaticResource Accent}" />
+                                <TextBlock Text="{Binding ReportScore}" Style="{StaticResource MutedText}" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="{Binding ReportSmoothness}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="{Binding ReportTemps}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding ReportStability}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                                <TextBlock Text="{Binding ReportNext}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,8,0,0" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- History -->
                 <TextBlock Text="Performance" Style="{StaticResource H2}" />
                 <TextBlock Text="Play a session and the launcher will record your average FPS, 1% lows and temperatures here." Style="{StaticResource Wrap}"

@@ -1,6 +1,7 @@
 <UserControl x:Class="FitzLauncher.App.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime">
     <!-- Settings are plain objects; every toggle/edit saves via the Save command or when you leave the page. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32,24,32,40" MaxWidth="760" HorizontalAlignment="Left">
@@ -26,6 +27,8 @@
                         <CheckBox Content="Close updaters and pause sync apps (OneDrive) during play" IsChecked="{Binding G.CloseBackgroundApps}" />
                         <CheckBox Content="Run the game at High priority" IsChecked="{Binding G.RaiseGamePriority}" />
                         <CheckBox Content="Lower the priority of browsers and other background apps" IsChecked="{Binding G.LowerBackgroundPriority}" />
+                        <CheckBox Content="Background CPU limiter: throttle any app that grabs a lot of CPU while you play, until it calms down" IsChecked="{Binding S.BackgroundLimiter}" />
+                        <CheckBox Content="Keep all CPU cores awake while playing (core parking off; skipped on X3D CPUs, which rely on it)" IsChecked="{Binding S.CoreParkingOff}" />
                         <CheckBox Content="0.5 ms timer resolution (Windows 10 only; Windows 11 handles this per game)" IsChecked="{Binding G.HighResolutionTimer}" />
                     </StackPanel>
                     <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
@@ -111,10 +114,43 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Undervolt (advanced)" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Undervolt the CPU while playing (Curve Optimizer, through RyzenAdj)" IsChecked="{Binding S.UndervoltEnabled}" />
+                    <TextBlock Text="Lower voltage means less heat, so the chip boosts higher in the same power limit. It can't damage hardware: too far only causes crashes. The launcher starts gently (-5), goes one step further after each clean session, and backs off a step and stays there after any crash or freeze. It's only active while a game runs, and resets on reboot. Ryzen APUs only."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <StackPanel Orientation="Horizontal" IsEnabled="{Binding S.UndervoltEnabled}">
+                        <TextBlock Text="Go as far as" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ComboBox SelectedItem="{Binding S.UndervoltTarget}" Width="72">
+                            <ComboBox.ItemsSource>
+                                <x:Array Type="sys:Int32">
+                                    <sys:Int32>-10</sys:Int32>
+                                    <sys:Int32>-15</sys:Int32>
+                                    <sys:Int32>-20</sys:Int32>
+                                    <sys:Int32>-25</sys:Int32>
+                                    <sys:Int32>-30</sys:Int32>
+                                </x:Array>
+                            </ComboBox.ItemsSource>
+                        </ComboBox>
+                        <Button Content="Reset" Margin="8,0,0,0" Command="{Binding ResetUndervoltCommand}" ToolTip="Start the ladder again from 0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding UndervoltText}" Style="{StaticResource MutedText}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="In-game" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <CheckBox Content="Quick FPS target switch: hold View and press D-pad up/down, or Ctrl+Alt+Up/Down" IsChecked="{Binding S.QuickSwitch}" />
+                    <CheckBox Content="Quick menu: hold View + LB to show target and power in the overlay; D-pad left/right changes power by 5 W" IsChecked="{Binding S.QuickMenu}" />
+                    <StackPanel Orientation="Horizontal">
+                        <CheckBox Content="Adaptive cap: after" IsChecked="{Binding S.AdaptiveCap}" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding S.AdaptiveIdleSeconds}" Width="44" Margin="8,0" IsEnabled="{Binding S.AdaptiveCap}" />
+                        <TextBlock Text="s with no input (menus, maps, cutscenes) cap at" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding S.AdaptiveIdleCap}" Width="44" Margin="8,0" IsEnabled="{Binding S.AdaptiveCap}" />
+                        <TextBlock Text="FPS; any input restores it" VerticalAlignment="Center" />
+                    </StackPanel>
                     <CheckBox Content="Compare RTSS limiter modes per game (async vs front-edge sync) and keep the smoother one" IsChecked="{Binding S.AutoLimiterMode}" />
                     <TextBlock Text="The new target shows briefly in the overlay and is kept for that game. The limiter comparison needs an RTSS version that stores the mode in its profiles; otherwise it stays off."
                                Style="{StaticResource Wrap}" Margin="0,8,0,0" />

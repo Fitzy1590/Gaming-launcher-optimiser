@@ -8,6 +8,24 @@ namespace FitzLauncher.Core.Scanning;
 /// </summary>
 public static class PeImports
 {
+    /// <summary>True for x64 executables (machine 0x8664), false for 32-bit or unreadable files.</summary>
+    public static bool Is64Bit(string path)
+    {
+        try
+        {
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var br = new BinaryReader(fs);
+            if (fs.Length < 0x40 || br.ReadUInt16() != 0x5A4D) return false;
+            fs.Position = 0x3C;
+            var pe = br.ReadInt32();
+            if (pe <= 0 || pe > fs.Length - 6) return false;
+            fs.Position = pe;
+            if (br.ReadUInt32() != 0x00004550) return false;
+            return br.ReadUInt16() == 0x8664;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or EndOfStreamException) { return false; }
+    }
+
     public static IReadOnlyList<string> Read(string path)
     {
         try

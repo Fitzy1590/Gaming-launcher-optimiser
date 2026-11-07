@@ -56,6 +56,27 @@ public static partial class PowerPlans
         return guid;
     }
 
+    private const string SubProcessor = "54533251-82be-4824-96c1-47b60b740d00";
+    private const string CoreParkingMin = "0cc5b647-c1df-4637-891a-dec35c318583";
+
+    /// <summary>"Processor performance core parking min cores" (AC, percent) of the active plan.</summary>
+    public static int? GetCoreParkingMin()
+    {
+        var output = Run($"/q SCHEME_CURRENT {SubProcessor} {CoreParkingMin}");
+        var m = AcIndex().Match(output);
+        return m.Success ? Convert.ToInt32(m.Groups[1].Value, 16) : null;
+    }
+
+    public static bool SetCoreParkingMin(int percent)
+    {
+        Run($"/setacvalueindex SCHEME_CURRENT {SubProcessor} {CoreParkingMin} {percent}");
+        Run("/setactive SCHEME_CURRENT");
+        return GetCoreParkingMin() == percent;
+    }
+
+    [GeneratedRegex(@"Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)")]
+    private static partial Regex AcIndex();
+
     private static string Run(string args)
     {
         try

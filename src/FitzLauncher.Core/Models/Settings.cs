@@ -58,6 +58,24 @@ public sealed class LauncherSettings
     /// <summary>Let auto-tune compare RTSS's async and front-edge-sync limiters per game.</summary>
     public bool AutoLimiterMode { get; set; } = true;
 
+    // ---- batch 4
+    /// <summary>Keep every CPU core awake while playing (skipped on X3D, which relies on parking).</summary>
+    public bool CoreParkingOff { get; set; } = true;
+    /// <summary>Throttle background apps that suddenly hog the CPU mid-game.</summary>
+    public bool BackgroundLimiter { get; set; } = true;
+    /// <summary>Lower the cap when there's no input for a while (menus, cutscenes, AFK), like Radeon Chill.</summary>
+    public bool AdaptiveCap { get; set; } = true;
+    public int AdaptiveIdleSeconds { get; set; } = 12;
+    public int AdaptiveIdleCap { get; set; } = 60;
+    /// <summary>Hold View + LB in-game for the quick HUD (D-pad: target up/down, power left/right).</summary>
+    public bool QuickMenu { get; set; } = true;
+    /// <summary>Ryzen all-core Curve Optimizer offset via RyzenAdj, approached in small steps.</summary>
+    public bool UndervoltEnabled { get; set; }
+    public int UndervoltTarget { get; set; } = -15;
+    /// <summary>Offset reached so far (0 = stock). Steps toward the target only after clean sessions.</summary>
+    public int UndervoltCurrent { get; set; }
+    public bool UndervoltSettled { get; set; }
+
     public bool SyncEnabled { get; set; }
     public string? SyncFolder { get; set; }
 

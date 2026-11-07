@@ -83,6 +83,20 @@
                     </StackPanel>
                 </ContentControl>
 
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7BA;">
+                    <StackPanel>
+                        <TextBlock Text="Notices crashes and grades each game" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="If a game crashes, it tells you which part failed and offers Roll back to undo recent changes. Each game gets a report card (A to F) for smoothness, heat and stability, with the next thing to try." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7FC;">
+                    <StackPanel>
+                        <TextBlock Text="Saves heat when you're not playing" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="In menus or cutscenes with no input, the frame cap drops to 60 until you touch a control. Hold View + LB in a game for a quick menu: D-pad up/down changes the FPS target, left/right the power limit." />
+                    </StackPanel>
+                </ContentControl>
+
                 <ContentControl Style="{StaticResource Feature}" Tag="&#xE9F5;">
                     <StackPanel>
                         <TextBlock Text="Learns what works" Style="{StaticResource FeatureTitle}" />

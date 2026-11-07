@@ -344,6 +344,7 @@ public static class SystemAdvisor
             // Windows 11 makes timer resolution requests per-process, so ours wouldn't reach the game.
             UseTimerResolution = !(hw?.IsWindows11 ?? true),
             TrimBackgroundWorkingSets = ramGb < 20,
+            IsX3D = hw?.CpuHasVCache ?? false,
         };
     }
 }
@@ -355,4 +356,5 @@ public sealed class GameModeTuning
     public bool SwitchToHighPerformancePlan { get; init; }
     public bool UseTimerResolution { get; init; }
     public bool TrimBackgroundWorkingSets { get; init; }
+    public bool IsX3D { get; init; }
 }

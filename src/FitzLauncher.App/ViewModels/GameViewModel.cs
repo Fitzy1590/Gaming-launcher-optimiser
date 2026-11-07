@@ -42,5 +42,8 @@ public sealed partial class GameViewModel : ObservableObject
     }
 
     /// <summary>Re-raise everything derived from the Game model after it changes.</summary>
+    public string Grade => Game.ReportGrade ?? "";
+    public bool HasGrade => Game.ReportGrade is not null;
+
     public void Refresh() => OnPropertyChanged(string.Empty);
 }

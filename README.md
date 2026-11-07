@@ -138,6 +138,28 @@ click-through overlay that never steals focus, and plays a sound that also works
 - **Sync library and settings** through Google Drive for desktop. Newer data from another PC is offered at start-up.
 - **Verify a repack download** before installing (the *Not installed* rows in Scan game folders).
 
+### Advanced (batch 4)
+- **Core parking off while playing:** keeps every CPU core awake so the game never waits for one to wake. Skipped on
+  X3D CPUs (their V-Cache scheduling relies on parking) and restored afterwards.
+- **Background CPU limiter:** any background app that uses a lot of CPU for two checks in a row is set to the lowest
+  priority until it calms down (Windows processes, RTSS and Afterburner are never touched).
+- **Adaptive cap:** with no keyboard, mouse or controller input for 12 s (menus, maps, cutscenes) the cap drops to
+  60 FPS to save heat; any input puts it straight back.
+- **Quick menu:** hold View + LB to show target, power and temps in the overlay; D-pad up/down changes the target,
+  left/right changes the power limit by 5 W.
+- **Sleep/resume safety:** after the device wakes, the power limit, undervolt and FPS cap are put back.
+- **DXVK for old DX9/DX11 games:** offered as a suggestion; the official release is downloaded once from GitHub and
+  copied next to the game. Skipped when ReShade/ENB, DX12 or Vulkan is in use. Revertible.
+- **Ryzen undervolt (advanced, off by default):** Curve Optimizer through RyzenAdj, only while playing. Starts at -5,
+  steps 5 further after each clean session up to your limit, and backs off a step for good after any crash or freeze
+  (also detected at the next start-up if the PC froze).
+- **Crash watcher + Roll back:** a crash exit code or a Windows "Application Error" event marks the session as
+  crashed, names the module that failed, and offers to undo every change made since the last clean session.
+- **Report card:** an A–F grade per game from recent sessions (smoothness, temperatures, crashes) and the one change
+  most likely to help. The grade also shows on the library card.
+- Not built yet: setting AMD driver features (Anti-Lag, Chill, RSR) automatically. It needs AMD's ADLX library,
+  which can't be tested without the hardware; it will come as a separate update.
+
 ### How it works page
 A plain-language guide in the left pane (F1): what each feature does, a three-step quick start and shortcuts.
 

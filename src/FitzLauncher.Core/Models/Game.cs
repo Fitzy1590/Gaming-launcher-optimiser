@@ -71,6 +71,15 @@ public sealed class Game
     // ---- extras
     public AchievementSnapshot? Achievements { get; set; }
 
+    // ---- stability
+    /// <summary>End of the last session that ran without a crash; changes after it are rollback candidates.</summary>
+    public DateTimeOffset? LastGoodSession { get; set; }
+    public CrashInfo? LastCrash { get; set; }
+    public int CrashCount { get; set; }
+
+    /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
+    public string? ReportGrade { get; set; }
+
     // ---- save backups
     public List<string> SaveDirs { get; set; } = [];
     public bool BackupSaves { get; set; } = true;
@@ -86,6 +95,14 @@ public sealed class Game
         : Status == PlayStatus.Completed ? 100
         : Achievements is { Total: > 0 } a ? Math.Min(100, a.Earned * 100.0 / a.Total!.Value)
         : MainStoryHours is > 0 ? Math.Min(100, TotalPlayTime.TotalHours / MainStoryHours.Value * 100) : null;
+}
+
+public sealed class CrashInfo
+{
+    public DateTimeOffset When { get; set; }
+    public string? FaultingModule { get; set; }
+    public int? ExitCode { get; set; }
+    public bool UndervoltActive { get; set; }
 }
 
 public sealed class LimiterResult

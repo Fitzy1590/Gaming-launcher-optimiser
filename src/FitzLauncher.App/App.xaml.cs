@@ -44,7 +44,22 @@ public partial class App : Application
             _services = new AppServices();
         }
 
+        // The last undervolted session never finished (freeze, crash, power loss): back the undervolt off.
+        string? undervoltNote = null;
+        if (FitzLauncher.Windows.RyzenAdjClient.Find(_services.Settings.RyzenAdjPath) is { } uvAdj)
+        {
+            var client = new FitzLauncher.Windows.RyzenAdjClient(uvAdj, _services.Paths);
+            if (client.UndervoltCrashedLastTime())
+            {
+                undervoltNote = FitzLauncher.Core.Optimization.UndervoltLadder.AfterCrash(_services.Settings);
+                _services.SaveSettings();
+                _ = Task.Run(client.ClearUndervolt);
+                if (undervoltNote is not null) _services.Log.Write(undervoltNote);
+            }
+        }
+
         var vm = new MainViewModel(_services);
+        if (undervoltNote is not null) vm.ShowToast("The last game didn't close normally. " + undervoltNote);
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Show();

@@ -29,6 +29,8 @@ public sealed class SessionSummary
     public double? AvgGpuTempC { get; set; }
     public int TempAlerts { get; set; }
     public double? AvgGpuLoad { get; set; }
+    public bool Crashed { get; set; }
+    public string? FaultingModule { get; set; }
     /// <summary>Package power limit used (watts), when the launcher set one.</summary>
     public int? PowerWatts { get; set; }
     /// <summary>RTSS limiter mode used (0 async, 1 front-edge sync), when the launcher set one.</summary>

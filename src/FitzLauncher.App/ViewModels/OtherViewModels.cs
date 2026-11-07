@@ -317,6 +317,22 @@ public sealed partial class SettingsViewModel : ObservableObject
             : $"Working. Current limits: {limits.Text}.";
     }
 
+    // ------------------------------------------------------------------ undervolt
+
+    public string UndervoltText => !S.UndervoltEnabled ? "Off."
+        : S.UndervoltCurrent == 0 ? $"Starts at -{UndervoltLadder.Step} next game, then steps toward {S.UndervoltTarget} after each clean session."
+        : S.UndervoltSettled ? $"Settled at {S.UndervoltCurrent}{(S.UndervoltCurrent > S.UndervoltTarget ? " (backed off after a crash)" : "")}."
+        : $"Now {S.UndervoltCurrent}, stepping toward {S.UndervoltTarget}.";
+
+    [RelayCommand]
+    private void ResetUndervolt()
+    {
+        S.UndervoltCurrent = 0;
+        S.UndervoltSettled = false;
+        _s.SaveSettings();
+        OnPropertyChanged(nameof(UndervoltText));
+    }
+
     // ------------------------------------------------------------------ sync
 
     [ObservableProperty] private string _syncStatus = "";
