@@ -1,0 +1,74 @@
+<UserControl x:Class="FitzLauncher.App.Views.HardwareView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,24,32,32" MaxWidth="980" HorizontalAlignment="Left">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Rescan hardware" Command="{Binding ScanCommand}" IsEnabled="{Binding IsScanning, Converter={StaticResource InvertBool}}" />
+                <StackPanel>
+                    <TextBlock Text="Your PC" Style="{StaticResource H1}" />
+                    <TextBlock Text="{Binding ScannedText}" Style="{StaticResource MutedText}" />
+                </StackPanel>
+            </DockPanel>
+            <TextBlock Text="Scanning hardware…" Foreground="{StaticResource Accent}" Margin="0,10,0,0" Visibility="{Binding IsScanning, Converter={StaticResource Vis}}" />
+
+            <!-- Live sensors -->
+            <UniformGrid Columns="5" Margin="0,18,0,0">
+                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="CPU temp" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding CpuTemp}" FontSize="22" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="GPU temp" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding GpuTemp}" FontSize="22" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="CPU load" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding CpuLoad}" FontSize="22" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Margin="0,0,8,0">
+                    <StackPanel>
+                        <TextBlock Text="GPU load" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding GpuLoad}" FontSize="22" FontWeight="SemiBold" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Memory" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding Memory}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" FontSize="12.5" />
+                    </StackPanel>
+                </Border>
+            </UniformGrid>
+            <TextBlock Text="{Binding SensorHint}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}" Visibility="{Binding SensorHint, Converter={StaticResource HasValue}}" />
+
+            <!-- Facts -->
+            <Border Style="{StaticResource Card}" Margin="0,14,0,0">
+                <ItemsControl ItemsSource="{Binding Facts}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding Label}" Style="{StaticResource MutedText}" FontSize="13" />
+                                <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" TextTrimming="None" FontSize="13" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+
+            <TextBlock Text="Recommendations for this PC" Style="{StaticResource H2}" Margin="0,22,0,4" />
+            <TextBlock Text="Tailored to the hardware above. Automatic items can be applied and reverted here; the rest are quick manual steps (BIOS, driver panel)."
+                       Style="{StaticResource Wrap}" Margin="0,0,0,12" />
+            <ItemsControl ItemsSource="{Binding Recommendations}" ItemTemplate="{StaticResource TweakRow}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

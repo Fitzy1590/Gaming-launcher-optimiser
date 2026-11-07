@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FitzLauncher.App/FitzLauncher.App.csproj" />
+    <Project Path="src/FitzLauncher.Core/FitzLauncher.Core.csproj" />
+    <Project Path="src/FitzLauncher.Windows/FitzLauncher.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FitzLauncher.Core.Tests/FitzLauncher.Core.Tests.csproj" />
+  </Folder>
+</Solution>

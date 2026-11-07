@@ -1,0 +1,101 @@
+<UserControl x:Class="FitzLauncher.App.Views.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Settings are plain objects; every toggle/edit saves via the Save command or when you leave the page. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Margin="32,24,32,40" MaxWidth="760" HorizontalAlignment="Left">
+            <TextBlock Text="Settings" Style="{StaticResource H1}" />
+
+            <TextBlock Text="Default FPS target for new games" Style="{StaticResource H2}" />
+            <StackPanel Orientation="Horizontal">
+                <RadioButton Style="{StaticResource TargetToggle}" GroupName="def" Content="90"  IsChecked="{Binding S.DefaultFpsTarget, Converter={StaticResource Eq}, ConverterParameter=90}" />
+                <RadioButton Style="{StaticResource TargetToggle}" GroupName="def" Content="100" IsChecked="{Binding S.DefaultFpsTarget, Converter={StaticResource Eq}, ConverterParameter=100}" />
+                <RadioButton Style="{StaticResource TargetToggle}" GroupName="def" Content="110" IsChecked="{Binding S.DefaultFpsTarget, Converter={StaticResource Eq}, ConverterParameter=110}" />
+                <RadioButton Style="{StaticResource TargetToggle}" GroupName="def" Content="117" IsChecked="{Binding S.DefaultFpsTarget, Converter={StaticResource Eq}, ConverterParameter=117}" />
+            </StackPanel>
+
+            <TextBlock Text="Game Mode (turns on automatically when you press Play)" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Enable Game Mode" IsChecked="{Binding G.Enabled}" FontWeight="SemiBold" />
+                    <StackPanel Margin="0,6,0,0" IsEnabled="{Binding G.Enabled}">
+                        <CheckBox Content="Switch to the High performance power plan (skipped automatically on AMD X3D CPUs and on battery)" IsChecked="{Binding G.SwitchPowerPlan}" />
+                        <CheckBox Content="Clear RAM before launch (standby list purge)" IsChecked="{Binding G.ClearRam}" />
+                        <CheckBox Content="Memory guard: purge standby memory during play when free RAM runs low" IsChecked="{Binding G.StandbyListGuard}" />
+                        <CheckBox Content="Pause Windows Update, background downloads, indexing and telemetry services" IsChecked="{Binding G.StopServices}" />
+                        <CheckBox Content="Close updaters and pause sync apps (OneDrive) during play" IsChecked="{Binding G.CloseBackgroundApps}" />
+                        <CheckBox Content="Run the game at High priority" IsChecked="{Binding G.RaiseGamePriority}" />
+                        <CheckBox Content="Lower the priority of browsers and other background apps" IsChecked="{Binding G.LowerBackgroundPriority}" />
+                        <CheckBox Content="0.5 ms timer resolution (Windows 10 only; Windows 11 handles this per game)" IsChecked="{Binding G.HighResolutionTimer}" />
+                    </StackPanel>
+                    <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Game Mode lists (one per line)" Style="{StaticResource H2}" />
+            <UniformGrid Columns="2">
+                <StackPanel Margin="0,0,8,8">
+                    <TextBlock Text="Services paused while playing" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding ServicesText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="150" VerticalScrollBarVisibility="Auto" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,8">
+                    <TextBlock Text="Apps closed while playing" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding CloseText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="150" VerticalScrollBarVisibility="Auto" />
+                </StackPanel>
+                <StackPanel Margin="0,0,8,0">
+                    <TextBlock Text="Apps paused (suspended) while playing" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding SuspendText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="110" VerticalScrollBarVisibility="Auto" />
+                </StackPanel>
+                <StackPanel>
+                    <TextBlock Text="Apps lowered to below-normal priority" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
+                    <TextBox Text="{Binding LowPriorityText, UpdateSourceTrigger=LostFocus}" AcceptsReturn="True" Height="110" VerticalScrollBarVisibility="Auto" />
+                </StackPanel>
+            </UniformGrid>
+            <Button Content="Reset lists to defaults" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding ResetGameModeListsCommand}" />
+
+            <TextBlock Text="Temperature alerts" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="CPU alert at" VerticalAlignment="Center" Width="110" />
+                        <TextBox Text="{Binding S.CpuTempAlertC}" Width="70" />
+                        <TextBlock Text="°C" VerticalAlignment="Center" Margin="6,0,30,0" />
+                        <TextBlock Text="GPU alert at" VerticalAlignment="Center" Width="100" />
+                        <TextBox Text="{Binding S.GpuTempAlertC}" Width="70" />
+                        <TextBlock Text="°C" VerticalAlignment="Center" Margin="6,0,0,0" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
+                        <TextBlock Text="Only alert after" VerticalAlignment="Center" Width="110" />
+                        <TextBox Text="{Binding S.TempAlertSustainSeconds}" Width="70" />
+                        <TextBlock Text="seconds above the limit" VerticalAlignment="Center" Margin="6,0,0,0" />
+                    </StackPanel>
+                    <CheckBox Content="Show an on-screen alert over the game (borderless / windowed games)" IsChecked="{Binding S.TempAlertOverlay}" />
+                    <CheckBox Content="Play a warning sound (works in exclusive fullscreen too)" IsChecked="{Binding S.TempAlertSound}" />
+                    <TextBlock Text="Typical safe limits: CPU 90-95 °C (many laptops and Ryzen 7000 run at 95 °C by design); GPU core 83-87 °C." Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Launcher" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Record FPS during play (ETW, no overlay or injection: anti-cheat safe)" IsChecked="{Binding S.TrackFps}" />
+                    <CheckBox Content="Minimise the launcher while a game is running" IsChecked="{Binding S.MinimizeWhilePlaying}" />
+                    <CheckBox Content="Launch games as administrator (only for old games that need it; breaks some Steam games)" IsChecked="{Binding S.LaunchGamesAsAdmin}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Artwork" Style="{StaticResource H2}" />
+            <TextBlock Text="Covers come from Steam automatically. For games not on Steam, add a free SteamGridDB API key (steamgriddb.com → Preferences → API)." Style="{StaticResource Wrap}" Margin="0,0,0,6" />
+            <TextBox Text="{Binding S.SteamGridDbApiKey}" Width="420" HorizontalAlignment="Left" />
+
+            <TextBlock Text="Data" Style="{StaticResource H2}" />
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="{Binding DataFolder}" Style="{StaticResource MutedText}" VerticalAlignment="Center" FontSize="13" />
+                <Button Content="Open" Margin="10,0,0,0" Command="{Binding OpenDataFolderCommand}" />
+            </StackPanel>
+            <TextBlock Text="Library, sessions, settings, artwork and backups of every config file the launcher edited live here." Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+
+            <Button Content="Save settings" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,22,0,0" Command="{Binding SaveCommand}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

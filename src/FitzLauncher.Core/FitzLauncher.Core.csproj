@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Platform-neutral logic: models, storage, scanning, optimisation planning, FPS maths.
+       Kept free of Windows APIs so it can be unit-tested anywhere. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>FitzLauncher.Core</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FitzLauncher.Core.Tests" />
+  </ItemGroup>
+</Project>

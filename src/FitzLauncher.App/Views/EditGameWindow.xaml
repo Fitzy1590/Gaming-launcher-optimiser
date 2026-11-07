@@ -1,0 +1,41 @@
+<Window x:Class="FitzLauncher.App.Views.EditGameWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit game" Width="620" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" Background="{StaticResource Surface}" ShowInTaskbar="False">
+    <StackPanel Margin="24">
+        <TextBlock Text="Name" Style="{StaticResource MutedText}" />
+        <TextBox x:Name="NameBox" Margin="0,4,0,12" />
+
+        <TextBlock Text="Game executable" Style="{StaticResource MutedText}" />
+        <DockPanel Margin="0,4,0,12">
+            <Button DockPanel.Dock="Right" Content="Browse…" Margin="8,0,0,0" Click="BrowseExe_Click" />
+            <TextBox x:Name="ExeBox" />
+        </DockPanel>
+
+        <TextBlock Text="Launch options" Style="{StaticResource MutedText}" />
+        <TextBox x:Name="ArgsBox" Margin="0,4,0,4" />
+        <TextBlock x:Name="OptimizerArgs" Style="{StaticResource MutedText}" Margin="0,0,0,12" />
+
+        <TextBlock Text="Config folder (leave empty to auto-detect)" Style="{StaticResource MutedText}" />
+        <DockPanel Margin="0,4,0,12">
+            <Button DockPanel.Dock="Right" Content="Browse…" Margin="8,0,0,0" Click="BrowseConfig_Click" />
+            <TextBox x:Name="ConfigBox" ToolTip="Folder containing Engine.ini / GameUserSettings.ini / boot.config, if the scan can't find it" />
+        </DockPanel>
+
+        <CheckBox x:Name="GameModeBox" Content="Use Game Mode for this game" />
+        <CheckBox x:Name="FavouriteBox" Content="Favourite (pinned first)" />
+
+        <TextBlock Text="Artwork" Style="{StaticResource MutedText}" Margin="0,14,0,4" />
+        <StackPanel Orientation="Horizontal">
+            <Button Content="Choose image…" Click="ChooseArt_Click" />
+            <Button Content="Search again" Margin="8,0,0,0" Click="Refetch_Click" ToolTip="Search Steam / SteamGridDB again using the name above" />
+            <TextBlock x:Name="ArtStatus" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="10,0,0,0" />
+        </StackPanel>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,24,0,0">
+            <Button Content="Cancel" IsCancel="True" Margin="0,0,8,0" />
+            <Button Content="Save" Style="{StaticResource PrimaryButton}" IsDefault="True" Click="Save_Click" />
+        </StackPanel>
+    </StackPanel>
+</Window>
