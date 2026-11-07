@@ -9,9 +9,20 @@ namespace FitzLauncher.Core.Scanning;
 /// injectors, graphics API hints and the location + current values of editable config files.
 /// Pure file-system work; nothing is modified.
 /// </summary>
-public sealed class GameScanner(ScanContext context)
+public sealed class GameScanner(ScanContext context, Func<string, string?>? versionReader = null)
 {
     private static readonly string[] UnrealPlatformDirs = ["Windows", "WindowsNoEditor", "WinGDK", "WinGRTS"];
+    private static readonly string[] ReflexMarkers = ["NVIDIA Reflex", "ReflexLowLatency", "NvLowLatency", "sl.reflex", "Streamline.Reflex", "Reflex Low Latency"];
+    private static readonly string[] AntiLagMarkers = ["AntiLag2", "Anti-Lag 2", "AMD Anti-Lag", "antilag2"];
+    private static readonly string[] RedistFolders = ["_CommonRedist", "_Redist", "Redist", "CommonRedist", "Redistributables", "__Installer", "Support", "DirectX", "vcredist", "Prerequisites", "_Prerequisites"];
+
+    private readonly Func<string, string?> _version = versionReader ?? DefaultVersion;
+
+    private static string? DefaultVersion(string path)
+    {
+        try { return FileVersionInfo.GetVersionInfo(path).FileVersion?.Replace(',', '.').Replace(" ", ""); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or PlatformNotSupportedException) { return null; }
+    }
 
     public GameScanResult Scan(Game game, CancellationToken ct = default)
     {
@@ -45,7 +56,102 @@ public sealed class GameScanner(ScanContext context)
         DetectGraphicsApi(game.ExePath, names, result);
         LocateConfig(root, game, files, result);
         ReadCurrentSettings(result);
+        DetectLowLatency(game, files, names, result);
+        DetectUpscalerDlls(files, result);
+        DetectRedists(root, files, result);
+        DetectSteamAppId(game, files, result);
+        DetectUnityAppInfo(files, result);
         return result;
+    }
+
+    private static void DetectLowLatency(Game game, List<string> files, HashSet<string> names, GameScanResult r)
+    {
+        r.SupportsReflex = names.Contains("sl.reflex.dll") || names.Contains("NvLowLatencyVk.dll") || names.Contains("sl.pcl.dll");
+        // The real binary: Unreal's small bootstrap exe hands off to *-Win64-Shipping.exe.
+        var binaries = new[] { game.ExePath }
+            .Concat(files.Where(f => f.EndsWith("-Win64-Shipping.exe", StringComparison.OrdinalIgnoreCase)))
+            .Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderByDescending(f => new FileInfo(f).Length).Take(2).ToList();
+        r.RenderExePath = files.FirstOrDefault(f => f.EndsWith("-Win64-Shipping.exe", StringComparison.OrdinalIgnoreCase)) ?? game.ExePath;
+        foreach (var bin in binaries)
+        {
+            var hits = BinaryFeatureScanner.Find(bin, [.. ReflexMarkers, .. AntiLagMarkers]);
+            if (hits.Overlaps(ReflexMarkers)) r.SupportsReflex = true;
+            if (hits.Overlaps(AntiLagMarkers)) r.SupportsAntiLag2 = true;
+        }
+    }
+
+    private void DetectUpscalerDlls(List<string> files, GameScanResult r)
+    {
+        foreach (var f in files)
+        {
+            UpscalerDllKind? kind = Path.GetFileName(f).ToLowerInvariant() switch
+            {
+                "nvngx_dlss.dll" => UpscalerDllKind.DlssSuperResolution,
+                "nvngx_dlssg.dll" => UpscalerDllKind.DlssFrameGeneration,
+                "nvngx_dlssd.dll" => UpscalerDllKind.DlssRayReconstruction,
+                "libxess.dll" => UpscalerDllKind.XeSS,
+                // Only FSR 3.1+ ships as a replaceable DLL; FSR 2 is compiled in.
+                "amd_fidelityfx_dx12.dll" => UpscalerDllKind.FsrDx12,
+                "amd_fidelityfx_vk.dll" => UpscalerDllKind.FsrVulkan,
+                _ => null,
+            };
+            if (kind is { } k) r.UpscalerDlls.Add(new UpscalerDllInfo { Path = f, Kind = k, Version = _version(f) ?? "" });
+        }
+    }
+
+    private static void DetectRedists(string root, List<string> files, GameScanResult r)
+    {
+        foreach (var f in files)
+        {
+            var ext = Path.GetExtension(f).ToLowerInvariant();
+            if (ext is not (".exe" or ".msi")) continue;
+            var rel = f[root.Length..].Replace('/', '\\');
+            if (RedistFolders.Any(d => rel.Contains('\\' + d + '\\', StringComparison.OrdinalIgnoreCase)) ||
+                Runtimes.RedistCatalog.LooksLikeRedist(Path.GetFileName(f)))
+                r.RedistInstallers.Add(f);
+        }
+    }
+
+    private static void DetectSteamAppId(Game game, List<string> files, GameScanResult r)
+    {
+        // Repacks ship steam_appid.txt (or steam_settings/steam_appid.txt for Goldberg-based emulators).
+        foreach (var f in files.Where(f => Path.GetFileName(f).Equals("steam_appid.txt", StringComparison.OrdinalIgnoreCase)).Take(3))
+        {
+            try
+            {
+                if (int.TryParse(File.ReadAllText(f).Trim(), out var id) && id > 0) { r.SteamAppId = id; return; }
+            }
+            catch (IOException) { }
+        }
+        foreach (var f in files.Where(f => Path.GetFileName(f).ToLowerInvariant() is "steam_emu.ini" or "cream_api.ini" or "codex.ini" or "steam_api.ini").Take(3))
+        {
+            try
+            {
+                foreach (var line in File.ReadLines(f))
+                {
+                    var t = line.Trim();
+                    if ((t.StartsWith("AppId", StringComparison.OrdinalIgnoreCase) || t.StartsWith("appid", StringComparison.OrdinalIgnoreCase)) &&
+                        t.IndexOf('=') is > 0 and var eq && int.TryParse(t[(eq + 1)..].Trim(), out var id) && id > 0)
+                    { r.SteamAppId = id; return; }
+                }
+            }
+            catch (IOException) { }
+        }
+        r.SteamAppId ??= game.SteamAppId;
+    }
+
+    private static void DetectUnityAppInfo(List<string> files, GameScanResult r)
+    {
+        var info = files.FirstOrDefault(f => Path.GetFileName(f).Equals("app.info", StringComparison.OrdinalIgnoreCase) &&
+                                             Path.GetDirectoryName(f)!.EndsWith("_Data", StringComparison.OrdinalIgnoreCase));
+        if (info is null) return;
+        try
+        {
+            var lines = File.ReadAllLines(info);
+            if (lines.Length >= 2) { r.UnityCompany = lines[0].Trim(); r.UnityProduct = lines[1].Trim(); }
+        }
+        catch (IOException) { }
     }
 
     /// <summary>The exe often lives deep inside the install (Binaries\Win64, bin\x64). Walk up to the real root.</summary>

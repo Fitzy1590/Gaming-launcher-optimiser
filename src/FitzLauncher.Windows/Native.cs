@@ -228,6 +228,11 @@ internal static partial class Native
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     internal static extern bool EnumDisplaySettings(string device, int mode, ref DevMode dm);
 
+    /// <summary>Plays a system sound (0x40 = asterisk, 0x30 = exclamation). Audible in exclusive fullscreen.</summary>
+    [LibraryImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool MessageBeep(uint type);
+
     // ------------------------------------------------------------ un-elevated launch
 
     [LibraryImport("user32.dll")]

@@ -32,3 +32,30 @@ public sealed class SessionSummary
     /// <summary>Average FPS per 10-second bucket, for the small timeline chart.</summary>
     public List<float> FpsTimeline { get; set; } = [];
 }
+
+/// <summary>A fixed-length capture started with the benchmark hotkey, for fair before/after comparisons.</summary>
+public sealed class BenchmarkResult
+{
+    public Guid GameId { get; set; }
+    public string GameName { get; set; } = "";
+    public DateTimeOffset Taken { get; set; } = DateTimeOffset.Now;
+    public int Seconds { get; set; }
+    public string Label { get; set; } = "";
+    public int? TargetFps { get; set; }
+    public double AverageFps { get; set; }
+    public double OnePercentLowFps { get; set; }
+    public double PointOnePercentLowFps { get; set; }
+    public double? TimeAtTarget { get; set; }
+    public int StutterCount { get; set; }
+    public double? MaxGpuTempC { get; set; }
+    /// <summary>Tweaks that were active, so runs can be compared against what changed.</summary>
+    public List<string> ActiveTweaks { get; set; } = [];
+
+    public static BenchmarkResult From(SessionSummary s, string label, IEnumerable<string> tweaks) => new()
+    {
+        GameId = s.GameId, GameName = s.GameName, Taken = s.End, Seconds = (int)s.Duration.TotalSeconds, Label = label,
+        TargetFps = s.TargetFps, AverageFps = s.AverageFps, OnePercentLowFps = s.OnePercentLowFps,
+        PointOnePercentLowFps = s.PointOnePercentLowFps, TimeAtTarget = s.TimeAtTarget, StutterCount = s.StutterCount,
+        MaxGpuTempC = s.MaxGpuTempC, ActiveTweaks = tweaks.Distinct().ToList(),
+    };
+}

@@ -184,3 +184,18 @@ public class SystemAdvisorTests
         Assert.True(tuning.TrimBackgroundWorkingSets);
     }
 }
+
+public class RenderExeTests
+{
+    [Fact]
+    public void Rtss_cap_targets_the_unreal_shipping_exe_not_the_bootstrapper()
+    {
+        var game = new Game { Name = "UE", ExePath = "/g/UE.exe" };
+        var scan = new GameScanResult { Engine = GameEngine.Unreal5, RenderExePath = "/g/UE/Binaries/Win64/UE-Win64-Shipping.exe" };
+        var hw = new HardwareProfile { RtssInstalled = true, RtssPath = "/rtss", OsBuild = 22631 };
+        var plan = new OptimizationPlanner().Build(game, scan, hw, 117);
+        var rtss = Assert.IsType<RtssFrameLimitAction>(plan.Tweaks.Single(t => t.Id == OptimizationPlanner.FrameCapId).Actions[0]);
+        Assert.Equal("UE-Win64-Shipping.exe", rtss.ExeName);
+        Assert.Equal(2, plan.Tweaks.Single(t => t.Id == "gpu-high-performance").Actions.Count);
+    }
+}

@@ -35,6 +35,10 @@ public sealed class EtwFpsTracker : IDisposable
 
     private readonly ConcurrentDictionary<int, PidState> _pids = new();
     private volatile Func<int, bool> _isGameProcess = _ => false;
+    /// <summary>Extra recorder fed with the same frames (benchmark capture), or null.</summary>
+    private volatile FrameTimeRecorder? _sink;
+
+    public void SetSink(FrameTimeRecorder? sink) => _sink = sink;
     private TraceEventSession? _session;
     private Thread? _thread;
 
@@ -91,7 +95,7 @@ public sealed class EtwFpsTracker : IDisposable
         var t = e.TimeStampRelativeMSec;
         if (api)
         {
-            if (!double.IsNaN(state.LastApiPresentMs)) state.Recorder.AddFrame(t - state.LastApiPresentMs);
+            if (!double.IsNaN(state.LastApiPresentMs)) Add(state, t - state.LastApiPresentMs);
             state.LastApiPresentMs = t;
             state.LastApiSeenMs = t;
         }
@@ -99,9 +103,16 @@ public sealed class EtwFpsTracker : IDisposable
         {
             // Kernel present events also fire for DXGI apps; only use them when the API events are absent.
             if (t - state.LastApiSeenMs < 2000) return;
-            if (!double.IsNaN(state.LastKernelPresentMs)) state.Recorder.AddFrame(t - state.LastKernelPresentMs);
+            if (!double.IsNaN(state.LastKernelPresentMs)) Add(state, t - state.LastKernelPresentMs);
             state.LastKernelPresentMs = t;
         }
+    }
+
+    private void Add(PidState state, double frameMs)
+    {
+        state.Recorder.AddFrame(frameMs);
+        // Only the main rendering process feeds the benchmark (launchers/overlays present too).
+        if (_sink is { } sink && ReferenceEquals(state.Recorder, PrimaryRecorder)) sink.AddFrame(frameMs);
     }
 
     /// <summary>The recorder for the process that presented the most frames (the actual game).</summary>

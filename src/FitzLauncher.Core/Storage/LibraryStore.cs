@@ -37,6 +37,35 @@ public sealed class LibraryStore(AppPaths paths)
         }
     }
 
+    public void AppendBenchmark(BenchmarkResult b)
+    {
+        lock (_sessionLock)
+        {
+            Directory.CreateDirectory(paths.Root);
+            File.AppendAllText(paths.Benchmarks, JsonSerializer.Serialize(b, Json.Compact) + Environment.NewLine);
+        }
+    }
+
+    public List<BenchmarkResult> LoadBenchmarks(Guid gameId)
+    {
+        var list = new List<BenchmarkResult>();
+        if (!File.Exists(paths.Benchmarks)) return list;
+        lock (_sessionLock)
+        {
+            foreach (var line in File.ReadLines(paths.Benchmarks))
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                try
+                {
+                    var b = JsonSerializer.Deserialize<BenchmarkResult>(line, Json.Compact);
+                    if (b?.GameId == gameId) list.Add(b);
+                }
+                catch (JsonException) { }
+            }
+        }
+        return list;
+    }
+
     public List<SessionSummary> LoadSessions(Guid? gameId = null)
     {
         var list = new List<SessionSummary>();

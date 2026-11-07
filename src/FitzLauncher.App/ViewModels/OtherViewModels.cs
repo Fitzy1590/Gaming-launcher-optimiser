@@ -6,6 +6,8 @@ using CommunityToolkit.Mvvm.Input;
 using FitzLauncher.App.Services;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Optimization;
+using FitzLauncher.Core.Saves;
+using FitzLauncher.Core.Shaders;
 using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
@@ -28,8 +30,61 @@ public sealed partial class HardwareViewModel : ObservableObject
     [ObservableProperty] private string _gpuLoad = "–";
     [ObservableProperty] private string _memory = "–";
     [ObservableProperty] private string _sensorHint = "";
+    [ObservableProperty] private string _sensorSource = "";
+    [ObservableProperty] private string _driverChangedText = "";
+    [ObservableProperty] private string _shaderStatus = "";
 
+    public ObservableCollection<ShaderCacheRow> ShaderCaches { get; } = [];
     public HardwareProfile? Profile => _s.Hardware;
+    public bool HasDriverChange => DriverChangedText.Length > 0;
+
+    partial void OnDriverChangedTextChanged(string value) => OnPropertyChanged(nameof(HasDriverChange));
+
+    private static (string local, string low) CacheRoots()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        return (local, Path.Combine(Path.GetDirectoryName(local)!, "LocalLow"));
+    }
+
+    [RelayCommand]
+    private async Task MeasureShaderCachesAsync()
+    {
+        var (local, low) = CacheRoots();
+        var caches = await Task.Run(() => ShaderCacheTool.Locations(local, low));
+        ShaderCaches.Clear();
+        foreach (var c in caches) ShaderCaches.Add(new ShaderCacheRow(c));
+        ShaderStatus = caches.Count == 0 ? "No shader caches found." : $"{caches.Sum(c => c.Bytes) / 1024.0 / 1024 / 1024:0.00} GB in {caches.Count} cache(s).";
+    }
+
+    [RelayCommand]
+    private async Task ClearShaderCachesAsync()
+    {
+        if (MessageBox.Show("Clear the driver and DirectX shader caches?\n\nGames will rebuild them: expect some stutter for the first few minutes of each game, then smoother play. Best done right after a GPU driver update, with no games running.",
+                "Clear shader caches", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        long freed = 0;
+        var skipped = 0;
+        foreach (var row in ShaderCaches.ToList())
+        {
+            var (f, s) = await Task.Run(() => ShaderCacheTool.Clear(row.Cache));
+            freed += f;
+            skipped += s;
+        }
+        await MeasureShaderCachesAsync();
+        ShaderStatus = $"Freed {freed / 1024.0 / 1024:0} MB." + (skipped > 0 ? $" {skipped} file(s) in use were skipped (close games/launchers and try again)." : "");
+        DriverChangedText = "";
+    }
+
+    /// <summary>Compares the GPU driver with last run's; a change suggests a shader-cache clean.</summary>
+    private void CheckDriverChange()
+    {
+        var current = _s.Hardware?.PrimaryGpu?.DriverVersion;
+        if (string.IsNullOrEmpty(current)) return;
+        var last = _s.Settings.LastSeenDriverVersion;
+        if (last is not null && last != current)
+            DriverChangedText = $"GPU driver updated ({last} → {current}). Clearing the old shader caches now avoids stale-cache stutter.";
+        _s.Settings.LastSeenDriverVersion = current;
+        _s.SaveSettings();
+    }
 
     public HardwareViewModel(AppServices s)
     {
@@ -72,13 +127,17 @@ public sealed partial class HardwareViewModel : ObservableObject
         CpuLoad = r.CpuLoad is { } cl ? $"{cl:0}%" : "–";
         GpuLoad = r.GpuLoad is { } gl ? $"{gl:0}%" + (r.GpuPowerW is { } w ? $"  ·  {w:0} W" : "") : "–";
         Memory = $"{(mem.TotalMb - mem.AvailableMb) / 1024.0:0.0} / {mem.TotalMb / 1024.0:0.0} GB used  ·  {mem.StandbyMb / 1024.0:0.0} GB standby";
-        SensorHint = !_s.Temps.CpuTemperatureAvailable
-            ? "CPU temperature needs the free PawnIO driver (pawnio.eu). Install it once and restart the launcher."
-            : "";
+        SensorSource = $"Sensors: {_s.Temps.Source}";
+        SensorHint = _s.Temps.CpuTemperatureAvailable ? ""
+            : _s.Temps.Source.StartsWith("MSI Afterburner", StringComparison.Ordinal)
+                ? "No CPU temperature from Afterburner: enable \"CPU temperature\" in Afterburner → Settings → Monitoring, or install the PawnIO driver (pawnio.eu)."
+                : "CPU temperature needs the free PawnIO driver (pawnio.eu), or MSI Afterburner running with CPU temperature monitoring on.";
     }
 
     private void Populate()
     {
+        CheckDriverChange();
+        _ = MeasureShaderCachesAsync();
         var hw = _s.Hardware!;
         ScannedText = $"Scanned {hw.ScannedAt:d MMM yyyy, HH:mm}";
         Facts.Clear();
@@ -149,13 +208,127 @@ public sealed partial class SettingsViewModel : ObservableObject
     public GameModeOptions G => _s.Settings.GameMode;
     public int[] Targets => LauncherSettings.FpsTargets;
 
-    public SettingsViewModel(AppServices s) => _s = s;
+    public SettingsViewModel(AppServices s)
+    {
+        _s = s;
+        InitDestinations();
+    }
 
     public string ServicesText { get => Lines(G.Services); set { G.Services = Split(value); Save(); } }
     public string SuspendText { get => Lines(G.SuspendProcesses); set { G.SuspendProcesses = Split(value); Save(); } }
     public string CloseText { get => Lines(G.CloseProcesses); set { G.CloseProcesses = Split(value); Save(); } }
     public string LowPriorityText { get => Lines(G.LowPriorityProcesses); set { G.LowPriorityProcesses = Split(value); Save(); } }
     public string DataFolder => _s.Paths.Root;
+    public ThermalGuardOptions T => _s.Settings.ThermalGuard;
+    public BackupOptions B => _s.Settings.Backups;
+    public ObservableCollection<DestinationRow> Destinations { get; } = [];
+    [ObservableProperty] private string _backupStatus = "";
+    [ObservableProperty] private string _startupStatus = "";
+
+    public void InitDestinations()
+    {
+        Destinations.Clear();
+        foreach (var d in B.Destinations) Destinations.Add(new DestinationRow(d, BackupDestinations.Resolve([d]).Count > 0));
+    }
+
+    [RelayCommand]
+    private void AddGoogleDrive()
+    {
+        var drive = BackupDestinations.FindGoogleDrive();
+        if (drive is null)
+        {
+            BackupStatus = "Google Drive for desktop wasn't found. Install it from google.com/drive/download and sign in; it adds a \"My Drive\" folder that syncs automatically. Then click this again.";
+            return;
+        }
+        AddDestination(new BackupDestination { Kind = BackupDestinationKind.GoogleDrive, Path = drive, Label = "Google Drive" },
+            $"Backups will be copied to {drive}\\{SaveBackupService.DestinationFolder}, and Google Drive syncs them to the cloud.");
+    }
+
+    [RelayCommand]
+    private void AddUsb()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pick a folder on your USB drive for save backups" };
+        if (dlg.ShowDialog() != true) return;
+        var root = Path.GetPathRoot(dlg.FolderName);
+        var info = root is null ? null : new DriveInfo(root);
+        if (info is null || info.DriveType is not (DriveType.Removable or DriveType.Fixed))
+        {
+            BackupStatus = "Pick a folder on a USB drive.";
+            return;
+        }
+        try
+        {
+            var label = string.IsNullOrWhiteSpace(info.VolumeLabel) ? $"USB {root}" : info.VolumeLabel;
+            AddDestination(BackupDestinations.AddUsb(dlg.FolderName, label),
+                $"Added {label}. It's recognised by a small hidden marker file, so a different drive letter next time is fine. When it's unplugged, backups catch up the next time it's connected.");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { BackupStatus = "Couldn't write to that drive: " + e.Message; }
+    }
+
+    [RelayCommand]
+    private void AddBackupFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Extra folder for save backups (NAS, OneDrive, another disk…)" };
+        if (dlg.ShowDialog() != true) return;
+        AddDestination(new BackupDestination { Kind = BackupDestinationKind.Folder, Path = dlg.FolderName, Label = dlg.FolderName }, $"Backups will also be copied to {dlg.FolderName}.");
+    }
+
+    [RelayCommand]
+    private void RemoveDestination(DestinationRow row)
+    {
+        B.Destinations.Remove(row.Destination);
+        Save();
+        InitDestinations();
+    }
+
+    private void AddDestination(BackupDestination d, string message)
+    {
+        B.Destinations.Add(d);
+        Save();
+        InitDestinations();
+        BackupStatus = message;
+    }
+
+    public bool NoUacShortcut
+    {
+        get => S.NoUacShortcut;
+        set
+        {
+            var exe = Environment.ProcessPath!;
+            if (value)
+            {
+                var (ok, msg) = StartupManager.EnableNoUac(exe);
+                S.NoUacShortcut = ok;
+                StartupStatus = msg;
+            }
+            else { StartupManager.DisableNoUac(); S.NoUacShortcut = false; StartupStatus = "Removed the no-prompt shortcut."; }
+            Save();
+            OnPropertyChanged();
+        }
+    }
+
+    public bool StartWithWindows
+    {
+        get => S.StartWithWindows;
+        set
+        {
+            var (ok, msg) = StartupManager.SetStartWithWindows(value, Environment.ProcessPath!);
+            S.StartWithWindows = value && ok;
+            StartupStatus = msg;
+            Save();
+            OnPropertyChanged();
+        }
+    }
+
+    [RelayCommand]
+    private void PickDllFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Folder with newer nvngx_dlss.dll / libxess.dll / amd_fidelityfx_dx12.dll files" };
+        if (dlg.ShowDialog() != true) return;
+        S.UpscalerDllFolder = dlg.FolderName;
+        Save();
+        OnPropertyChanged(nameof(S));
+    }
 
     [RelayCommand]
     public void Save() => _s.SaveSettings();
@@ -177,4 +350,21 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private static string Lines(IEnumerable<string> l) => string.Join(Environment.NewLine, l);
     private static List<string> Split(string s) => s.Split(['\r', '\n', ','], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+}
+
+public sealed class ShaderCacheRow(ShaderCache c)
+{
+    public ShaderCache Cache => c;
+    public string Name => c.Name;
+    public string Size => c.Bytes >= 1024L * 1024 * 1024 ? $"{c.Bytes / 1024.0 / 1024 / 1024:0.00} GB" : $"{c.Bytes / 1024.0 / 1024:0} MB";
+    public string Path => c.Path;
+}
+
+public sealed class DestinationRow(BackupDestination d, bool available)
+{
+    public BackupDestination Destination => d;
+    public string Label => d.Label;
+    public string Kind => d.Kind switch { BackupDestinationKind.GoogleDrive => "Google Drive", BackupDestinationKind.Usb => "USB drive", _ => "Folder" };
+    public string State => available ? "connected" : d.Kind == BackupDestinationKind.Usb ? "not plugged in: catches up when connected" : "not available";
+    public bool Available => available;
 }

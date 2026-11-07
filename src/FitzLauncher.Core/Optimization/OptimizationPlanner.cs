@@ -13,7 +13,7 @@ public sealed class OptimizationPlanner
     public const string FrameCapId = "framecap";
     private const string DxPrefsKey = @"Software\Microsoft\DirectX\UserGpuPreferences";
 
-    public OptimizationPlan Build(Game game, GameScanResult scan, HardwareProfile? hw, int? target, SessionSummary? last = null)
+    public OptimizationPlan Build(Game game, GameScanResult scan, HardwareProfile? hw, int? target, SessionSummary? last = null, IEnumerable<Tweak>? extra = null)
     {
         var plan = new OptimizationPlan { Target = target };
         var (suggested, why) = TargetAdvisor.Suggest(hw, last, target);
@@ -35,7 +35,9 @@ public sealed class OptimizationPlanner
         AddUpscalers(plan, scan, hw, belowTarget);
         AddInjectors(plan, scan);
         AddStorage(plan, game, hw);
+        AddLatency(plan, scan, hw);
         AddSessionInsights(plan, last, target, hw);
+        if (extra is not null) plan.Tweaks.AddRange(extra);
 
         foreach (var note in scan.Notes) plan.Notes.Add(note);
         return plan;
@@ -57,7 +59,7 @@ public sealed class OptimizationPlanner
         if (hw is { RtssInstalled: true, RtssPath: not null })
         {
             // RTSS gives the most even frame pacing of the common limiters, for any graphics API.
-            actions.Add(new RtssFrameLimitAction { RtssDirectory = hw.RtssPath, ExeName = game.ExeName, Limit = t });
+            actions.Add(new RtssFrameLimitAction { RtssDirectory = hw.RtssPath, ExeName = RenderExeName(game, scan), Limit = t });
             method = "RivaTuner (RTSS) frame limiter";
         }
         else if (scan.Engine is GameEngine.Unreal4 or GameEngine.Unreal5 or GameEngine.UnrealUnknownVersion &&
@@ -80,7 +82,7 @@ public sealed class OptimizationPlanner
         {
             var vendorStep = hw?.PrimaryGpu?.Vendor switch
             {
-                GpuVendor.Nvidia => $"NVIDIA Control Panel → Manage 3D settings → Program settings → {game.ExeName} → Max Frame Rate = {t}",
+                GpuVendor.Nvidia => $"NVIDIA Control Panel → Manage 3D settings → Program settings → {RenderExeName(game, scan)} → Max Frame Rate = {t}",
                 GpuVendor.Amd => $"AMD Software → Gaming → {game.Name} → Frame Rate Target Control (or Radeon Chill min/max) = {t}",
                 _ => $"Set the in-game frame limit to {t}",
             };
@@ -119,7 +121,7 @@ public sealed class OptimizationPlanner
             Risk = TweakRisk.Safe,
             ExpectedGain = hybridGraphics ? "Can be 2-5x FPS if it was on the iGPU" : "Guarantees the right GPU",
             Recommended = hybridGraphics,
-            Actions = [DxPref(game, "GpuPreference", "2")],
+            Actions = DxPrefs(game, scan, "GpuPreference", "2"),
         });
 
         if (hw?.IsWindows11 == true && !scan.UsesVulkan)
@@ -133,16 +135,23 @@ public sealed class OptimizationPlanner
                 VisualImpact = VisualImpact.None,
                 Risk = TweakRisk.Safe,
                 ExpectedGain = "Lower input lag in borderless mode",
-                Actions = [DxPref(game, "SwapEffectUpgradeEnable", "1")],
+                Actions = DxPrefs(game, scan, "SwapEffectUpgradeEnable", "1"),
             });
         }
     }
 
-    private static RegistrySetAction DxPref(Game game, string name, string value) => new()
-    {
-        Hive = RegistryHive.CurrentUser, KeyPath = DxPrefsKey, ValueName = game.ExePath,
-        Value = $"{name}={value};", ValueType = RegistryValueType.String, MergeSemicolonPairs = true,
-    };
+    /// <summary>Exe name RTSS/driver profiles must use: the process that renders, not a bootstrap launcher.</summary>
+    public static string RenderExeName(Game game, GameScanResult scan) => Path.GetFileName(scan.RenderExePath ?? game.ExePath);
+
+    /// <summary>Windows keys these by full exe path; set both the launcher exe and the rendering exe.</summary>
+    private static List<TweakAction> DxPrefs(Game game, GameScanResult scan, string name, string value) =>
+        new[] { game.ExePath, scan.RenderExePath }
+            .Where(p => !string.IsNullOrEmpty(p)).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Select(p => (TweakAction)new RegistrySetAction
+            {
+                Hive = RegistryHive.CurrentUser, KeyPath = DxPrefsKey, ValueName = p!,
+                Value = $"{name}={value};", ValueType = RegistryValueType.String, MergeSemicolonPairs = true,
+            }).ToList();
 
     // ---------------------------------------------------------------- Unreal
 
@@ -410,6 +419,48 @@ public sealed class OptimizationPlanner
             Recommended = true,
         });
     }
+
+    // ---------------------------------------------------------------- latency (Reflex / Anti-Lag)
+
+    private static void AddLatency(OptimizationPlan plan, GameScanResult scan, HardwareProfile? hw)
+    {
+        var vendor = hw?.PrimaryGpu?.Vendor ?? GpuVendor.Unknown;
+        if (vendor == GpuVendor.Nvidia)
+        {
+            plan.Tweaks.Add(scan.SupportsReflex
+                ? Latency("latency-reflex", "Turn on NVIDIA Reflex (On + Boost)",
+                    "This game has NVIDIA Reflex built in. It keeps the CPU from queueing frames ahead of the GPU, which noticeably cuts input lag. With G-Sync and V-Sync on, Reflex also caps FPS just under your refresh rate by itself; your RTSS cap stays as a ceiling.",
+                    "In-game: Graphics → NVIDIA Reflex Low Latency → On + Boost.", "Up to ~30-50% lower latency", true)
+                : Latency("latency-nv-llm", "Use NVIDIA Low Latency Mode",
+                    "This game has no Reflex, so use the driver's version: Low Latency Mode = On limits the render queue to one frame. Avoid 'Ultra' together with an RTSS cap, because Ultra sets its own cap.",
+                    "NVIDIA Control Panel → Manage 3D settings → Program settings → this game → Low Latency Mode → On.", "Lower input lag", false));
+            if (hw?.RtssInstalled == true)
+                plan.Tweaks.Add(Latency("latency-rtss-mode-nv", "Set RTSS's limiter to NVIDIA Reflex mode",
+                    "RTSS 7.3.4+ can cap frames using Reflex's own sleep, which community latency tests rank lowest of RTSS's limiter modes. It's a global RTSS setting, so the launcher leaves the switch to you and doesn't change your RTSS/Afterburner setup.",
+                    "RTSS → Setup → Framerate limiter → NVIDIA Reflex.", "Lower latency at the same cap", false));
+        }
+        else if (vendor == GpuVendor.Amd)
+        {
+            plan.Tweaks.Add(scan.SupportsAntiLag2
+                ? Latency("latency-antilag2", "Turn on AMD Anti-Lag 2",
+                    "This game has AMD Anti-Lag 2 built in: AMD's equivalent of NVIDIA Reflex. It syncs the CPU to the GPU in-engine for the lowest input lag on Radeon.",
+                    "In-game: Graphics → AMD Anti-Lag 2 → On.", "Up to ~30-40% lower latency", true)
+                : Latency("latency-antilag", "Turn on Radeon Anti-Lag (driver)",
+                    "This game has no Anti-Lag 2, so use the driver-level Anti-Lag in AMD Software for this game. It's per game and safe for single-player repacks.",
+                    "AMD Software → Gaming → this game → Radeon Anti-Lag → Enabled.", "Lower input lag", false));
+            if (hw?.RtssInstalled == true)
+                plan.Tweaks.Add(Latency("latency-rtss-mode-amd", "Pick RTSS's limiter mode for Radeon",
+                    "RTSS's Reflex mode is NVIDIA-only. On Radeon, 'Async' gives the lowest latency and 'Front edge sync' the most even frame pacing. For the steady 90-117 FPS you're after, front edge sync is the pick. It's a global RTSS setting, so the launcher leaves it to you.",
+                    "RTSS → Setup → Framerate limiter → Front edge sync (smoothest) or Async (lowest latency).", "Smoother pacing at the cap", false));
+        }
+    }
+
+    private static Tweak Latency(string id, string title, string description, string step, string gain, bool recommended) => new()
+    {
+        Id = id, Title = title, Description = description, Category = TweakCategory.Latency,
+        VisualImpact = VisualImpact.None, Risk = TweakRisk.Safe, ExpectedGain = gain, Recommended = recommended,
+        Actions = [new ManualStepAction { Instructions = step }],
+    };
 
     private static void AddSessionInsights(OptimizationPlan plan, SessionSummary? last, int? target, HardwareProfile? hw)
     {

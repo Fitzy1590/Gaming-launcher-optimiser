@@ -25,6 +25,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     private readonly Action<GameViewModel> _play;
     private readonly Action<GameViewModel> _remove;
     private readonly Action<GameViewModel> _edit;
+    private readonly Action _refreshMeta;
 
     public GameViewModel Card { get; }
     public Game Game => Card.Game;
@@ -47,8 +48,9 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     [ObservableProperty] private bool _hasHistory;
     [ObservableProperty] private string _appliedSummary = "";
 
-    public GameDetailsViewModel(AppServices services, GameViewModel card, Action<GameViewModel> play, Action<GameViewModel> remove, Action<GameViewModel> edit)
+    public GameDetailsViewModel(AppServices services, GameViewModel card, Action<GameViewModel> play, Action<GameViewModel> remove, Action<GameViewModel> edit, Action refreshMeta)
     {
+        _refreshMeta = refreshMeta;
         _s = services;
         Card = card;
         _play = play;
@@ -66,12 +68,35 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     public bool HasNotes => Notes.Count > 0;
     public bool HasChanges => Game.AppliedChanges.Count > 0;
 
+    private readonly CancellationTokenSource _alive = new();
+
+    /// <summary>Called when another game is selected, so pending background work is skipped.</summary>
+    public void Deactivate() => _alive.Cancel();
+
     private async Task LoadAsync()
     {
         Hero = await ImageLoader.LoadAsync(Game.HeroPath ?? Game.ArtworkPath, 900);
         LoadHistory();
-        if (Game.LastScan is null) await RescanAsync();
+        InitExtras();
+        if (Game.LastScan is null)
+        {
+            // Don't scan games you're just scrolling past (Big Picture / keyboard).
+            try { await Task.Delay(500, _alive.Token); } catch (TaskCanceledException) { return; }
+            await RescanAsync();
+        }
         else RebuildPlan();
+        if (Game.SaveDirs.Count == 0) DetectSaves(quiet: true);
+        LoadBackups();
+    }
+
+    /// <summary>After a session: history, benchmarks, auto-tune and plan may all have changed.</summary>
+    public void Reload()
+    {
+        LoadHistory();
+        LoadExtras();
+        RebuildPlan();
+        LoadBackups();
+        Card.Refresh();
     }
 
     // ------------------------------------------------------------------ commands
@@ -113,7 +138,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
         {
             Game.FpsTarget = target;
             Game.LastScan = await Task.Run(() => _s.Scanner.Scan(Game));
-            var plan = _s.Planner.Build(Game, Game.LastScan, _s.Hardware, target, Game.LastSession);
+            var plan = _s.BuildPlan(Game);
             await Task.Run(() =>
             {
                 if (target is null) _s.Tweaks.RevertAll(Game.AppliedChanges, Game, OptimizationPlanner.FrameCapId);
@@ -186,7 +211,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     private void RebuildPlan()
     {
         if (Game.LastScan is null) return;
-        var plan = _s.Planner.Build(Game, Game.LastScan, _s.Hardware, Game.FpsTarget, Game.LastSession);
+        var plan = _s.BuildPlan(Game);
 
         OneClick.Clear();
         Suggestions.Clear();

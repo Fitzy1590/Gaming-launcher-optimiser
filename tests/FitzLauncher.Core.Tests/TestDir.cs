@@ -11,7 +11,7 @@ public sealed class TestDir : IDisposable
 
     public string File(string relative, string content = "", int sizeBytes = 0)
     {
-        var path = Path.Combine(Root, relative.Replace('\\', Path.DirectorySeparatorChar));
+        var path = Path.Combine(Root, Normalise(relative));
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         if (sizeBytes > 0) System.IO.File.WriteAllBytes(path, new byte[sizeBytes]);
         else System.IO.File.WriteAllText(path, content);
@@ -20,10 +20,14 @@ public sealed class TestDir : IDisposable
 
     public string Dir(string relative)
     {
-        var path = Path.Combine(Root, relative.Replace('\\', Path.DirectorySeparatorChar));
+        var path = Path.Combine(Root, Normalise(relative));
         Directory.CreateDirectory(path);
         return path;
     }
+
+    /// <summary>Tests write "a/b" paths; use the OS separator so they compare equal to scanner output on Windows too.</summary>
+    private static string Normalise(string relative) =>
+        relative.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
 
     public void Dispose()
     {

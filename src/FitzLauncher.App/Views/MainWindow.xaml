@@ -92,6 +92,7 @@
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
@@ -100,6 +101,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Content="+ Add game" Style="{StaticResource PrimaryButton}" Click="AddGame_Click" ToolTip="Add a game exe or shortcut (Ctrl+N). You can also drag &amp; drop exes or folders onto the window." />
                         <Button Content="Add folder of games" Margin="8,0,0,0" Click="AddFolder_Click" ToolTip="Pick a folder that contains several games/repacks; each subfolder is added." />
+                        <Button Content="🎮 Big Picture" Margin="8,0,0,0" Command="{Binding BigPictureCommand}" ToolTip="Fullscreen controller mode (F11)" />
                     </StackPanel>
                     <Grid Width="320" HorizontalAlignment="Left">
                         <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Padding="30,7,8,7" />
@@ -109,15 +111,52 @@
                     </Grid>
                 </DockPanel>
 
+                <!-- Filters, sort, tags, totals -->
+                <StackPanel Grid.Row="1" Margin="28,0,20,8">
+                    <TextBlock Text="{Binding TotalsText}" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="All" IsChecked="True" Command="{Binding SetStatusFilterCommand}" CommandParameter="All" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Playing" Command="{Binding SetStatusFilterCommand}" CommandParameter="Playing" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Backlog" Command="{Binding SetStatusFilterCommand}" CommandParameter="Backlog" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Beaten" Command="{Binding SetStatusFilterCommand}" CommandParameter="Beaten" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="100%" Command="{Binding SetStatusFilterCommand}" CommandParameter="Completed" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Dropped" Command="{Binding SetStatusFilterCommand}" CommandParameter="Abandoned" />
+                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="6,2,12,8" />
+                        <TextBlock Text="Sort" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,6" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Recent" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=RecentlyPlayed}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Most played" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=MostPlayed}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="A–Z" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=Name}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Added" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=RecentlyAdded}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Progress" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=Progress}" />
+                        <CheckBox Content="Show hidden" IsChecked="{Binding ShowHidden}" Margin="8,0,0,6" FontSize="12" />
+                    </WrapPanel>
+                    <WrapPanel>
+                        <ItemsControl ItemsSource="{Binding AllTags}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Style="{StaticResource ChipButton}" Content="{Binding}" ContentStringFormat="#{0}"
+                                            Command="{Binding DataContext.SetTagFilterCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Button Style="{StaticResource ChipButton}" Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}"
+                                Content="{Binding TagFilter}" ContentStringFormat="#{0}  ✕" Command="{Binding SetTagFilterCommand}" CommandParameter="{Binding TagFilter}"
+                                Visibility="{Binding TagFilter, Converter={StaticResource HasValue}}" ToolTip="Clear tag filter" />
+                    </WrapPanel>
+                </StackPanel>
+
                 <!-- Empty state -->
-                <StackPanel Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource Vis}}">
+                <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource Vis}}">
                     <TextBlock Text="Your library is empty" Style="{StaticResource H1}" HorizontalAlignment="Center" />
                     <TextBlock Text="Add a game exe, or drop exes, shortcuts or game folders anywhere on this window." Style="{StaticResource MutedText}" FontSize="14" Margin="0,8,0,18" HorizontalAlignment="Center" />
                     <Button Content="+ Add your first game" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" Click="AddGame_Click" />
                 </StackPanel>
 
                 <!-- Game grid -->
-                <ListBox Grid.Row="1" x:Name="GameList" ItemsSource="{Binding GamesView}" SelectedItem="{Binding Selected}"
+                <ListBox Grid.Row="2" x:Name="GameList" ItemsSource="{Binding GamesView}" SelectedItem="{Binding Selected}"
                          Background="Transparent" BorderThickness="0" Padding="20,0,8,20"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.CanContentScroll="False"
                          KeyboardNavigation.DirectionalNavigation="Cycle" KeyDown="GameList_KeyDown">
@@ -151,7 +190,7 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:GameViewModel}">
-                            <Grid Width="164" Height="246" Cursor="Hand" ToolTip="{Binding Name}">
+                            <Grid Width="164" Height="246" Cursor="Hand" ToolTip="{Binding Name}" Opacity="{Binding CardOpacity}">
                                 <Grid.InputBindings>
                                     <MouseBinding Gesture="LeftDoubleClick" Command="{Binding DataContext.PlaySelectedCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" />
                                 </Grid.InputBindings>
@@ -176,6 +215,8 @@
                                     <StackPanel>
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
                                         <TextBlock Text="{Binding PlayTimeText}" FontSize="11" Foreground="#B3FFFFFF" />
+                                        <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Height="3" Margin="0,5,0,0"
+                                                     Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
                                     </StackPanel>
                                 </Border>
                                 <!-- Badges -->
@@ -187,6 +228,8 @@
                                         Visibility="{Binding IsOptimized, Converter={StaticResource Vis}}" ToolTip="Optimised">
                                     <TextBlock Text="⚡" FontSize="11" Foreground="{StaticResource Warn}" />
                                 </Border>
+                                <TextBlock Text="★" FontSize="14" Foreground="{StaticResource Warn}" Margin="0,30,9,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                           Visibility="{Binding IsFavourite, Converter={StaticResource Vis}}" />
                                 <Border Background="#CC34D399" CornerRadius="6" Padding="6,2" Margin="7,32,7,7" HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding IsRunning, Converter={StaticResource Vis}}">
                                     <TextBlock Text="PLAYING" FontSize="10" FontWeight="Bold" Foreground="#06281C" />
@@ -197,7 +240,7 @@
                 </ListBox>
 
                 <!-- Details pane -->
-                <Border Grid.Column="1" Grid.RowSpan="2" Width="460" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
+                <Border Grid.Column="1" Grid.RowSpan="3" Width="480" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1,0,0,0"
                         Visibility="{Binding Details, Converter={StaticResource HasValue}}">
                     <views:GameDetailsView DataContext="{Binding Details}" />
                 </Border>

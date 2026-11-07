@@ -10,6 +10,7 @@ namespace FitzLauncher.Core.Models;
 [JsonDerivedType(typeof(LaunchArgumentAction), "args")]
 [JsonDerivedType(typeof(RtssFrameLimitAction), "rtss")]
 [JsonDerivedType(typeof(ManualStepAction), "manual")]
+[JsonDerivedType(typeof(FileReplaceAction), "file")]
 public abstract class TweakAction
 {
     /// <summary>One-line human description, e.g. "Engine.ini: t.MaxFPS = 117".</summary>
@@ -75,6 +76,15 @@ public sealed class ManualStepAction : TweakAction
 {
     public string Instructions { get; set; } = "";
     public override string Describe() => Instructions;
+}
+
+/// <summary>Replace a file (e.g. swap in a newer nvngx_dlss.dll). The original is backed up first.</summary>
+public sealed class FileReplaceAction : TweakAction
+{
+    public string TargetPath { get; set; } = "";
+    public string SourcePath { get; set; } = "";
+    public string NewVersion { get; set; } = "";
+    public override string Describe() => $"Replace {Path.GetFileName(TargetPath)} with v{NewVersion}";
 }
 
 /// <summary>Record of an action that was applied, with what it replaced, so it can be undone exactly.</summary>

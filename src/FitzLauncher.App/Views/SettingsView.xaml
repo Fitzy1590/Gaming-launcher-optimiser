@@ -75,6 +75,97 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Thermal guard" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Lower the frame cap a step (117 → 110 → 100 → 90…) when the CPU/GPU gets near its alert limit; restore it once cool" IsChecked="{Binding T.Enabled}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding T.Enabled}">
+                        <TextBlock Text="Act within" VerticalAlignment="Center" Width="80" />
+                        <TextBox Text="{Binding T.MarginC}" Width="50" />
+                        <TextBlock Text="°C of the limit, after" VerticalAlignment="Center" Margin="6,0" />
+                        <TextBox Text="{Binding T.StepDownAfterSeconds}" Width="50" />
+                        <TextBlock Text="s.  Never below" VerticalAlignment="Center" Margin="6,0" />
+                        <TextBox Text="{Binding T.MinimumCap}" Width="50" />
+                        <TextBlock Text="FPS" VerticalAlignment="Center" Margin="6,0" />
+                    </StackPanel>
+                    <TextBlock Text="Uses RTSS to change the cap live without restarting the game; it's put back to your target when the session ends." Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="RTSS &amp; MSI Afterburner" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Add a Fitz line to the RTSS overlay (cap, 1% low, thermal guard, benchmark timer)" IsChecked="{Binding S.RtssOverlay}" />
+                    <CheckBox Content="Use MSI Afterburner's sensor readings when it's running (no double sensor polling)" IsChecked="{Binding S.PreferAfterburnerSensors}" />
+                    <TextBlock Text="Designed not to conflict: the overlay line uses its own RTSS slot (Afterburner's lines stay as they are), only per-game RTSS profiles are touched (just the frame limit), and RTSS's global settings are never changed."
+                               Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Auto-tune &amp; benchmarks" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Turn on auto-tune for newly added games" IsChecked="{Binding S.AutoTuneNewGames}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Benchmark length" VerticalAlignment="Center" Width="120" />
+                        <TextBox Text="{Binding S.BenchmarkSeconds}" Width="60" />
+                        <TextBlock Text="seconds. Start one in-game with Ctrl+Alt+B." VerticalAlignment="Center" Margin="6,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Save backups" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Back up saves before and after each session (only when they changed)" IsChecked="{Binding B.Enabled}" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Keep the last" VerticalAlignment="Center" Width="90" />
+                        <TextBox Text="{Binding B.KeepPerGame}" Width="50" />
+                        <TextBlock Text="backups per game (locally and on each destination)" VerticalAlignment="Center" Margin="6,0" />
+                    </StackPanel>
+                    <TextBlock Text="Extra copies" Style="{StaticResource MutedText}" Margin="0,12,0,4" />
+                    <ItemsControl ItemsSource="{Binding Destinations}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,3">
+                                    <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource GhostButton}"
+                                            Command="{Binding DataContext.RemoveDestinationCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                    <TextBlock VerticalAlignment="Center">
+                                        <Run Text="{Binding Kind, Mode=OneWay}" FontWeight="SemiBold" /><Run Text="  " /><Run Text="{Binding Label, Mode=OneWay}" />
+                                        <Run Text="  ·  " Foreground="{StaticResource Muted}" /><Run Text="{Binding State, Mode=OneWay}" Foreground="{StaticResource Muted}" />
+                                    </TextBlock>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <WrapPanel Margin="0,8,0,0">
+                        <Button Style="{StaticResource ChipButton}" Content="+ Google Drive" Command="{Binding AddGoogleDriveCommand}" ToolTip="Uses the Google Drive for desktop folder (My Drive), which syncs to the cloud" />
+                        <Button Style="{StaticResource ChipButton}" Content="+ USB drive" Command="{Binding AddUsbCommand}" />
+                        <Button Style="{StaticResource ChipButton}" Content="+ Other folder" Command="{Binding AddBackupFolderCommand}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding BackupStatus}" Style="{StaticResource Wrap}" Visibility="{Binding BackupStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Startup" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Desktop shortcut that opens Fitz Launcher without the admin (UAC) prompt" IsChecked="{Binding NoUacShortcut}" />
+                    <CheckBox Content="Start with Windows (minimised, no prompt)" IsChecked="{Binding StartWithWindows}" />
+                    <TextBlock Text="Both use a Windows Task Scheduler task that runs with highest privileges, the standard way to skip the prompt. Turn them off to remove the tasks."
+                               Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Visibility="{Binding StartupStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="DLSS / XeSS / FSR DLL updates" Style="{StaticResource H2}" />
+            <TextBlock Text="The newest copy of each upscaler DLL from your other games is offered as an update for older ones (backed up, revertible). Optionally add a folder of newer DLLs you've downloaded (e.g. from TechPowerUp)."
+                       Style="{StaticResource Wrap}" Margin="0,0,0,6" />
+            <StackPanel Orientation="Horizontal">
+                <Button Content="Choose DLL folder…" Command="{Binding PickDllFolderCommand}" />
+                <TextBlock Text="{Binding S.UpscalerDllFolder}" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="10,0,0,0" />
+            </StackPanel>
+
             <TextBlock Text="Launcher" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>

@@ -22,6 +22,58 @@ public sealed class LauncherSettings
 
     /// <summary>Optional SteamGridDB API key for higher-quality artwork. Steam's store art is used without it.</summary>
     public string? SteamGridDbApiKey { get; set; }
+
+    public ThermalGuardOptions ThermalGuard { get; set; } = new();
+    public BackupOptions Backups { get; set; } = new();
+
+    /// <summary>Adds a line to the RTSS on-screen display in its own slot (doesn't touch Afterburner's).</summary>
+    public bool RtssOverlay { get; set; } = true;
+    /// <summary>Use MSI Afterburner's sensor readings when it's running, so two tools don't poll the same sensors.</summary>
+    public bool PreferAfterburnerSensors { get; set; } = true;
+    public bool AutoTuneNewGames { get; set; } = true;
+    public int BenchmarkSeconds { get; set; } = 60;
+    /// <summary>Folder with newer DLSS/XeSS/FSR DLLs to offer as upgrades (in addition to other games' copies).</summary>
+    public string? UpscalerDllFolder { get; set; }
+
+    public bool StartWithWindows { get; set; }
+    public bool NoUacShortcut { get; set; }
+    /// <summary>GPU driver version seen last run; a change prompts a shader-cache clean.</summary>
+    public string? LastSeenDriverVersion { get; set; }
+}
+
+public sealed class ThermalGuardOptions
+{
+    public bool Enabled { get; set; } = true;
+    /// <summary>Step the cap down when within this many degrees of the alert limit.</summary>
+    public double MarginC { get; set; } = 2;
+    public int StepDownAfterSeconds { get; set; } = 15;
+    /// <summary>Step back up once this far below the limit…</summary>
+    public double RecoverMarginC { get; set; } = 8;
+    /// <summary>…for this long.</summary>
+    public int RecoverAfterSeconds { get; set; } = 90;
+    public int MinimumCap { get; set; } = 60;
+}
+
+public enum BackupDestinationKind { Folder, GoogleDrive, Usb }
+
+public sealed class BackupDestination
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public BackupDestinationKind Kind { get; set; }
+    /// <summary>Folder path (for USB: the path on the drive when it was added; the drive is found by its marker file).</summary>
+    public string Path { get; set; } = "";
+    public string Label { get; set; } = "";
+    public bool Enabled { get; set; } = true;
+    /// <summary>USB only: id written to the drive's marker file.</summary>
+    public Guid? DriveId { get; set; }
+}
+
+public sealed class BackupOptions
+{
+    public bool Enabled { get; set; } = true;
+    public int KeepPerGame { get; set; } = 10;
+    /// <summary>Extra copies beyond the local backup folder (Google Drive for desktop folder, USB drive, NAS…).</summary>
+    public List<BackupDestination> Destinations { get; set; } = [];
 }
 
 public sealed class GameModeOptions

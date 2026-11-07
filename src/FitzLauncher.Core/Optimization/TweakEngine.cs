@@ -118,6 +118,22 @@ public sealed class TweakEngine(IRegistryAccess registry, string backupRoot)
                 doc.Save(file);
                 break;
             }
+            case FileReplaceAction fr:
+            {
+                if (!File.Exists(fr.SourcePath)) throw new IOException($"Source not found: {fr.SourcePath}");
+                existed = File.Exists(fr.TargetPath);
+                // Back up the original only the first time; a second upgrade keeps the true original.
+                if (existing is null && existed)
+                {
+                    var dir = Path.Combine(backupRoot, game?.Id.ToString() ?? "system", "files");
+                    Directory.CreateDirectory(dir);
+                    backup = Path.Combine(dir, $"{Path.GetFileName(fr.TargetPath)}.{DateTime.Now:yyyyMMdd-HHmmss}.bak");
+                    File.Copy(fr.TargetPath, backup, overwrite: true);
+                }
+                previous = backup;
+                File.Copy(fr.SourcePath, fr.TargetPath, overwrite: true);
+                break;
+            }
             default:
                 throw new InvalidOperationException($"Unsupported action {action.GetType().Name}");
         }
@@ -181,6 +197,10 @@ public sealed class TweakEngine(IRegistryAccess registry, string backupRoot)
             case LaunchArgumentAction args when game is not null:
                 game.OptimizerArguments = ArgumentString.Remove(game.OptimizerArguments, args.Arguments);
                 break;
+            case FileReplaceAction fr:
+                if (change.BackupPath is { } bak && File.Exists(bak)) File.Copy(bak, fr.TargetPath, overwrite: true);
+                else if (!change.PreviouslyExisted && File.Exists(fr.TargetPath)) File.Delete(fr.TargetPath);
+                break;
             case RtssFrameLimitAction rtss:
             {
                 var file = Path.Combine(rtss.RtssDirectory, "Profiles", rtss.ExeName + ".cfg");
@@ -206,6 +226,7 @@ public sealed class TweakEngine(IRegistryAccess registry, string backupRoot)
                                (r.MergeSemicolonPairs ? "|" + r.Value.Split('=')[0].ToLowerInvariant() : ""),
         LaunchArgumentAction l => $"args|{ArgumentString.Key(l.Arguments)}",
         RtssFrameLimitAction r => $"rtss|{r.ExeName.ToLowerInvariant()}",
+        FileReplaceAction f => $"file|{f.TargetPath.ToLowerInvariant()}",
         _ => a.Describe(),
     };
 
@@ -216,6 +237,7 @@ public sealed class TweakEngine(IRegistryAccess registry, string backupRoot)
         RegistrySetAction r => r.Value,
         LaunchArgumentAction l => l.Arguments,
         RtssFrameLimitAction r => r.Limit.ToString(),
+        FileReplaceAction f => f.NewVersion,
         _ => "",
     };
 

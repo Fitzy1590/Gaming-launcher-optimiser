@@ -26,6 +26,10 @@ public sealed partial class GameViewModel : ObservableObject
     public string FpsBadge => Game.LastSession is { HasFpsData: true } s ? $"{s.AverageFps:0} FPS" : "";
     public bool HasFpsBadge => FpsBadge.Length > 0;
     public bool IsOptimized => Game.OptimizedAt is not null && Game.AppliedChanges.Count > 0;
+    public double ProgressValue => Game.ProgressPercent ?? 0;
+    public bool HasProgress => Game.ProgressPercent is > 0;
+    public double CardOpacity => Game.Hidden ? 0.45 : 1;
+    public bool IsFavourite => Game.Favourite;
     public string TargetText => Game.FpsTarget is { } t ? $"{t} FPS target" : "Uncapped";
     public string PlayTimeText => Game.TotalPlayTime.TotalMinutes < 1 ? "Not played yet"
         : Game.TotalPlayTime.TotalHours >= 1 ? $"{Game.TotalPlayTime.TotalHours:0.#} h played" : $"{Game.TotalPlayTime.TotalMinutes:0} min played";

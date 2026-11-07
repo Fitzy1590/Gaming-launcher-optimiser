@@ -52,6 +52,9 @@ public sealed class AppPaths(string root)
     public string Hardware => Path.Combine(Root, "hardware.json");
     public string Sessions => Path.Combine(Root, "sessions.jsonl");
     public string GameModeState => Path.Combine(Root, "gamemode-restore.json");
+    public string Benchmarks => Path.Combine(Root, "benchmarks.jsonl");
+    public string Presets => Path.Combine(Root, "presets.json");
+    public string SaveBackupDir => Path.Combine(Root, "save-backups");
     public string ArtworkDir => Path.Combine(Root, "artwork");
     public string BackupDir => Path.Combine(Root, "backups");
     public string LogFile => Path.Combine(Root, "launcher.log");

@@ -2,8 +2,11 @@ using System.Net.Http;
 using FitzLauncher.Core.Artwork;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Optimization;
+using FitzLauncher.Core.Presets;
+using FitzLauncher.Core.Saves;
 using FitzLauncher.Core.Scanning;
 using FitzLauncher.Core.Storage;
+using FitzLauncher.Core.Upscalers;
 using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.Services;
@@ -24,6 +27,12 @@ public sealed class AppServices : IDisposable
     public GameModeController GameMode { get; }
     public Log Log { get; }
     public bool IsElevated { get; } = Environment.IsPrivilegedProcess;
+    public SaveBackupService SaveBackups { get; }
+    public RedistService Redists { get; } = new();
+    public SaveContext SaveContext { get; } = SaveContext.FromEnvironment();
+
+    private readonly Lazy<IReadOnlyList<LogicalProcessor>> _topology = new(() => CpuTopologyReader.Read());
+    public IReadOnlyList<LogicalProcessor> CpuTopology => _topology.Value;
 
     private readonly Lock _saveLock = new();
 
@@ -41,7 +50,36 @@ public sealed class AppServices : IDisposable
         Http = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
         Http.DefaultRequestHeaders.UserAgent.ParseAdd("FitzLauncher/0.1");
         GameMode = new GameModeController(Paths, Log.Write);
+        SaveBackups = new SaveBackupService(Paths.SaveBackupDir);
+        Temps.PreferAfterburner = () => Settings.PreferAfterburnerSensors;
     }
+
+    /// <summary>Per-game presets plus DLL upgrades, merged into each game's plan as suggestions.</summary>
+    public List<Tweak> ExtraTweaks(Game game, GameScanResult scan)
+    {
+        var list = PresetCatalog.For(game, scan, PresetCatalog.Load(Paths.Presets)).ToList();
+        list.AddRange(UpscalerLibrary.Upgrades(scan, BestUpscalerDlls()));
+        return list;
+    }
+
+    /// <summary>Newest DLSS/XeSS/FSR DLL across every scanned game plus the optional DLL folder.</summary>
+    public Dictionary<UpscalerDllKind, UpscalerDllInfo> BestUpscalerDlls()
+    {
+        var all = Library.Games.SelectMany(g => g.LastScan?.UpscalerDlls ?? []).ToList();
+        if (Settings.UpscalerDllFolder is { } dir && Directory.Exists(dir))
+        {
+            var folderScan = new GameScanner(ScanContext.FromEnvironment())
+                .Scan(new Game { Name = "dll-folder", ExePath = Path.Combine(dir, "none.exe"), InstallDir = dir });
+            all.AddRange(folderScan.UpscalerDlls);
+        }
+        return UpscalerLibrary.BestVersions(all);
+    }
+
+    public OptimizationPlan BuildPlan(Game game) =>
+        Planner.Build(game, game.LastScan!, Hardware, game.FpsTarget, game.LastSession, ExtraTweaks(game, game.LastScan!));
+
+    /// <summary>Backup destinations that are reachable now (USB plugged in, Drive folder present).</summary>
+    public List<string> BackupTargets() => BackupDestinations.Resolve(Settings.Backups.Destinations);
 
     public ArtworkService Artwork => new(Http, Paths.ArtworkDir, Settings.SteamGridDbApiKey);
 

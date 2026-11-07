@@ -36,6 +36,8 @@ public partial class App : Application
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Show();
+        // Started by the "start with Windows" task: stay out of the way.
+        if (e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase)) window.WindowState = WindowState.Minimized;
 
         // First run: scan the hardware so tweaks can be tailored. Cached afterwards.
         _ = vm.Hardware.EnsureScannedAsync();

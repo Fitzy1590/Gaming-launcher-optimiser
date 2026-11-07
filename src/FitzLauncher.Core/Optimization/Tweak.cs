@@ -27,8 +27,11 @@ public sealed class Tweak
     /// <summary>True when the launcher can apply it itself (vs. a manual checklist item).</summary>
     public bool IsAutomatic => Actions.Count > 0 && Actions.All(a => a is not ManualStepAction);
 
+    /// <summary>False for things that should always be a deliberate choice (e.g. DLL swaps).</summary>
+    public bool OneClickEligible { get; init; } = true;
+
     /// <summary>The 1-click "Optimise" button applies only tweaks that never reduce image quality.</summary>
-    public bool PartOfOneClick => IsAutomatic && VisualImpact == VisualImpact.None && Risk != TweakRisk.Experimental;
+    public bool PartOfOneClick => OneClickEligible && IsAutomatic && VisualImpact == VisualImpact.None && Risk != TweakRisk.Experimental;
 }
 
 public sealed class OptimizationPlan

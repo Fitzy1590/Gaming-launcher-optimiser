@@ -20,6 +20,13 @@ public partial class MainWindow : Window
         AddGameCommand = new RelayCommand(() => AddGame_Click(this, new RoutedEventArgs()));
         InputBindings.Add(new KeyBinding(FocusSearchCommand, Key.F, ModifierKeys.Control));
         InputBindings.Add(new KeyBinding(AddGameCommand, Key.N, ModifierKeys.Control));
+        InputBindings.Add(new KeyBinding(vm.BigPictureCommand, Key.F11, ModifierKeys.None));
+        vm.OpenBigPicture = () =>
+        {
+            var bp = new BigPictureWindow(vm) { Owner = this };
+            bp.Show();
+            bp.Activate();
+        };
 
         vm.Confirm = text => MessageBox.Show(this, text, "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         vm.EditGameDialog = game => new EditGameWindow(game) { Owner = this }.ShowDialog() == true;
@@ -32,7 +39,46 @@ public partial class MainWindow : Window
         };
 
         Drop += OnDrop;
-        SourceInitialized += (_, _) => UseDarkTitleBar();
+        SourceInitialized += (_, _) =>
+        {
+            UseDarkTitleBar();
+            RegisterBenchmarkHotkey();
+        };
+    }
+
+    // ------------------------------------------------------------------ global benchmark hotkey
+
+    private const int HotkeyId = 0xF17;
+    private const int WM_HOTKEY = 0x0312;
+
+    [DllImport("user32.dll")] private static extern bool RegisterHotKey(nint hwnd, int id, uint modifiers, uint vk);
+    [DllImport("user32.dll")] private static extern bool UnregisterHotKey(nint hwnd, int id);
+
+    /// <summary>Ctrl+Alt+B works while a game has focus (RegisterHotKey is system-wide).</summary>
+    private void RegisterBenchmarkHotkey()
+    {
+        var helper = new WindowInteropHelper(this);
+        const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
+        if (!RegisterHotKey(helper.Handle, HotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x42 /* B */))
+        {
+            _vm.Services.Log.Write("Ctrl+Alt+B is taken by another app; benchmark hotkey unavailable.");
+            return;
+        }
+        HwndSource.FromHwnd(helper.Handle)?.AddHook((nint hwnd, int msg, nint wParam, nint lParam, ref bool handled) =>
+        {
+            if (msg == WM_HOTKEY && wParam == HotkeyId)
+            {
+                _vm.StartBenchmark();
+                handled = true;
+            }
+            return 0;
+        });
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        UnregisterHotKey(new WindowInteropHelper(this).Handle, HotkeyId);
+        base.OnClosed(e);
     }
 
     public IRelayCommand FocusSearchCommand { get; }

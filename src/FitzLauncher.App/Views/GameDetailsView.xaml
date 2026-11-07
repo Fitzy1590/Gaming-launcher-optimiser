@@ -107,6 +107,166 @@
                            Style="{StaticResource Wrap}" Margin="0,0,0,10" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}" />
                 <ItemsControl ItemsSource="{Binding Suggestions}" ItemTemplate="{StaticResource TweakRow}" />
 
+                <!-- Library / progress -->
+                <TextBlock Text="Progress" Style="{StaticResource H2}" />
+                <ItemsControl ItemsSource="{Binding StatusOptions}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Style="{StaticResource ChipToggle}" GroupName="playstatus" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding DataContext.SetStatusCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,6,0,4" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" />
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="110" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="90" />
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Tags (comma separated)" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding TagsText, UpdateSourceTrigger=LostFocus}" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Main story (h)" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding MainStoryHoursText, UpdateSourceTrigger=LostFocus}" ToolTip="Roughly how long the main story is. The progress bar compares this with your playtime." />
+                    </StackPanel>
+                    <StackPanel Grid.Column="4">
+                        <TextBlock Text="Done %" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBox Text="{Binding CompletionText, UpdateSourceTrigger=LostFocus}" ToolTip="Optional: type the completion % from the game's menu. It overrides the hours estimate." />
+                    </StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <CheckBox Content="Favourite" IsChecked="{Binding Favourite}" Margin="0,0,20,0" />
+                    <CheckBox Content="Hide from library" IsChecked="{Binding Hidden}" />
+                </StackPanel>
+
+                <!-- Auto-tune -->
+                <DockPanel Margin="0,18,0,8">
+                    <CheckBox DockPanel.Dock="Right" Content="On" IsChecked="{Binding AutoTuneOn}" />
+                    <TextBlock Text="Auto-tune" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock Text="{Binding AutoTuneStatus}" Style="{StaticResource Wrap}" />
+                <ItemsControl ItemsSource="{Binding AutoTuneSteps}" Margin="0,8,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding Title}" FontSize="12.5" />
+                                    <TextBlock Text="{Binding Result}" Style="{StaticResource MutedText}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding Outcome}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Button Content="Reset auto-tune history" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding ResetAutoTuneCommand}"
+                        Visibility="{Binding HasAutoTuneSteps, Converter={StaticResource Vis}}" ToolTip="Forget what was tried (applied changes stay; use Revert to undo them)" />
+
+                <!-- CPU & thermals -->
+                <TextBlock Text="CPU cores &amp; thermals" Style="{StaticResource H2}" />
+                <ItemsControl ItemsSource="{Binding PinningOptions}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Style="{StaticResource ChipToggle}" GroupName="pinning" Content="{Binding Label}" ToolTip="{Binding Hint}" IsChecked="{Binding IsSelected, Mode=OneWay}"
+                                         Command="{Binding DataContext.SetPinningCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
+                <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,10,0,0" />
+
+                <!-- Benchmarks -->
+                <TextBlock Text="Benchmarks" Style="{StaticResource H2}" />
+                <TextBlock Text="{Binding BenchmarkHint}" Style="{StaticResource Wrap}" />
+                <ItemsControl ItemsSource="{Binding Benchmarks}" Margin="0,8,0,0" Visibility="{Binding HasBenchmarks, Converter={StaticResource Vis}}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,3" ToolTip="{Binding Label}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="105" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding When}" Style="{StaticResource MutedText}" />
+                                <TextBlock Grid.Column="1" FontSize="12">
+                                    <Run Text="{Binding Avg, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" avg · " Foreground="{StaticResource Muted}" />
+                                    <Run Text="{Binding Low, Mode=OneWay}" /><Run Text=" 1% · " Foreground="{StaticResource Muted}" />
+                                    <Run Text="{Binding PointLow, Mode=OneWay}" /><Run Text=" 0.1% · " Foreground="{StaticResource Muted}" />
+                                    <Run Text="{Binding AtTarget, Mode=OneWay}" /><Run Text=" on target" Foreground="{StaticResource Muted}" />
+                                </TextBlock>
+                                <TextBlock Grid.Column="2" Text="{Binding Delta}" FontSize="12" Margin="8,0,0,0" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Save backups -->
+                <DockPanel Margin="0,18,0,8">
+                    <CheckBox DockPanel.Dock="Right" Content="Auto backup" IsChecked="{Binding BackupSavesOn}" ToolTip="Back up before and after every session (only when saves changed)" />
+                    <TextBlock Text="Save backups" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding SaveDirs}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" ToolTip="Remove this folder"
+                                        Command="{Binding DataContext.RemoveSaveDirCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                <TextBlock Text="{Binding}" FontSize="12" VerticalAlignment="Center" ToolTip="{Binding}" TextTrimming="CharacterEllipsis" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <WrapPanel Margin="0,6,0,0">
+                    <Button Style="{StaticResource ChipButton}" Content="Find saves" Command="{Binding FindSavesCommand}" ToolTip="Checks Goldberg/CODEX/RUNE/EMPRESS/OnlineFix emulator folders, Unreal/Unity locations and folders named after the game" />
+                    <Button Style="{StaticResource ChipButton}" Content="Add folder…" Command="{Binding AddSaveDirCommand}" />
+                    <Button Style="{StaticResource ChipButton}" Content="Back up now" Command="{Binding BackupNowCommand}" />
+                    <Button Style="{StaticResource ChipButton}" Content="Open backups" Command="{Binding OpenBackupFolderCommand}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding SaveStatus}" Style="{StaticResource Wrap}" Visibility="{Binding SaveStatus, Converter={StaticResource HasValue}}" />
+                <ItemsControl ItemsSource="{Binding Backups}" Margin="0,6,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <Button DockPanel.Dock="Right" Content="Restore" Style="{StaticResource ChipButton}" Margin="0"
+                                        Command="{Binding DataContext.RestoreCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                <TextBlock VerticalAlignment="Center" FontSize="12">
+                                    <Run Text="{Binding When, Mode=OneWay}" /><Run Text="  ·  " Foreground="{StaticResource Muted}" /><Run Text="{Binding Size, Mode=OneWay}" Foreground="{StaticResource Muted}" />
+                                </TextBlock>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Runtimes -->
+                <TextBlock Text="Runtimes (won't start? check here)" Style="{StaticResource H2}" />
+                <WrapPanel>
+                    <Button Style="{StaticResource ChipButton}" Content="Check bundled runtimes" Command="{Binding CheckRuntimesCommand}" />
+                    <Button Style="{StaticResource ChipButton}" Content="Install missing" Command="{Binding InstallMissingRuntimesCommand}"
+                            Visibility="{Binding HasMissingRuntimes, Converter={StaticResource Vis}}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding RuntimeStatus}" Style="{StaticResource Wrap}" Visibility="{Binding RuntimeStatus, Converter={StaticResource HasValue}}" />
+                <ItemsControl ItemsSource="{Binding Runtimes}" Margin="0,6,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="12" Foreground="{StaticResource Muted}" />
+                                <TextBlock Text="{Binding Name}" FontSize="12.5" />
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <!-- History -->
                 <TextBlock Text="Performance" Style="{StaticResource H2}" />
                 <TextBlock Text="Play a session and the launcher will record your average FPS, 1% lows and temperatures here." Style="{StaticResource Wrap}"

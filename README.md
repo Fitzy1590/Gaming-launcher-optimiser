@@ -4,7 +4,7 @@ A fast, clean Windows game launcher for all your games and repacks, with one-cli
 **stable 90 / 100 / 110 / 117 FPS**, an automatic **Game Mode**, a low-cost **FPS tracker** and
 **temperature alerts**, all tailored to the PC it runs on.
 
-> **Status: v0.1, first build.** It compiles, and the core logic has 51 passing unit tests. It has
+> **Status: v0.2.** It compiles with zero warnings, and the core logic has 82 passing unit tests. It has
 > **not been run on a real Windows PC yet** (it was built in a Linux container). Expect a first round
 > of fixes once you try it. See [Testing checklist](#testing-checklist). Ideas to vote on: [docs/IDEAS.md](docs/IDEAS.md).
 
@@ -66,6 +66,54 @@ FPS-over-time chart. Session history is kept per game and on the **FPS history**
 Live CPU/GPU temperature, load and power on the **Hardware & temps** page, via LibreHardwareMonitor. While
 you play, an **alert** fires if the CPU or GPU stays above your limit (default 90 °C / 85 °C) for 10 s. It shows a
 click-through overlay that never steals focus, and plays a sound that also works in exclusive fullscreen.
+
+### Performance automation
+- **Auto-tune:** after a session that misses your target, it applies *one* graphics suggestion (least visible
+  first). The next session decides: keep it if the 1% lows improved by 3% or more, otherwise revert it. This repeats
+  until the target holds. The full history (✓ kept / ↶ reverted) is shown per game.
+- **CPU core pinning:** keeps the game on the **V-Cache CCD** on dual-CCD Ryzen X3D chips (7950X3D/9950X3D), or on
+  **P-cores** on Intel 12th gen+. It reads the real cache and core topology from Windows. Auto by default and
+  per-game overridable; single-CCD and non-hybrid CPUs are left alone.
+- **Thermal guard:** if the CPU or GPU sits near its limit, it lowers the RTSS cap a step (117 → 110 → 100 → 90…)
+  live, without restarting the game, and puts it back once things cool down.
+- **Low latency, NVIDIA *and* AMD:** it detects **NVIDIA Reflex** and **AMD Anti-Lag 2** inside the game files and
+  tells you to turn them on. Otherwise it points you to the driver-level option (NVIDIA Low Latency Mode / Radeon
+  Anti-Lag), plus the best RTSS limiter mode for your GPU (Reflex mode on NVIDIA, front-edge sync on AMD).
+- **Benchmarks:** press **Ctrl+Alt+B** in-game to record a 60-second run (avg, 1% and 0.1% lows, % on target).
+  Runs are listed per game with the change versus the previous run.
+- **Per-game presets:** known config fixes from `presets.json` in the data folder show up as normal, revertible
+  suggestions. None are built in yet; I'd rather not ship unverified fixes.
+- **DLSS / XeSS / FSR 3.1 DLL updates:** the newest copy of each DLL from your *other* games (or a folder of DLLs you
+  downloaded) is offered as a backed-up, revertible swap. Nothing is downloaded.
+- **Shader-cache cleaner:** shows DirectX, NVIDIA, AMD and Intel shader cache sizes and clears them. After a GPU
+  driver update the launcher suggests it automatically.
+
+### RTSS & MSI Afterburner, without conflicts
+- Frame caps go into the **per-game RTSS profile only** (just the limit). RTSS's global settings are never touched.
+- The overlay line (`FITZ | cap 117 | 1% low 104 | GPU 71C CPU 64C`) uses **its own RTSS OSD slot**. Afterburner's
+  lines are untouched, and ours is removed when the game closes.
+- When Afterburner is running, its sensor readings are used **instead of polling the sensors a second time**.
+  LibreHardwareMonitor fills in only what Afterburner doesn't provide.
+
+### Repack tools
+- **Save backups** before and after every session, made only when something changed. Saves are found
+  automatically in the Steam-emulator folders repacks use (Goldberg, CODEX, RUNE, TENOKE, EMPRESS, OnlineFix…, via the
+  repack's `steam_appid.txt`), in Unreal/Unity save locations, and in folders named after the game. You can add or
+  remove folders. The last 10 backups are kept, and one-click restore backs up the current saves first.
+- **Extra copies to Google Drive and USB.** Google Drive uses the Google Drive for desktop "My Drive" folder (no
+  sign-in inside the launcher). USB drives are recognised even if the drive letter changes, and backups made while a
+  drive was unplugged are copied over the next time it's connected. Any other folder (NAS, OneDrive) works too.
+- **Runtimes check:** "Won't start?" finds the VC++, DirectX, .NET, PhysX, OpenAL and XNA installers bundled in the
+  repack, checks which are missing on your PC, and installs them silently.
+
+### Library, progress & Big Picture
+- Status (Backlog / Playing / Beaten / 100% / Dropped), **tags**, favourites, hidden games, and sorting by recent,
+  most played, A–Z, added or progress.
+- **Hours totals** (all-time / this week) and a **progress bar** per game: hours played against the main-story length you
+  enter, or a completion % you type in.
+- **Big Picture mode (F11):** fullscreen and controller-first. Ⓐ Play, Ⓧ Optimise, LB/RB change the FPS
+  target (1-click optimise), Ⓨ Favourite, Ⓑ Exit. Works with Xbox pads, and PlayStation pads via Steam Input or DS4Windows.
+- **No UAC prompt** (optional desktop shortcut) and **start with Windows** (minimised), both via elevated Task Scheduler tasks.
 
 ### Hardware scan
 On first run it scans CPU (hybrid P/E cores, X3D), GPUs and real VRAM, RAM speed/type/sticks, drive types
