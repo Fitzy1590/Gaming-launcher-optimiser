@@ -114,6 +114,23 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Sleep and resume" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Pause the game when the screen turns off or the device sleeps, and carry on where you left off when it wakes" IsChecked="{Binding S.PauseOnSleep}" />
+                    <CheckBox Content="Let the device sleep when idle during a game (controller input counts as activity)" IsChecked="{Binding S.IdleSleepInGame}" />
+                    <TextBlock Text="Press the power button (or leave it idle) and the game is frozen: no CPU, no sound, no heat in your bag. Wake it, sign in, and the game unfreezes after a second with your FPS cap, power limit and undervolt put back. Sleep time isn't counted as play time. Turn pausing off per game on the game page for online games that drop the connection anyway."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <TextBlock Text="{Binding IdleTimeoutsText}" Style="{StaticResource MutedText}" />
+                    <TextBlock Text="To skip the PIN on wake: Sign-in options → 'If you've been away, when should Windows require you to sign in again?' → Never. For long breaks, Windows can hibernate after a while asleep; the game survives that too."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Windows sleep timers" Command="{Binding OpenSleepSettingsCommand}" />
+                        <Button Content="Sign-in options" Command="{Binding OpenSignInSettingsCommand}" Margin="8,0,0,0" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Undervolt (advanced)" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>

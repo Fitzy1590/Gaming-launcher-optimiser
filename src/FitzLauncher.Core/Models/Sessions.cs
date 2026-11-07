@@ -7,7 +7,9 @@ public sealed class SessionSummary
     public string GameName { get; set; } = "";
     public DateTimeOffset Start { get; set; }
     public DateTimeOffset End { get; set; }
-    public TimeSpan Duration => End - Start;
+    /// <summary>Time the device was asleep with the game paused; not counted as play time.</summary>
+    public double AsleepSeconds { get; set; }
+    public TimeSpan Duration => End - Start - TimeSpan.FromSeconds(AsleepSeconds);
     public int? TargetFps { get; set; }
 
     /// <summary>False when no frames were captured (e.g. not running as admin, or an unsupported API).</summary>

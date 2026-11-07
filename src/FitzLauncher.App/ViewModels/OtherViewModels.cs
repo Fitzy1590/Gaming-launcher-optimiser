@@ -214,6 +214,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         _s = s;
         InitDestinations();
+        _ = LoadIdleTimeoutsAsync();
     }
 
     public string ServicesText { get => Lines(G.Services); set { G.Services = Split(value); Save(); } }
@@ -315,6 +316,28 @@ public sealed partial class SettingsViewModel : ObservableObject
         PowerStatus = limits is null
             ? "RyzenAdj ran but couldn't read the limits. This CPU may not be supported by your RyzenAdj version yet."
             : $"Working. Current limits: {limits.Text}.";
+    }
+
+    // ------------------------------------------------------------------ sleep
+
+    [ObservableProperty] private string _idleTimeoutsText = "Reading Windows' sleep settings…";
+
+    private async Task LoadIdleTimeoutsAsync()
+    {
+        var t = await Task.Run(PowerPlans.GetIdleTimeouts);
+        static string M(int? m) => m switch { null => "?", 0 => "never", _ => $"{m} min" };
+        IdleTimeoutsText = t.screenAc is null && t.screenDc is null
+            ? "Couldn't read Windows' sleep settings."
+            : $"Windows turns the screen off after {M(t.screenDc)} on battery ({M(t.screenAc)} plugged in) and sleeps after {M(t.sleepDc)} ({M(t.sleepAc)} plugged in).";
+    }
+
+    [RelayCommand] private static void OpenSleepSettings() => OpenUri("ms-settings:powersleep");
+    [RelayCommand] private static void OpenSignInSettings() => OpenUri("ms-settings:signinoptions");
+
+    private static void OpenUri(string uri)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri) { UseShellExecute = true }); }
+        catch (System.ComponentModel.Win32Exception) { }
     }
 
     // ------------------------------------------------------------------ undervolt

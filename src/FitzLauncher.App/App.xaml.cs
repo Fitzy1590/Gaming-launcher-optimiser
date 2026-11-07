@@ -24,12 +24,20 @@ public partial class App : Application
         base.OnStartup(e);
         _services = new AppServices();
         DispatcherUnhandledException += OnUnhandled;
+        var crashPaths = _services.Paths;
+        AppDomain.CurrentDomain.UnhandledException += (_, _) =>
+        {
+            // Last chance: don't leave a sleeping game frozen if the launcher itself dies.
+            try { FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(crashPaths); } catch (Exception) { }
+        };
 
         // Undo a Game Mode / power limit left active by a crash or power cut, before anything else.
         var services = _services;
         _ = Task.Run(() =>
         {
             foreach (var line in services.GameMode.RecoverIfNeeded()) services.Log.Write("Recovered Game Mode: " + line);
+            if (FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(services.Paths)) services.Log.Write("Unpaused a game left paused for sleep");
+            FitzLauncher.Windows.PowerRequestOverride.Clear(services.Paths);
             if (FitzLauncher.Windows.RyzenAdjClient.Find(services.Settings.RyzenAdjPath) is { } adj)
                 new FitzLauncher.Windows.RyzenAdjClient(adj, services.Paths).RecoverIfNeeded();
         });
@@ -84,6 +92,9 @@ public partial class App : Application
     {
         if (_services is not null)
         {
+            // Never leave a game frozen or the sleep overrides in place when the launcher closes.
+            FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(_services.Paths);
+            FitzLauncher.Windows.PowerRequestOverride.Clear(_services.Paths);
             if (_services.GameMode.IsActive) _services.GameMode.Restore();
             _services.SaveSettings();
             _services.SaveLibrary();

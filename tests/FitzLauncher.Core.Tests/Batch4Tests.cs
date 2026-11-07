@@ -88,3 +88,50 @@ public class Batch4Tests
         Assert.Null(DxvkPlanner.Plan(new Game { ExePath = exe }, new GameScanResult { Injectors = ["ReShade"] }, d.Path_("dxvk"), hw));
     }
 }
+
+public class SleepPauseTrackerTests
+{
+    private static readonly DateTimeOffset T0 = new(2026, 1, 1, 20, 0, 0, TimeSpan.Zero);
+
+    [Fact]
+    public void Pauses_once_and_counts_time_asleep()
+    {
+        var t = new FitzLauncher.Core.Optimization.SleepPauseTracker();
+        Assert.True(t.TryPause(T0));
+        Assert.False(t.TryPause(T0.AddSeconds(1))); // screen off + system suspend: one pause
+        Assert.True(t.TryBeginResume());
+        Assert.False(t.TryBeginResume());          // display on + resume: one resume
+        Assert.Equal(TimeSpan.FromMinutes(30), t.CompleteResume(T0.AddMinutes(30)));
+        Assert.Equal(TimeSpan.FromMinutes(30), t.Asleep);
+        Assert.False(t.IsPaused);
+    }
+
+    [Fact]
+    public void Going_back_to_sleep_while_waiting_for_sign_in_cancels_the_resume()
+    {
+        var t = new FitzLauncher.Core.Optimization.SleepPauseTracker();
+        t.TryPause(T0);
+        t.TryBeginResume();
+        Assert.False(t.TryPause(T0.AddMinutes(1)));
+        Assert.False(t.IsResuming);
+        Assert.True(t.IsPaused);
+        Assert.True(t.TryBeginResume());
+        t.CompleteResume(T0.AddMinutes(10));
+        Assert.Equal(TimeSpan.FromMinutes(10), t.Asleep);
+    }
+
+    [Fact]
+    public void Wake_without_a_pause_does_nothing()
+    {
+        var t = new FitzLauncher.Core.Optimization.SleepPauseTracker();
+        Assert.False(t.TryBeginResume());
+        Assert.Null(t.CompleteResume(T0));
+    }
+
+    [Fact]
+    public void Session_duration_excludes_sleep()
+    {
+        var s = new FitzLauncher.Core.Models.SessionSummary { Start = T0, End = T0.AddHours(2), AsleepSeconds = 3600 };
+        Assert.Equal(TimeSpan.FromHours(1), s.Duration);
+    }
+}

@@ -22,7 +22,8 @@ public sealed class GameSession(
     GameModeController gameMode,
     TemperatureMonitor temps,
     LibraryStore store,
-    IReadOnlyList<LogicalProcessor> cpuTopology)
+    IReadOnlyList<LogicalProcessor> cpuTopology,
+    AppPaths paths)
 {
     public event Action<string>? Status;
     public event Action<LiveStats>? Live;
@@ -90,6 +91,48 @@ public sealed class GameSession(
             Status?.Invoke($"FPS target changed to {next} in-game");
         }
     }
+
+    // ---------------------------------------------------------------- sleep / wake
+    private readonly SleepPauseTracker _sleep = new();
+    private GameFreezer? _freezer;
+    private volatile IReadOnlyCollection<int> _gamePids = [];
+    private nint _gameWindow;
+
+    private void OnPowerEvent(PowerEvent e)
+    {
+        var pause = settings.PauseOnSleep && game.PauseOnSleep && _freezer is not null;
+        switch (e)
+        {
+            case PowerEvent.DisplayOff or PowerEvent.Suspend when pause:
+                if (!_sleep.TryPause(DateTimeOffset.Now)) return;
+                var pids = _gamePids;
+                _gameWindow = DesktopState.ForegroundOf(pids);
+                var frozen = _freezer!.Freeze(pids); // synchronous: the system may sleep within a second or two
+                Status?.Invoke(frozen > 0 ? "Device sleeping: game paused" : "Device sleeping: couldn't pause the game (protected process)");
+                break;
+            case PowerEvent.DisplayOn or PowerEvent.Resume when pause:
+                if (_sleep.TryBeginResume()) _ = Task.Run(ResumeAfterWakeAsync);
+                break;
+            case PowerEvent.Resume:
+                _ = Task.Run(async () => { await Task.Delay(1500); OnResume(); });
+                break;
+        }
+    }
+
+    /// <summary>Waits for sign-in (if the lock screen is up), lets the GPU and audio settle, then unpauses.</summary>
+    private async Task ResumeAfterWakeAsync()
+    {
+        while (_sleep.IsResuming && !DesktopState.IsUnlocked()) await Task.Delay(500);
+        await Task.Delay(1500);
+        if (!_sleep.IsResuming) return; // went back to sleep while waiting
+        _freezer!.Unfreeze();
+        var slept = _sleep.CompleteResume(DateTimeOffset.Now);
+        OnResume();
+        DesktopState.BringBack(_gameWindow);
+        Status?.Invoke(slept is { } d ? $"Woke up after {FormatSpan(d)}: game resumed" : "Game resumed");
+    }
+
+    private static string FormatSpan(TimeSpan d) => d.TotalHours >= 1 ? $"{(int)d.TotalHours} h {d.Minutes} min" : d.TotalMinutes >= 1 ? $"{(int)d.TotalMinutes} min" : $"{d.Seconds} s";
 
     private int? _livePower;
     private bool _hud;
@@ -186,6 +229,16 @@ public sealed class GameSession(
 
         var tracker = new GameProcessTracker(pid, installDir);
         tracker.Refresh();
+        _gamePids = [.. tracker.Pids];
+
+        // ---------------------------------------------------------------- sleep / wake
+        _freezer = new GameFreezer(paths);
+        using var power = new PowerEvents();
+        power.Changed += OnPowerEvent;
+        var overridden = settings.IdleSleepInGame
+            && PowerRequestOverride.Set(paths, new[] { Path.GetFileName(game.ExePath), renderExe });
+        if (settings.IdleSleepInGame && !overridden) Status?.Invoke("Couldn't stop the game holding the screen on (needs the launcher to run as admin).");
+        if (settings.PauseOnSleep && !power.Working) Status?.Invoke("Sleep notifications unavailable; pause-on-sleep is off for this session.");
         using var fps = new EtwFpsTracker();
         _fps = fps;
         if (settings.TrackFps && !fps.Start(tracker.Contains) && fps.Error is { } err) Status?.Invoke(err);
@@ -292,6 +345,7 @@ public sealed class GameSession(
                     if (emptyPolls >= 2 && graceOver) break;
                     Pin(tracker.Pids);
                     crashWatch.Track(tracker.Pids);
+                    _gamePids = [.. tracker.Pids];
                     limiter?.Tick(tracker.Pids);
                     if (useGameMode && settings.GameMode.RaiseGamePriority)
                     {
@@ -350,6 +404,9 @@ public sealed class GameSession(
         catch (OperationCanceledException) { /* launcher closing */ }
 
         // ---------------------------------------------------------------- wrap up
+        power.Changed -= OnPowerEvent;
+        if (_sleep.IsPaused) { _freezer.Unfreeze(); _sleep.CompleteResume(DateTimeOffset.Now); }
+        if (settings.IdleSleepInGame) PowerRequestOverride.Clear(paths);
         var end = DateTimeOffset.Now;
         CheckBenchmark(null, force: true);
         fps.Stop();
@@ -386,6 +443,7 @@ public sealed class GameSession(
         summary.AvgGpuLoad = gpuLoadSamples > 0 ? gpuLoadSum / gpuLoadSamples : null;
         summary.PowerWatts = powerSet ? PowerWatts : null;
         summary.LimiterMode = LimiterMode;
+        summary.AsleepSeconds = Math.Round(_sleep.Asleep.TotalSeconds);
 
         // Crash check: abnormal exit code, or Windows logged an "Application Error" for the game exe.
         var crashCode = crashWatch.CrashExitCode();

@@ -59,20 +59,34 @@ public static partial class PowerPlans
     private const string SubProcessor = "54533251-82be-4824-96c1-47b60b740d00";
     private const string CoreParkingMin = "0cc5b647-c1df-4637-891a-dec35c318583";
 
-    /// <summary>"Processor performance core parking min cores" (AC, percent) of the active plan.</summary>
-    public static int? GetCoreParkingMin()
+    /// <summary>"Processor performance core parking min cores" (percent) of the active plan: plugged in, on battery.</summary>
+    public static (int? ac, int? dc) GetCoreParkingMin()
     {
         var output = Run($"/q SCHEME_CURRENT {SubProcessor} {CoreParkingMin}");
-        var m = AcIndex().Match(output);
-        return m.Success ? Convert.ToInt32(m.Groups[1].Value, 16) : null;
+        return (Index(AcIndex(), output), Index(DcIndex(), output));
     }
 
-    public static bool SetCoreParkingMin(int percent)
+    public static bool SetCoreParkingMin(int ac, int? dc)
     {
-        Run($"/setacvalueindex SCHEME_CURRENT {SubProcessor} {CoreParkingMin} {percent}");
+        Run($"/setacvalueindex SCHEME_CURRENT {SubProcessor} {CoreParkingMin} {ac}");
+        if (dc is { } d) Run($"/setdcvalueindex SCHEME_CURRENT {SubProcessor} {CoreParkingMin} {d}");
         Run("/setactive SCHEME_CURRENT");
-        return GetCoreParkingMin() == percent;
+        return GetCoreParkingMin().ac == ac;
     }
+
+    /// <summary>Windows' own idle timers in minutes (0 = never): screen off and sleep, plugged in and on battery.</summary>
+    public static (int? screenAc, int? screenDc, int? sleepAc, int? sleepDc) GetIdleTimeouts()
+    {
+        var video = Run("/q SCHEME_CURRENT SUB_VIDEO VIDEOIDLE");
+        var sleep = Run("/q SCHEME_CURRENT SUB_SLEEP STANDBYIDLE");
+        static int? Min(int? seconds) => seconds / 60;
+        return (Min(Index(AcIndex(), video)), Min(Index(DcIndex(), video)), Min(Index(AcIndex(), sleep)), Min(Index(DcIndex(), sleep)));
+    }
+
+    private static int? Index(Regex r, string output) => r.Match(output) is { Success: true } m ? Convert.ToInt32(m.Groups[1].Value, 16) : null;
+
+    [GeneratedRegex(@"Current DC Power Setting Index:\s*0x([0-9a-fA-F]+)")]
+    private static partial Regex DcIndex();
 
     [GeneratedRegex(@"Current AC Power Setting Index:\s*0x([0-9a-fA-F]+)")]
     private static partial Regex AcIndex();

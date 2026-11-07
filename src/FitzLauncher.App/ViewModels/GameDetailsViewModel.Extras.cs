@@ -220,6 +220,7 @@ public sealed partial class GameDetailsViewModel
     // ------------------------------------------------------------------ performance automation
 
     public bool ThermalGuardOn { get => Game.ThermalGuard; set { Game.ThermalGuard = value; _s.SaveLibrary(); } }
+    public bool PauseOnSleepOn { get => Game.PauseOnSleep; set { Game.PauseOnSleep = value; _s.SaveLibrary(); } }
 
     public bool AutoTuneOn
     {

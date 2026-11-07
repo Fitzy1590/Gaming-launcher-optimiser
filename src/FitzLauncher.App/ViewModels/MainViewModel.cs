@@ -330,7 +330,7 @@ public sealed partial class MainViewModel : ObservableObject
         // Undervolt works without power control; it needs RyzenAdj and a Ryzen APU.
         var undervolt = _s.Settings.UndervoltEnabled && _s.Settings.UndervoltCurrent < 0 && _s.Hardware?.IsApu == true
                         && RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is { } uvPath ? new RyzenAdjClient(uvPath, _s.Paths) : null;
-        var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology)
+        var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology, _s.Paths)
         {
             Display = display?.Display,
             ExtraArguments = display?.LaunchArguments ?? "",
@@ -342,9 +342,10 @@ public sealed partial class MainViewModel : ObservableObject
             PowerWatts = ryzenAdj is null ? null : PowerTuner.WattsFor(game, _s.Settings),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };
-        using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap ? new QuickSwitchWatcher() : null;
+        using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;
         if (quick is not null)
         {
+            quick.KeepAwakeOnInput = _s.Settings.IdleSleepInGame;
             if (_s.Settings.QuickSwitch) quick.Step += session.ChangeTarget;
             if (_s.Settings.QuickMenu)
             {
@@ -354,11 +355,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         // Controller activity feeds the adaptive idle cap.
         if (quick is not null) session.WithControllerInput(() => quick.LastInput);
-        void OnPower(object? _, Microsoft.Win32.PowerModeChangedEventArgs e)
-        {
-            if (e.Mode == Microsoft.Win32.PowerModes.Resume) _ = Task.Run(session.OnResume);
-        }
-        Microsoft.Win32.SystemEvents.PowerModeChanged += OnPower;
+
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
@@ -392,7 +389,6 @@ public sealed partial class MainViewModel : ObservableObject
         }
         finally
         {
-            Microsoft.Win32.SystemEvents.PowerModeChanged -= OnPower;
             _session = null;
             IsPlaying = false;
             vm.IsRunning = false;

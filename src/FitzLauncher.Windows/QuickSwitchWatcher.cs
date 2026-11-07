@@ -24,6 +24,9 @@ public sealed class QuickSwitchWatcher : IDisposable
     /// <summary>Last time the controller state changed (for the adaptive idle cap).</summary>
     public DateTime LastInput { get; private set; } = DateTime.UtcNow;
     public bool HudOpen { get; private set; }
+    /// <summary>Reset Windows' idle timers on controller input (so the screen doesn't turn off mid-play).</summary>
+    public bool KeepAwakeOnInput { get; set; }
+    private DateTime _lastPing;
     /// <summary>Quick HUD open/closed (View + LB held).</summary>
     public event Action<bool>? Hud;
     /// <summary>Power limit step while the HUD is open: +1 right, -1 left.</summary>
@@ -47,7 +50,13 @@ public sealed class QuickSwitchWatcher : IDisposable
             {
                 if (GetState(i, out var s) != 0) continue;
                 buttons = s.Pad.Buttons;
-                if (s.Packet != _lastPacket) { _lastPacket = s.Packet; LastInput = DateTime.UtcNow; }
+                if (s.Packet != _lastPacket)
+                {
+                    _lastPacket = s.Packet;
+                    LastInput = DateTime.UtcNow;
+                    // Windows' idle timers ignore gamepads; count controller play as activity.
+                    if (KeepAwakeOnInput && LastInput - _lastPing > TimeSpan.FromSeconds(15)) { KeepAwake.Ping(); _lastPing = LastInput; }
+                }
                 break;
             }
         }

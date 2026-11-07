@@ -147,7 +147,13 @@ click-through overlay that never steals focus, and plays a sound that also works
   60 FPS to save heat; any input puts it straight back.
 - **Quick menu:** hold View + LB to show target, power and temps in the overlay; D-pad up/down changes the target,
   left/right changes the power limit by 5 W.
-- **Sleep/resume safety:** after the device wakes, the power limit, undervolt and FPS cap are put back.
+- **Sleep and resume where you left off:** press the power button (or let the screen time out) and the game is
+  frozen: no CPU, sound or heat. Wake the device and sign in, and it unfreezes about a second later with the FPS cap,
+  power limit and undervolt put back, and the game window brought to the front. Works with handheld Modern Standby
+  (screen off) and desktop sleep. Sleep time isn't counted as play time. If the launcher is closed or crashes, the game is
+  unfrozen straight away (or at the next start). Per-game off switch for online games.
+- **Idle sleep during games:** many games keep the screen on forever; the launcher overrides that for the game while it
+  runs (restored afterwards), so Windows' own screen-off/sleep timers work, and controller input counts as activity.
 - **DXVK for old DX9/DX11 games:** offered as a suggestion; the official release is downloaded once from GitHub and
   copied next to the game. Skipped when ReShade/ENB, DX12 or Vulkan is in use. Revertible.
 - **Ryzen undervolt (advanced, off by default):** Curve Optimizer through RyzenAdj, only while playing. Starts at -5,

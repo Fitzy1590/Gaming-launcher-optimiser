@@ -77,6 +77,9 @@ public sealed class Game
     public CrashInfo? LastCrash { get; set; }
     public int CrashCount { get; set; }
 
+    /// <summary>Pause this game while the device sleeps (turn off for online games that drop the connection).</summary>
+    public bool PauseOnSleep { get; set; } = true;
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

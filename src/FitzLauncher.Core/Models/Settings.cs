@@ -69,6 +69,10 @@ public sealed class LauncherSettings
     public int AdaptiveIdleCap { get; set; } = 60;
     /// <summary>Hold View + LB in-game for the quick HUD (D-pad: target up/down, power left/right).</summary>
     public bool QuickMenu { get; set; } = true;
+    /// <summary>Freeze the game when the screen turns off or the PC sleeps; unfreeze on wake once signed in.</summary>
+    public bool PauseOnSleep { get; set; } = true;
+    /// <summary>Let Windows' idle timers turn off the screen / sleep during a game; controller input counts as activity.</summary>
+    public bool IdleSleepInGame { get; set; } = true;
     /// <summary>Ryzen all-core Curve Optimizer offset via RyzenAdj, approached in small steps.</summary>
     public bool UndervoltEnabled { get; set; }
     public int UndervoltTarget { get; set; } = -15;
