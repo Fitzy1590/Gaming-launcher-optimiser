@@ -30,6 +30,48 @@ public sealed class AppServices : IDisposable
     public SaveBackupService SaveBackups { get; }
     public RedistService Redists { get; } = new();
     public UpdateService Updates { get; }
+
+    /// <summary>RyzenAdj, when power control is on and the tool was found.</summary>
+    public RyzenAdjClient? RyzenAdj =>
+        Settings.PowerControl && RyzenAdjClient.Find(Settings.RyzenAdjPath) is { } path ? new RyzenAdjClient(path, Paths) : null;
+
+    /// <summary>The sync folder: the user's choice, else Google Drive's "My Drive".</summary>
+    public LibrarySync? Sync =>
+        Settings.SyncEnabled && (Settings.SyncFolder ?? BackupDestinations.FindGoogleDrive()) is { } root && Directory.Exists(root)
+            ? new LibrarySync(Paths, root) : null;
+
+    /// <summary>Copies library/settings/history to the sync folder (quietly; errors only logged).</summary>
+    public void SyncUpload()
+    {
+        try { Sync?.Upload(Environment.MachineName, UpdateService.CurrentVersion.ToString()); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Log.Write("Sync upload failed: " + e.Message); }
+    }
+
+    /// <summary>Reads achievement progress from the repack's emulator files (total from the repack or Steam).</summary>
+    public async Task<FitzLauncher.Core.Progress.AchievementProgress?> RefreshAchievementsAsync(Game game)
+    {
+        var total = game.Achievements?.Total;
+        var appId = game.LastScan?.SteamAppId ?? game.SteamAppId;
+        if (total is null && appId is { } id) total = await SteamAchievementTotalAsync(id);
+        var p = await Task.Run(() => FitzLauncher.Core.Progress.AchievementReader.Read(game, game.LastScan, SaveContext, total));
+        if (p is null) return null;
+        game.Achievements = new AchievementSnapshot { Earned = p.Earned, Total = p.Total };
+        SaveLibrary();
+        return p;
+    }
+
+    /// <summary>Total achievements from Steam's public store data (used when the repack doesn't list them).</summary>
+    public async Task<int?> SteamAchievementTotalAsync(int appId)
+    {
+        try
+        {
+            var json = await Http.GetStringAsync($"https://store.steampowered.com/api/appdetails?appids={appId}&filters=achievements");
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty(appId.ToString(), out var app) && app.TryGetProperty("data", out var data) &&
+                   data.TryGetProperty("achievements", out var a) && a.TryGetProperty("total", out var t) ? t.GetInt32() : null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or InvalidOperationException) { return null; }
+    }
     public SaveContext SaveContext { get; } = SaveContext.FromEnvironment();
 
     private readonly Lazy<IReadOnlyList<LogicalProcessor>> _topology = new(() => CpuTopologyReader.Read());

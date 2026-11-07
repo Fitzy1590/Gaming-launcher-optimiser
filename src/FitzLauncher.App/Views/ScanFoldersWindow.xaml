@@ -98,7 +98,13 @@
                         <Button Grid.Column="4" Content="Browse…" Style="{StaticResource ChipButton}" Margin="0" VerticalAlignment="Center" Command="{Binding BrowseExeCommand}" />
                         <StackPanel Grid.Column="6" Orientation="Horizontal" VerticalAlignment="Center" ToolTip="{Binding Hint}">
                             <Ellipse Width="8" Height="8" Fill="{Binding StatusLevel, Converter={StaticResource ImpactBrush}}" Margin="0,0,8,0" />
-                            <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap" TextTrimming="None" MaxWidth="230" />
+                            <StackPanel>
+                                <TextBlock Text="{Binding StatusText}" FontSize="12" TextWrapping="Wrap" TextTrimming="None" MaxWidth="230" />
+                                <Button Content="Verify download" Style="{StaticResource ChipButton}" Margin="0,4,0,0" HorizontalAlignment="Left" Command="{Binding VerifyInstallerCommand}"
+                                        Visibility="{Binding CanVerifyInstaller, Converter={StaticResource Vis}}" ToolTip="Check the installer files against the repack's MD5 list" />
+                                <TextBlock Text="{Binding VerifyStatus}" Style="{StaticResource MutedText}" TextWrapping="Wrap" TextTrimming="None" MaxWidth="230"
+                                           Visibility="{Binding VerifyStatus, Converter={StaticResource HasValue}}" />
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </DataTemplate>

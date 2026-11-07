@@ -291,6 +291,71 @@ public sealed partial class SettingsViewModel : ObservableObject
         BackupStatus = message;
     }
 
+    // ------------------------------------------------------------------ power (RyzenAdj)
+
+    [ObservableProperty] private string _powerStatus = "";
+    public string RyzenAdjText => RyzenAdjClient.Find(S.RyzenAdjPath) is { } p ? p : "Not found";
+
+    [RelayCommand]
+    private void PickRyzenAdj()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Find ryzenadj.exe", Filter = "ryzenadj.exe|ryzenadj.exe|Programs (*.exe)|*.exe" };
+        if (dlg.ShowDialog() != true) return;
+        S.RyzenAdjPath = dlg.FileName;
+        Save();
+        OnPropertyChanged(nameof(RyzenAdjText));
+    }
+
+    [RelayCommand]
+    private async Task TestPowerAsync()
+    {
+        if (RyzenAdjClient.Find(S.RyzenAdjPath) is not { } path) { PowerStatus = "RyzenAdj not found. Download it from github.com/FlyGoat/RyzenAdj (releases), unzip, then Browse to ryzenadj.exe."; return; }
+        PowerStatus = "Reading…";
+        var limits = await Task.Run(() => new RyzenAdjClient(path, _s.Paths).Read());
+        PowerStatus = limits is null
+            ? "RyzenAdj ran but couldn't read the limits. This CPU may not be supported by your RyzenAdj version yet."
+            : $"Working. Current limits: {limits.Text}.";
+    }
+
+    // ------------------------------------------------------------------ sync
+
+    [ObservableProperty] private string _syncStatus = "";
+    public string SyncFolderText => S.SyncFolder ?? BackupDestinations.FindGoogleDrive() ?? "Google Drive for desktop not found";
+
+    [RelayCommand]
+    private void PickSyncFolder()
+    {
+        var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Folder to sync your library through (e.g. G:\\My Drive)" };
+        if (dlg.ShowDialog() != true) return;
+        S.SyncFolder = dlg.FolderName;
+        Save();
+        OnPropertyChanged(nameof(SyncFolderText));
+    }
+
+    [RelayCommand]
+    private async Task SyncNowAsync()
+    {
+        if (_s.Sync is null) { SyncStatus = "Turn sync on and make sure the folder exists (Google Drive for desktop, or pick a folder)."; return; }
+        await Task.Run(_s.SyncUpload);
+        SyncStatus = $"Synced at {DateTime.Now:HH:mm}.";
+    }
+
+    [RelayCommand]
+    private void RestoreFromSync()
+    {
+        if (_s.Sync is not { } sync || sync.Remote() is not { } remote) { SyncStatus = "Nothing in the sync folder yet."; return; }
+        if (System.Windows.MessageBox.Show($"Replace this PC's library, settings and history with the synced copy from {remote.Machine} ({remote.Updated.ToLocalTime():d MMM HH:mm})?\n\nYour current data is copied to backups first. The launcher restarts.",
+                "Restore from sync", System.Windows.MessageBoxButton.OKCancel, System.Windows.MessageBoxImage.Question) != System.Windows.MessageBoxResult.OK) return;
+        sync.Download();
+        RestartApp();
+    }
+
+    public static void RestartApp()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Environment.ProcessPath!) { UseShellExecute = true });
+        System.Windows.Application.Current.Shutdown();
+    }
+
     // ------------------------------------------------------------------ updates
 
     public Action<FitzLauncher.Core.Updates.ReleaseInfo>? ShowUpdate { get; init; }

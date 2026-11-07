@@ -85,6 +85,42 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Power limit (Ryzen APUs)" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Set a power limit per game and learn the lowest one that still holds the FPS target" IsChecked="{Binding S.PowerControl}" />
+                    <TextBlock Text="Uses RyzenAdj, the free tool handheld utilities use. Download it once from github.com/FlyGoat/RyzenAdj. If your device's own app (OneXConsole) also sets the power limit, turn that off while the launcher manages it, or the two will fight."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Browse…" Command="{Binding PickRyzenAdjCommand}" Margin="8,0,0,0" />
+                            <Button Content="Test" Command="{Binding TestPowerCommand}" Margin="8,0,0,0" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding RyzenAdjText}" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal" IsEnabled="{Binding S.PowerControl}">
+                        <TextBlock Text="Start at" VerticalAlignment="Center" Width="64" />
+                        <TextBox Text="{Binding S.PowerDefaultWatts}" Width="56" />
+                        <TextBlock Text="W, between" VerticalAlignment="Center" Margin="8,0" />
+                        <TextBox Text="{Binding S.PowerMinWatts}" Width="56" />
+                        <TextBlock Text="and" VerticalAlignment="Center" Margin="8,0" />
+                        <TextBox Text="{Binding S.PowerMaxWatts}" Width="56" />
+                        <TextBlock Text="W" VerticalAlignment="Center" Margin="8,0" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding PowerStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding PowerStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="In-game" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Quick FPS target switch: hold View and press D-pad up/down, or Ctrl+Alt+Up/Down" IsChecked="{Binding S.QuickSwitch}" />
+                    <CheckBox Content="Compare RTSS limiter modes per game (async vs front-edge sync) and keep the smoother one" IsChecked="{Binding S.AutoLimiterMode}" />
+                    <TextBlock Text="The new target shows briefly in the overlay and is kept for that game. The limiter comparison needs an RTSS version that stores the mode in its profiles; otherwise it stays off."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Thermal guard" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
@@ -195,6 +231,24 @@
             <TextBlock Text="Artwork" Style="{StaticResource H2}" />
             <TextBlock Text="Covers come from Steam automatically. For games not on Steam, add a free SteamGridDB API key (steamgriddb.com → Preferences → API)." Style="{StaticResource Wrap}" Margin="0,0,0,8" />
             <TextBox Text="{Binding S.SteamGridDbApiKey}" Width="420" HorizontalAlignment="Left" />
+
+            <TextBlock Text="Sync library and settings" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Keep my library, settings, FPS history and artwork in a sync folder" IsChecked="{Binding S.SyncEnabled}" />
+                    <TextBlock Text="Uses the Google Drive for desktop folder, so a Windows reinstall or another PC can pick up where you left off. Synced after each session; on start-up the launcher offers newer data from another PC."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <DockPanel Margin="0,0,0,8">
+                        <Button DockPanel.Dock="Right" Content="Change…" Command="{Binding PickSyncFolderCommand}" Margin="8,0,0,0" />
+                        <TextBlock Text="{Binding SyncFolderText}" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Sync now" Command="{Binding SyncNowCommand}" Margin="0,0,8,0" />
+                        <Button Content="Restore from sync…" Style="{StaticResource GhostButton}" Command="{Binding RestoreFromSyncCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding SyncStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding SyncStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
 
             <TextBlock Text="Updates" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">

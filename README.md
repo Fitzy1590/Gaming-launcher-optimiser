@@ -110,6 +110,34 @@ click-through overlay that never steals focus, and plays a sound that also works
 - **Runtimes check:** "Won't start?" finds the VC++, DirectX, .NET, PhysX, OpenAL and XNA installers bundled in the
   repack, checks which are missing on your PC, and installs them silently.
 
+### Home & Storage
+- **Home:** continue playing (with Play buttons), this week's hours and % of frames on target, things that need
+  attention (games on the SD card, missing cover art or save folders, an available update, a nearly full drive),
+  and recently added games.
+- **Storage:** drive usage and games sorted by size, with:
+  - **Move…** — copies the game to another drive (e.g. SD card → NVMe), verifies every file, re-points the exe,
+    saves, edited config and swapped DLLs, and only then deletes the old copy.
+  - **Verify** — checks files against the repack's MD5/SFV lists, or against a saved baseline, to catch
+    missing or corrupt files (e.g. removed by antivirus).
+  - **Uninstall** — backs up saves, reverts the launcher's changes, sends the folder to the Recycle Bin and
+    removes the game from the library.
+
+### More automation
+- **Per-game power limits (Ryzen APUs, via RyzenAdj):** starts each game at a set wattage, lowers it a step
+  after sessions that hit the target easily and raises it after misses, so you get the same FPS at less heat and
+  noise. The original limits are restored afterwards, and again after a crash.
+- **In-game quick switch:** hold View and press D-pad up/down (or Ctrl+Alt+Up/Down) to change the FPS target while
+  playing. It applies instantly through RTSS, shows in the overlay, and is kept for that game.
+- **RTSS limiter A/B:** compares async and front-edge-sync limiting over two sessions and keeps the smoother one
+  (only when your RTSS version stores the mode in its profiles).
+- **"Why is it hot?"** — heat alerts explain whether the chip is working flat out (lower the cap or power) or is
+  hot at low load (cooling: dust, vents, room, fan curve).
+- **Achievement progress for repacks:** read from Goldberg/GSE and CODEX/RUNE files. The total comes from the
+  repack or Steam, and it feeds the progress bar.
+- **ReShade/ENB on/off** per game: renames only the mod's own DLL (never DXVK or loaders).
+- **Sync library and settings** through Google Drive for desktop. Newer data from another PC is offered at start-up.
+- **Verify a repack download** before installing (the *Not installed* rows in Scan game folders).
+
 ### How it works page
 A plain-language guide in the left pane (F1): what each feature does, a three-step quick start and shortcuts.
 

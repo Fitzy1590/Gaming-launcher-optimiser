@@ -7,8 +7,8 @@ using FitzLauncher.Core.Storage;
 
 namespace FitzLauncher.Windows;
 
-public readonly record struct LiveStats(double Fps, double OnePercentLow, double? CpuTempC, double? GpuTempC, double? GpuLoad, TimeSpan Elapsed, int? Cap, bool ThermalThrottling, int? BenchmarkSecondsLeft);
-public readonly record struct TempAlert(string Component, double TempC, double ThresholdC);
+public readonly record struct LiveStats(double Fps, double OnePercentLow, double? CpuTempC, double? GpuTempC, double? GpuLoad, TimeSpan Elapsed, int? Cap, bool ThermalThrottling, int? BenchmarkSecondsLeft, string? Note = null);
+public readonly record struct TempAlert(string Component, double TempC, double ThresholdC, string Explanation = "");
 
 /// <summary>
 /// One play session from launch to exit: Game Mode on → start game → pin cores → track processes,
@@ -36,7 +36,53 @@ public sealed class GameSession(
     public DisplayInfo? Display { get; init; }
     public int RenderScale { get; init; } = 100;
 
-    private int? Cap => EffectiveCap ?? game.FpsTarget;
+    /// <summary>APU power limit for this session (watts), applied through RyzenAdj.</summary>
+    public int? PowerWatts { get; init; }
+    public int PowerMaxWatts { get; init; } = 120;
+    public RyzenAdjClient? RyzenAdj { get; init; }
+    /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
+    public int? LimiterMode { get; init; }
+
+    /// <summary>Target chosen in-game with the quick switch, if any (kept as the game's new target).</summary>
+    public int? FinalTarget => _quickCap;
+
+    private int? Cap => _quickCap ?? EffectiveCap ?? game.FpsTarget;
+
+    // Live state shared with the quick switch (called from the controller/hotkey threads).
+    private readonly Lock _capLock = new();
+    private RtssClient? _rtss;
+    private string _renderExe = "";
+    private ThermalGovernor? _guard;
+    private int? _quickCap;
+    private string? _note;
+    private DateTime _noteUntil;
+
+    /// <summary>In-game target switch: +1 = next target up, -1 = down. Applied instantly through RTSS.</summary>
+    public void ChangeTarget(int direction)
+    {
+        lock (_capLock)
+        {
+            if (_rtss is null) { Note("FPS target switch needs RTSS"); return; }
+            var maxHz = Display?.MaxRefreshHz ?? 0;
+            int[] ladder = [.. new[] { 60 }.Concat(LauncherSettings.FpsTargets).Where(t => maxHz <= 0 || t <= maxHz - 3)];
+            var current = Cap ?? ladder[^1];
+            var idx = Array.FindIndex(ladder, t => t >= current);
+            if (idx < 0) idx = ladder.Length - 1;
+            var next = ladder[Math.Clamp(idx + direction, 0, ladder.Length - 1)];
+            if (next == current) { Note($"Target {current}"); return; }
+            if (!_rtss.SetFramerateLimit(_renderExe, next)) { Note("Couldn't change the cap"); return; }
+            _quickCap = next;
+            if (_guard is not null) _guard = new ThermalGovernor(next, settings.ThermalGuard, settings.CpuTempAlertC, settings.GpuTempAlertC);
+            Note($"Target {next}");
+            Status?.Invoke($"FPS target changed to {next} in-game");
+        }
+    }
+
+    private void Note(string text)
+    {
+        _note = text;
+        _noteUntil = DateTime.Now.AddSeconds(4);
+    }
 
     private EtwFpsTracker? _fps;
     private FrameTimeRecorder? _bench;
@@ -96,12 +142,29 @@ public sealed class GameSession(
 
         // ---------------------------------------------------------------- RTSS: thermal guard + overlay
         var rtss = hardware is { RtssInstalled: true, RtssPath: { } rp } ? new RtssClient(rp) : null;
+        // Make RTSS pick up profile edits made before launch (frame limit, limiter mode).
+        rtss?.ReloadProfile(renderExe);
         // On a screen slower than the target (e.g. a 60 Hz TV), cap just under its refresh for this session.
         var capChanged = rtss is not null && EffectiveCap is { } ec && ec != game.FpsTarget && rtss.SetFramerateLimit(renderExe, ec);
         if (capChanged) Status?.Invoke($"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
         var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap && rtss is not null
             ? new ThermalGovernor(cap, settings.ThermalGuard, settings.CpuTempAlertC, settings.GpuTempAlertC)
             : null;
+        lock (_capLock)
+        {
+            _rtss = rtss;
+            _renderExe = renderExe;
+            _guard = guard;
+        }
+
+        // ---------------------------------------------------------------- APU power limit
+        var powerSet = false;
+        if (RyzenAdj is not null && PowerWatts is { } watts)
+        {
+            var original = RyzenAdj.SaveOriginal();
+            powerSet = RyzenAdj.Apply(watts, PowerMaxWatts);
+            Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
+        }
         if (settings.ThermalGuard.Enabled && game.ThermalGuard && rtss is null && game.FpsTarget is not null)
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
         var overlayStyle = settings.RtssOverlay ? settings.Overlay : OverlayStyle.Off;
@@ -141,6 +204,10 @@ public sealed class GameSession(
 
         // ---------------------------------------------------------------- monitor loop
         double? maxCpu = null, maxGpu = null, sumCpu = 0, sumGpu = 0;
+        double gpuLoadSum = 0;
+        var gpuLoadSamples = 0;
+        var cpuHistory = new Queue<ThermalSample>();
+        var gpuHistory = new Queue<ThermalSample>();
         int cpuSamples = 0, gpuSamples = 0, alerts = 0, emptyPolls = 0, tick = 0;
         DateTime? cpuHotSince = null, gpuHotSince = null, lastCpuAlert = null, lastGpuAlert = null;
         var priorityRaised = new HashSet<int>(tracker.Pids);
@@ -169,21 +236,30 @@ public sealed class GameSession(
                 var r = temps.Read();
                 if (r.CpuTempC is { } c) { maxCpu = Math.Max(maxCpu ?? 0, c); sumCpu += c; cpuSamples++; }
                 if (r.GpuTempC is { } g) { maxGpu = Math.Max(maxGpu ?? 0, g); sumGpu += g; gpuSamples++; }
+                if (r.GpuLoad is { } gl) { gpuLoadSum += gl; gpuLoadSamples++; }
+                Push(cpuHistory, new ThermalSample(r.CpuTempC, r.CpuLoad, null));
+                Push(gpuHistory, new ThermalSample(r.GpuTempC, r.GpuLoad, r.GpuPowerW));
 
                 if (CheckSustained(r.CpuTempC, settings.CpuTempAlertC, ref cpuHotSince, ref lastCpuAlert))
-                { alerts++; Alert?.Invoke(new TempAlert("CPU", r.CpuTempC!.Value, settings.CpuTempAlertC)); }
+                { alerts++; Alert?.Invoke(new TempAlert("CPU", r.CpuTempC!.Value, settings.CpuTempAlertC, ThermalDiagnosis.Explain("CPU", [.. cpuHistory], settings.CpuTempAlertC))); }
                 if (CheckSustained(r.GpuTempC, settings.GpuTempAlertC, ref gpuHotSince, ref lastGpuAlert))
-                { alerts++; Alert?.Invoke(new TempAlert("GPU", r.GpuTempC!.Value, settings.GpuTempAlertC)); }
+                { alerts++; Alert?.Invoke(new TempAlert("GPU", r.GpuTempC!.Value, settings.GpuTempAlertC, ThermalDiagnosis.Explain("GPU", [.. gpuHistory], settings.GpuTempAlertC))); }
 
-                if (guard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
-                    Status?.Invoke(guard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
+                ThermalGovernor? currentGuard;
+                lock (_capLock) currentGuard = _guard;
+                if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
+                    Status?.Invoke(currentGuard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
+
+                // Vendor apps sometimes re-apply their own power limit; re-assert ours every minute.
+                if (powerSet && tick % 30 == 0) RyzenAdj!.Apply(PowerWatts!.Value, PowerMaxWatts);
 
                 CheckBenchmark(r.GpuTempC);
 
                 var recorder = fps.PrimaryRecorder;
                 var p99 = recorder?.FrameTimePercentile(99) ?? 0;
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
-                    DateTimeOffset.Now - start, guard?.CurrentCap ?? Cap, guard?.IsThrottling ?? false, BenchmarkSecondsLeft());
+                    DateTimeOffset.Now - start, currentGuard?.CurrentCap ?? Cap, currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
+                    DateTime.Now < _noteUntil ? _note : null);
                 if (overlay) RtssClient.SetOsdText(OverlayLine(live, overlayStyle));
                 Live?.Invoke(live);
             }
@@ -196,12 +272,15 @@ public sealed class GameSession(
         fps.Stop();
         _fps = null;
         if (overlay) RtssClient.ClearOsd();
-        if (guard is { IsThrottling: true } || capChanged)
+        ThermalGovernor? endGuard;
+        lock (_capLock) { endGuard = _guard; _rtss = null; }
+        if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null)
         {
-            // Put back exactly what was there: the optimised cap, or no cap if Optimise never set one.
+            // Put back what should stay: an in-game choice, the optimised cap, or no cap if none was set.
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
-            rtss!.SetFramerateLimit(renderExe, hadCap && game.FpsTarget is { } original ? original : 0);
+            rtss!.SetFramerateLimit(renderExe, _quickCap ?? (hadCap && game.FpsTarget is { } original ? original : 0));
         }
+        if (powerSet) RyzenAdj!.Restore();
         if (useGameMode)
         {
             foreach (var line in gameMode.Restore()) Status?.Invoke(line);
@@ -218,6 +297,9 @@ public sealed class GameSession(
         summary.AvgCpuTempC = cpuSamples > 0 ? sumCpu / cpuSamples : null;
         summary.AvgGpuTempC = gpuSamples > 0 ? sumGpu / gpuSamples : null;
         summary.TempAlerts = alerts;
+        summary.AvgGpuLoad = gpuLoadSamples > 0 ? gpuLoadSum / gpuLoadSamples : null;
+        summary.PowerWatts = powerSet ? PowerWatts : null;
+        summary.LimiterMode = LimiterMode;
 
         store.AppendSession(summary);
         return summary;
@@ -231,6 +313,12 @@ public sealed class GameSession(
             lastAlert = DateTime.Now;
             return true;
         }
+    }
+
+    private static void Push(Queue<ThermalSample> q, ThermalSample s)
+    {
+        q.Enqueue(s);
+        while (q.Count > 90) q.Dequeue(); // last ~3 minutes
     }
 
     private int? BenchmarkSecondsLeft()
@@ -279,6 +367,7 @@ public sealed class GameSession(
             if (l.OnePercentLow > 0) parts.Add($"1% low {l.OnePercentLow:0}");
         }
         if (l.ThermalThrottling && l.Cap is { } tc) parts.Add($"cooling: cap {tc}");
+        if (l.Note is { } note) parts.Add(note);
         if (l.BenchmarkSecondsLeft is { } b) parts.Add($"benchmark {b}s");
         return string.Join("  ·  ", parts);
     }

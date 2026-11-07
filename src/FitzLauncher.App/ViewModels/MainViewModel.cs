@@ -13,7 +13,7 @@ using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Library, Hardware, Sessions, Settings, About }
+public enum Page { Home, Library, Storage, Hardware, Sessions, Settings, About }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -27,6 +27,8 @@ public sealed partial class MainViewModel : ObservableObject
     public HardwareViewModel Hardware { get; }
     public SessionsViewModel Sessions { get; }
     public SettingsViewModel Settings { get; }
+    public HomeViewModel Home { get; }
+    public StorageViewModel Storage { get; }
     public AppServices Services => _s;
 
     /// <summary>Raised when a temperature alert should be shown on top of the game.</summary>
@@ -38,7 +40,7 @@ public sealed partial class MainViewModel : ObservableObject
     public Func<string, bool>? Confirm { get; set; }
     public Action? OpenBigPicture { get; set; }
 
-    [ObservableProperty] private Page _page = Page.Library;
+    [ObservableProperty] private Page _page = Page.Home;
     [ObservableProperty] private string _search = "";
     [ObservableProperty] private GameViewModel? _selected;
     [ObservableProperty] private GameDetailsViewModel? _details;
@@ -109,6 +111,10 @@ public sealed partial class MainViewModel : ObservableObject
         Hardware = new HardwareViewModel(services);
         Sessions = new SessionsViewModel(services);
         Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
+        Home = new HomeViewModel(services, this);
+        Storage = new StorageViewModel(services, this);
+        if (Games.Count == 0) _page = Page.Library;
+        Home.Reload();
         RefreshLibraryMeta();
     }
 
@@ -160,6 +166,8 @@ public sealed partial class MainViewModel : ObservableObject
     {
         _s.SaveSettings();
         if (value == Page.Sessions) Sessions.Reload();
+        if (value == Page.Home) Home.Reload();
+        if (value == Page.Storage) _ = Storage.ReloadAsync();
         Hardware.SetVisible(value == Page.Hardware);
     }
 
@@ -243,6 +251,18 @@ public sealed partial class MainViewModel : ObservableObject
         await vm.LoadCoverAsync();
     }
 
+    /// <summary>Removes a game from the library without prompts (used after an uninstall).</summary>
+    public void RemoveFromLibrary(GameViewModel vm)
+    {
+        _s.Library.Games.Remove(vm.Game);
+        Games.Remove(vm);
+        if (Selected == vm) Selected = null;
+        _s.SaveLibrary();
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(LibraryCount));
+        RefreshLibraryMeta();
+    }
+
     private void RemoveGame(GameViewModel vm)
     {
         var hasChanges = vm.Game.AppliedChanges.Count > 0;
@@ -301,13 +321,21 @@ public sealed partial class MainViewModel : ObservableObject
         await BackupSavesAsync(game, "before playing");
 
         var display = await Task.Run(() => PrepareDisplay(game));
+        var limiterMode = await Task.Run(() => PrepareLimiterMode(game));
+        var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto ? _s.RyzenAdj : null;
         var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology)
         {
             Display = display?.Display,
             ExtraArguments = display?.LaunchArguments ?? "",
             EffectiveCap = display?.EffectiveCap,
             RenderScale = display?.RenderScale ?? 100,
+            LimiterMode = limiterMode,
+            RyzenAdj = ryzenAdj,
+            PowerWatts = ryzenAdj is null ? null : PowerTuner.WattsFor(game, _s.Settings),
+            PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };
+        using var quick = _s.Settings.QuickSwitch ? new QuickSwitchWatcher() : null;
+        if (quick is not null) quick.Step += session.ChangeTarget;
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
@@ -322,11 +350,16 @@ public sealed partial class MainViewModel : ObservableObject
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
             var tune = await Task.Run(() => AutoTune(game, summary));
-            var learned = DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget);
-            if (learned is not null) tune = tune is null ? learned : tune + " " + learned;
+            var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
+                PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary) };
+            if (session.FinalTarget is { } kept && kept != game.FpsTarget) notes.Add(await Task.Run(() => KeepTarget(game, kept)));
+            tune = string.Join(" ", notes.Where(n => !string.IsNullOrEmpty(n)));
+            if (tune.Length == 0) tune = null;
+            await RefreshAchievementsAsync(game);
             _s.SaveLibrary();
-            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\nAuto-tune: {tune}" : ""));
+            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\n{tune}" : ""));
             await BackupSavesAsync(game, "after playing");
+            await Task.Run(_s.SyncUpload);
         }
         catch (Exception e)
         {
@@ -381,6 +414,39 @@ public sealed partial class MainViewModel : ObservableObject
             return null;
         }
     }
+
+    /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
+    public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>
+    /// Writes the RTSS limiter mode to test (or the one that won) into the game's RTSS profile.
+    /// Only when this RTSS version stores the mode as SyncLimiter (checked in its Global profile).
+    /// </summary>
+    private int? PrepareLimiterMode(Game game)
+    {
+        if (!_s.Settings.AutoLimiterMode || game.FpsTarget is null || _s.Hardware is not { RtssInstalled: true, RtssPath: { } rtss }) return null;
+        if (!RtssClient.SupportsLimiterMode(rtss)) return null;
+        var mode = PacingTuner.Next(game);
+        var exe = Path.GetFileName(game.LastScan?.RenderExePath ?? game.ExePath);
+        var r = _s.Tweaks.Apply(game.AppliedChanges, new Tweak
+        {
+            Id = "rtss-limiter-mode", Title = "RTSS limiter mode", Description = PacingTuner.Name(mode), Category = TweakCategory.FrameCap,
+            Actions = [new IniSetAction { FilePath = Path.Combine(rtss, "Profiles", exe + ".cfg"), Section = "Framerate", Key = "SyncLimiter", Value = mode.ToString() }],
+        }, game);
+        return r.Success ? mode : null;
+    }
+
+    /// <summary>Keeps a target picked in-game: it becomes the game's target and its frame cap is re-applied.</summary>
+    private string KeepTarget(Game game, int target)
+    {
+        game.FpsTarget = target;
+        game.LastScan ??= _s.Scanner.Scan(game);
+        var cap = _s.BuildPlan(game).Tweaks.FirstOrDefault(t => t.Id == OptimizationPlanner.FrameCapId);
+        if (cap is { IsAutomatic: true }) _s.Tweaks.Apply(game.AppliedChanges, cap, game);
+        return $"Kept {target} FPS as this game's target (chosen in-game).";
+    }
+
+    public Task RefreshAchievementsAsync(Game game) => _s.RefreshAchievementsAsync(game);
 
     /// <summary>Runs the auto-tune step for a finished session. Returns a message, or null if nothing happened.</summary>
     private string? AutoTune(Game game, SessionSummary summary)

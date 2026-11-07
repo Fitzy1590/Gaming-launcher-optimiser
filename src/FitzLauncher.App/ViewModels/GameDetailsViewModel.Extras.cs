@@ -8,6 +8,7 @@ using FitzLauncher.Core.Optimization;
 using FitzLauncher.Core.Runtimes;
 using FitzLauncher.Core.Saves;
 using FitzLauncher.Core.Stats;
+using FitzLauncher.Core.Storage;
 using FitzLauncher.Windows;
 using Microsoft.Win32;
 
@@ -101,6 +102,7 @@ public sealed partial class GameDetailsViewModel
         SaveDirs.Clear();
         foreach (var d in Game.SaveDirs) SaveDirs.Add(d);
         LoadDisplay();
+        DetectMods();
         OnPropertyChanged(string.Empty);
     }
 
@@ -192,6 +194,95 @@ public sealed partial class GameDetailsViewModel
         Game.AutoTune.TargetReached = false;
         _s.SaveLibrary();
         LoadExtras();
+    }
+
+    // ------------------------------------------------------------------ achievements
+
+    public string AchievementsText => Game.Achievements is { } a
+        ? (a.Total is > 0 ? $"{a.Earned} of {a.Total} achievements ({a.Earned * 100.0 / a.Total.Value:0}%)" : $"{a.Earned} achievements unlocked") + $" · read {a.Read:d MMM}"
+        : "No achievement file found yet. Repacks with a Steam emulator (Goldberg, CODEX, RUNE…) keep one once you unlock something";
+
+    [RelayCommand]
+    private async Task RefreshAchievementsAsync()
+    {
+        var p = await _s.RefreshAchievementsAsync(Game);
+        OnPropertyChanged(nameof(AchievementsText));
+        SaveAndRefresh();
+        if (p is null) Status = "No achievement progress found for this game yet.";
+    }
+
+    // ------------------------------------------------------------------ power & pacing
+
+    public bool ShowPower => _s.Settings.PowerControl && _s.Hardware?.IsApu == true;
+    public bool PowerOn { get => Game.PowerAuto; set { Game.PowerAuto = value; _s.SaveLibrary(); OnPropertyChanged(nameof(PowerText)); } }
+    public string PowerText => !Game.PowerAuto ? "Off for this game: your device's own power setting is used."
+        : RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is null ? "RyzenAdj wasn't found. Set it up in Settings → Power."
+        : Game.PowerWatts is { } w ? $"Next session: {w} W (learned from your sessions; range {_s.Settings.PowerMinWatts}-{_s.Settings.PowerMaxWatts} W)"
+        : $"Next session: {_s.Settings.PowerDefaultWatts} W to start, then adjusted after each session";
+
+    [RelayCommand]
+    private void ResetPower()
+    {
+        Game.PowerWatts = null;
+        _s.SaveLibrary();
+        OnPropertyChanged(nameof(PowerText));
+    }
+
+    public string LimiterText => Game.LimiterChosen is { } c
+        ? $"RTSS limiter: {PacingTuner.Name(c)} (smoother for this game)"
+        : Game.LimiterResults.Count > 0 ? $"RTSS limiter: comparing modes, {Game.LimiterResults.Count} of 2 tested"
+        : _s.Settings.AutoLimiterMode ? "RTSS limiter: async and front-edge sync get compared over your next two sessions (5 min+)" : "";
+
+    [RelayCommand]
+    private void ResetLimiter()
+    {
+        Game.LimiterResults.Clear();
+        Game.LimiterChosen = null;
+        _s.SaveLibrary();
+        OnPropertyChanged(nameof(LimiterText));
+    }
+
+    // ------------------------------------------------------------------ ReShade / ENB
+
+    private List<ModDll> _mods = [];
+    public bool HasMods => _mods.Count > 0;
+    public string ModsText => _mods.Count == 0 ? "" : $"{string.Join(" + ", _mods.Select(m => m.Kind).Distinct())} found ({string.Join(", ", _mods.Select(m => Path.GetFileName(m.Path)))})";
+
+    public bool ModsOn
+    {
+        get => ModToggle.AnyEnabled(_mods);
+        set
+        {
+            try
+            {
+                ModToggle.Set(_mods, value);
+                Status = value ? "Visual mods on: next launch uses ReShade/ENB." : "Visual mods off: next launch runs without ReShade/ENB (usually a few FPS more).";
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { Status = "Couldn't switch mods: " + e.Message; }
+            DetectMods();
+        }
+    }
+
+    private void DetectMods()
+    {
+        var dir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath);
+        _mods = dir is null ? [] : ModToggle.Detect(dir, Describe);
+        if (Game.LastScan?.RenderExePath is { } render && Path.GetDirectoryName(render) != Path.GetDirectoryName(Game.ExePath))
+            _mods.AddRange(ModToggle.Detect(Path.GetDirectoryName(Game.ExePath)!, Describe));
+        OnPropertyChanged(nameof(HasMods));
+        OnPropertyChanged(nameof(ModsText));
+        OnPropertyChanged(nameof(ModsOn));
+    }
+
+    private static string? Describe(string path)
+    {
+        try
+        {
+            var v = System.Diagnostics.FileVersionInfo.GetVersionInfo(path);
+            var text = $"{v.FileDescription} {v.ProductName}".Trim();
+            return text.Length == 0 ? null : text;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
 
     // ------------------------------------------------------------------ display

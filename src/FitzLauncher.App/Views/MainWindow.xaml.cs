@@ -60,24 +60,26 @@ public partial class MainWindow : Window
         var helper = new WindowInteropHelper(this);
         const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_NOREPEAT = 0x4000;
         if (!RegisterHotKey(helper.Handle, HotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x42 /* B */))
-        {
             _vm.Services.Log.Write("Ctrl+Alt+B is taken by another app; benchmark hotkey unavailable.");
-            return;
-        }
+        // In-game FPS target switch (keyboard alternative to View + D-pad).
+        RegisterHotKey(helper.Handle, HotkeyId + 1, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x26 /* Up */);
+        RegisterHotKey(helper.Handle, HotkeyId + 2, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x28 /* Down */);
         HwndSource.FromHwnd(helper.Handle)?.AddHook((nint hwnd, int msg, nint wParam, nint lParam, ref bool handled) =>
         {
-            if (msg == WM_HOTKEY && wParam == HotkeyId)
-            {
-                _vm.StartBenchmark();
-                handled = true;
-            }
+            if (msg != WM_HOTKEY) return 0;
+            if (wParam == HotkeyId) { _vm.StartBenchmark(); handled = true; }
+            else if (wParam == HotkeyId + 1 && _vm.Services.Settings.QuickSwitch) { _vm.QuickStep(+1); handled = true; }
+            else if (wParam == HotkeyId + 2 && _vm.Services.Settings.QuickSwitch) { _vm.QuickStep(-1); handled = true; }
             return 0;
         });
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        UnregisterHotKey(new WindowInteropHelper(this).Handle, HotkeyId);
+        var h = new WindowInteropHelper(this).Handle;
+        UnregisterHotKey(h, HotkeyId);
+        UnregisterHotKey(h, HotkeyId + 1);
+        UnregisterHotKey(h, HotkeyId + 2);
         base.OnClosed(e);
     }
 

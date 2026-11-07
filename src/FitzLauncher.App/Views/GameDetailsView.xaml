@@ -124,6 +124,12 @@
                 </ItemsControl>
                 <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,8,0,4" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
                 <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" />
+                <DockPanel Margin="0,8,0,0">
+                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding RefreshAchievementsCommand}" ToolTip="Read achievements again">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="12" />
+                    </Button>
+                    <TextBlock Text="{Binding AchievementsText}" Style="{StaticResource Wrap}" FontSize="12" VerticalAlignment="Center" />
+                </DockPanel>
                 <Grid Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
@@ -209,6 +215,27 @@
                 </ItemsControl>
                 <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
                 <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,8,0,0" />
+
+                <TextBlock Text="{Binding LimiterText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" Visibility="{Binding LimiterText, Converter={StaticResource HasValue}}" />
+
+                <!-- Power (APUs) -->
+                <StackPanel Visibility="{Binding ShowPower, Converter={StaticResource Vis}}">
+                    <DockPanel Margin="0,24,0,8">
+                        <CheckBox DockPanel.Dock="Right" Content="Manage" IsChecked="{Binding PowerOn}" ToolTip="Set and learn this game's power limit (RyzenAdj)" />
+                        <TextBlock Text="Power limit" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding PowerText}" Style="{StaticResource Wrap}" />
+                    <Button Content="Reset learned power" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding ResetPowerCommand}" />
+                </StackPanel>
+
+                <!-- ReShade / ENB -->
+                <StackPanel Visibility="{Binding HasMods, Converter={StaticResource Vis}}">
+                    <DockPanel Margin="0,24,0,8">
+                        <CheckBox DockPanel.Dock="Right" Content="On" IsChecked="{Binding ModsOn}" ToolTip="Off renames the mod's DLL so the game starts without it; on puts it back" />
+                        <TextBlock Text="Visual mods" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding ModsText}" Style="{StaticResource Wrap}" />
+                </StackPanel>
 
                 <!-- Benchmarks -->
                 <TextBlock Text="Benchmarks" Style="{StaticResource H2}" />

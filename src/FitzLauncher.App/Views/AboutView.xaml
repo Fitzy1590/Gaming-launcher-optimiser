@@ -93,7 +93,21 @@
                 <ContentControl Style="{StaticResource Feature}" Tag="&#xE8C8;">
                     <StackPanel>
                         <TextBlock Text="Looks after your repacks" Style="{StaticResource FeatureTitle}" />
-                        <TextBlock Style="{StaticResource Wrap}" Text="Backs up your saves before and after playing, with optional copies to Google Drive or a USB stick. If a game won't start, it can install the runtimes the repack shipped with, and it can update DLSS, XeSS and FSR files from your other games." />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Backs up your saves before and after playing, with optional copies to Google Drive or a USB stick. It reads achievement progress from repack save files, checks a repack's download before you install, installs the runtimes a repack shipped with if a game won't start, and can switch ReShade or ENB off with one click." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE945;">
+                    <StackPanel>
+                        <TextBlock Text="Uses only the power it needs" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="On Ryzen handhelds and mini PCs it can set each game's power limit, then lower it after easy sessions and raise it if you miss your target. You get the same FPS while running cooler and quieter. Hold View and press D-pad up or down in a game to change the FPS target on the spot." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xEDA2;">
+                    <StackPanel>
+                        <TextBlock Text="Storage made simple" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="See which games take the most space, move a game from the SD card to the fast drive in one go (saves and settings follow), check a game's files for damage or anything removed by antivirus, and uninstall safely: saves are backed up first and the folder goes to the Recycle Bin." />
                     </StackPanel>
                 </ContentControl>
 
@@ -142,7 +156,9 @@
                         <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl N" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Add a game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
                         <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Enter" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Play the selected game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
                         <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="F11" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Big Picture" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
-                        <DockPanel><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl Alt B" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Benchmark, in-game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl Alt B" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Benchmark, in-game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl Alt ↑↓" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="FPS target, in-game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel><Border Style="{StaticResource Keycap}"><TextBlock Text="View + D-pad" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="FPS target, controller" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
                     </StackPanel>
                 </Border>
 

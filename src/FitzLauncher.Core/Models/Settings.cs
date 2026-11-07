@@ -45,6 +45,22 @@ public sealed class LauncherSettings
     /// <summary>DPAPI-protected GitHub token, only needed while the repository is private.</summary>
     public string? GitHubTokenProtected { get; set; }
 
+    // ---- power limits (APUs) through RyzenAdj
+    public bool PowerControl { get; set; }
+    public string? RyzenAdjPath { get; set; }
+    public int PowerMinWatts { get; set; } = 25;
+    public int PowerMaxWatts { get; set; } = 85;
+    /// <summary>Starting point for a game with nothing learned yet.</summary>
+    public int PowerDefaultWatts { get; set; } = 65;
+
+    /// <summary>Hold View/Back + D-pad up/down (or Ctrl+Alt+Up/Down) to change the FPS target in-game.</summary>
+    public bool QuickSwitch { get; set; } = true;
+    /// <summary>Let auto-tune compare RTSS's async and front-edge-sync limiters per game.</summary>
+    public bool AutoLimiterMode { get; set; } = true;
+
+    public bool SyncEnabled { get; set; }
+    public string? SyncFolder { get; set; }
+
     /// <summary>Folders the user scans for games ("Scan game folders"); rechecked for new games at start-up.</summary>
     public List<string> LibraryFolders { get; set; } = [];
 

@@ -28,6 +28,11 @@ public sealed class SessionSummary
     public double? AvgCpuTempC { get; set; }
     public double? AvgGpuTempC { get; set; }
     public int TempAlerts { get; set; }
+    public double? AvgGpuLoad { get; set; }
+    /// <summary>Package power limit used (watts), when the launcher set one.</summary>
+    public int? PowerWatts { get; set; }
+    /// <summary>RTSS limiter mode used (0 async, 1 front-edge sync), when the launcher set one.</summary>
+    public int? LimiterMode { get; set; }
 
     // Display the session ran on, for per-display learning.
     public string? DisplayKey { get; set; }

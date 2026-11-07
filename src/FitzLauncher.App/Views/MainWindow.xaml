@@ -46,10 +46,24 @@
 
                 <StackPanel>
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Home}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE80F;" Width="16" />
+                            <TextBlock Text="Home" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Library}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource Icon}" Text="&#xE8F1;" Width="16" />
                             <TextBlock Text="Library" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Storage}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xEDA2;" Width="16" />
+                            <TextBlock Text="Storage" Margin="12,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </RadioButton>
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
@@ -297,6 +311,10 @@
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Hardware}" />
             <views:SessionsView Grid.Row="3" DataContext="{Binding Sessions}"
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Sessions}" />
+            <views:HomeView Grid.Row="3" DataContext="{Binding Home}"
+                            Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Home}" />
+            <views:StorageView Grid.Row="3" DataContext="{Binding Storage}"
+                               Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Storage}" />
             <views:AboutView Grid.Row="3"
                              Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=About}" />
             <views:SettingsView Grid.Row="3" DataContext="{Binding Settings}"

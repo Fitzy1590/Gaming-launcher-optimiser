@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using FitzLauncher.App.Services;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Scanning;
+using FitzLauncher.Core.Storage;
 using Microsoft.Win32;
 
 namespace FitzLauncher.App.ViewModels;
@@ -60,6 +61,26 @@ public sealed partial class FoundGameRow : ObservableObject
         OnPropertyChanged(nameof(CanAdd));
         if (value is not null && Found.Status != FoundGameStatus.AlreadyInLibrary) IsSelected = true;
         _changed();
+    }
+
+    /// <summary>Repack installer with checksum lists (FitGirl/DODI MD5 folder): verify the download before installing.</summary>
+    public bool CanVerifyInstaller => Found.Status == FoundGameStatus.NotInstalled && IntegrityChecker.FindChecksumFiles(Found.Folder).Count > 0;
+    [ObservableProperty] private string _verifyStatus = "";
+
+    [RelayCommand]
+    private async Task VerifyInstallerAsync()
+    {
+        var lists = IntegrityChecker.FindChecksumFiles(Found.Folder);
+        var progress = new Progress<(int done, int total)>(p => VerifyStatus = $"Checking {p.done * 100 / Math.Max(p.total, 1)}%");
+        var issues = 0;
+        var checkedFiles = 0;
+        foreach (var l in lists)
+        {
+            var r = await Task.Run(() => IntegrityChecker.VerifyChecksumFile(l, progress));
+            issues += r.Issues.Count;
+            checkedFiles += r.Checked;
+        }
+        VerifyStatus = issues == 0 ? $"Download OK ({checkedFiles} files). Safe to run setup.exe" : $"{issues} of {checkedFiles} files are missing or corrupt. Re-download those before installing";
     }
 
     /// <summary>Cycles through the exe candidates (best guess first).</summary>

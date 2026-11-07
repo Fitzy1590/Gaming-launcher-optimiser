@@ -25,12 +25,24 @@ public partial class App : Application
         _services = new AppServices();
         DispatcherUnhandledException += OnUnhandled;
 
-        // Undo a Game Mode left active by a crash or power cut, before anything else.
+        // Undo a Game Mode / power limit left active by a crash or power cut, before anything else.
         var services = _services;
         _ = Task.Run(() =>
         {
             foreach (var line in services.GameMode.RecoverIfNeeded()) services.Log.Write("Recovered Game Mode: " + line);
+            if (FitzLauncher.Windows.RyzenAdjClient.Find(services.Settings.RyzenAdjPath) is { } adj)
+                new FitzLauncher.Windows.RyzenAdjClient(adj, services.Paths).RecoverIfNeeded();
         });
+
+        // Newer library from another PC (or from before a reinstall)? Offer it before loading.
+        if (_services.Sync is { } sync && sync.RemoteIsNewer(Environment.MachineName) && sync.Remote() is { } remote &&
+            MessageBox.Show($"Your sync folder has a newer library from {remote.Machine} ({remote.Updated.ToLocalTime():d MMM HH:mm}).\n\nUse it on this PC? Your current data is backed up first.",
+                "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+        {
+            sync.Download();
+            _services.Dispose();
+            _services = new AppServices();
+        }
 
         var vm = new MainViewModel(_services);
         var window = new MainWindow(vm);

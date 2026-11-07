@@ -59,6 +59,18 @@ public sealed class Game
     /// <summary>Learned render scale and FPS per display ("3440x1440@144").</summary>
     public Dictionary<string, DisplayProfile> DisplayProfiles { get; set; } = [];
 
+    // ---- power (APU TDP via RyzenAdj)
+    public bool PowerAuto { get; set; } = true;
+    /// <summary>Learned sustained power limit for this game, in watts (null = use the default).</summary>
+    public int? PowerWatts { get; set; }
+
+    // ---- RTSS limiter mode A/B (0 = async, 1 = front-edge sync)
+    public Dictionary<int, LimiterResult> LimiterResults { get; set; } = [];
+    public int? LimiterChosen { get; set; }
+
+    // ---- extras
+    public AchievementSnapshot? Achievements { get; set; }
+
     // ---- save backups
     public List<string> SaveDirs { get; set; } = [];
     public bool BackupSaves { get; set; } = true;
@@ -72,7 +84,22 @@ public sealed class Game
     [JsonIgnore]
     public double? ProgressPercent => CompletionPercent is { } c ? Math.Clamp(c, 0, 100)
         : Status == PlayStatus.Completed ? 100
+        : Achievements is { Total: > 0 } a ? Math.Min(100, a.Earned * 100.0 / a.Total!.Value)
         : MainStoryHours is > 0 ? Math.Min(100, TotalPlayTime.TotalHours / MainStoryHours.Value * 100) : null;
+}
+
+public sealed class LimiterResult
+{
+    /// <summary>1% low ÷ average: closer to 1 = more even frame pacing.</summary>
+    public double Smoothness { get; set; }
+    public int Sessions { get; set; }
+}
+
+public sealed class AchievementSnapshot
+{
+    public int Earned { get; set; }
+    public int? Total { get; set; }
+    public DateTimeOffset Read { get; set; } = DateTimeOffset.Now;
 }
 
 public sealed class DisplayProfile

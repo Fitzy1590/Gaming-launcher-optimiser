@@ -47,6 +47,39 @@ public sealed class RtssClient(string rtssDirectory) : IDisposable
         catch (Exception e) when (e is SEHException or AccessViolationException or EntryPointNotFoundException) { return false; }
     }
 
+    /// <summary>
+    /// Makes RTSS pick up a profile file we edited on disk (frame limit, limiter mode): load it into RTSS,
+    /// save it back and notify the hooked apps, the same sequence RTSS's own SDK tools use.
+    /// </summary>
+    public bool ReloadProfile(string exeName)
+    {
+        if (!LoadHooks()) return false;
+        try
+        {
+            var load = Fn<ProfileFn>("LoadProfile");
+            var save = Fn<ProfileFn>("SaveProfile");
+            var update = Fn<UpdateFn>("UpdateProfiles");
+            if (load is null || save is null || update is null) return false;
+            load(exeName);
+            save(exeName);
+            update();
+            return true;
+        }
+        catch (Exception e) when (e is SEHException or AccessViolationException or EntryPointNotFoundException) { return false; }
+    }
+
+    /// <summary>
+    /// True when this RTSS version stores the limiter mode as [Framerate] SyncLimiter in its Global
+    /// profile. The launcher only writes that key when RTSS itself already uses it.
+    /// </summary>
+    public static bool SupportsLimiterMode(string rtssDirectory)
+    {
+        var global = Path.Combine(rtssDirectory, "Profiles", "Global");
+        if (!File.Exists(global)) return false;
+        try { return FitzLauncher.Core.Config.IniDocument.Load(global).Get("Framerate", "SyncLimiter") is not null; }
+        catch (IOException) { return false; }
+    }
+
     private bool LoadHooks()
     {
         if (_hooksTried) return _hooks != 0;
