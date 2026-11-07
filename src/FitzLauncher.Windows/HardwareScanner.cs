@@ -177,6 +177,14 @@ public static partial class HardwareScanner
         }
     }
 
+    /// <summary>Displays right now (cheap). Used at every launch, so docking/undocking is picked up.</summary>
+    public static List<DisplayInfo> CurrentDisplays()
+    {
+        var hw = new HardwareProfile();
+        Try(() => ScanDisplays(hw));
+        return hw.Displays;
+    }
+
     private static void ScanDisplays(HardwareProfile hw)
     {
         var dd = new Native.DisplayDevice { cb = Marshal.SizeOf<Native.DisplayDevice>() };

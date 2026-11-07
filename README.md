@@ -4,7 +4,7 @@ A fast, clean Windows game launcher for all your games and repacks, with one-cli
 **stable 90 / 100 / 110 / 117 FPS**, an automatic **Game Mode**, a low-cost **FPS tracker** and
 **temperature alerts**, all tailored to the PC it runs on.
 
-> **Status: v0.2.** It compiles with zero warnings, and the core logic has 82 passing unit tests. It has
+> **Status: v0.3.** It compiles with zero warnings, and the core logic has 82 passing unit tests. It has
 > **not been run on a real Windows PC yet** (it was built in a Linux container). Expect a first round
 > of fixes once you try it. See [Testing checklist](#testing-checklist). Ideas to vote on: [docs/IDEAS.md](docs/IDEAS.md).
 
@@ -119,6 +119,24 @@ click-through overlay that never steals focus, and plays a sound that also works
   target (1-click optimise), Ⓨ Favourite, Ⓑ Exit. Works with Xbox pads, and PlayStation pads via Steam Input or DS4Windows.
 - **No UAC prompt** (optional desktop shortcut) and **start with Windows** (minimised), both via elevated Task Scheduler tasks.
 
+### Display-aware launches (handheld ↔ monitor)
+At every launch the active screen is detected (handheld panel or external monitor) and the game is set up for it:
+- **Unreal:** your screen's native resolution, plus a **render scale** chosen to hit the FPS target on *that* screen
+  (upscaled by the engine's TSR/FSR, so the image stays sharp). The first time on a new screen it's estimated from your
+  FPS on the other screen by pixel count. After each session it's adjusted: down a step if you missed the target, back
+  up once there's headroom. Each screen keeps its own setting per game.
+- **Unity / Source:** the resolution is passed as launch options, so no files are changed.
+- **Slower screens** (e.g. a 60 Hz TV) get a cap just under their refresh rate for that session.
+
+### In-game overlay
+A single clean RTSS line, `102 FPS · GPU 77°C · CPU 78°C`, with a short note while the thermal guard or a benchmark is
+active. Choose Off / FPS + temps / Detailed in Settings.
+
+### Updates
+The launcher checks Releases at start-up (optional) and has **Check for updates** in Settings. **Install and restart**
+downloads the new build, swaps the files and reopens. Your library, settings and backups are kept. While the
+repository is private, add a read-only GitHub token in Settings → Updates (it's stored encrypted).
+
 ### Hardware scan
 On first run it scans CPU (hybrid P/E cores, X3D), GPUs and real VRAM, RAM speed/type/sticks, drive types
 (NVMe/SSD/HDD), displays and **max refresh rates**, and Windows settings (Game Mode, HAGS, Memory Integrity,
@@ -128,7 +146,8 @@ Game Bar background recording, power plan, RTSS). It then gives machine-specific
 
 ## Install & run
 
-1. Download **`FitzLauncher-win-x64.zip`** from the latest [GitHub Actions run](../../actions) (Artifacts), or from a Release.
+1. Download **`FitzLauncher-win-x64.zip`** from the latest [Release](../../releases/latest). Every successful build of
+   `main` is published there automatically as `v0.3.N`.
 2. Unzip anywhere (e.g. `C:\Games\FitzLauncher`) and run **`FitzLauncher.exe`**. It's self-contained, so no
    .NET install is needed. It asks for **administrator rights**: Game Mode, ETW FPS capture and sensors need
    them. Games are still started **un-elevated**, as if double-clicked, which keeps Steam/DRM happy.

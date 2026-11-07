@@ -129,7 +129,8 @@ public sealed class RtssClient(string rtssDirectory) : IDisposable
     private static void WriteString(MemoryMappedViewAccessor v, long offset, int max, string s)
     {
         var bytes = new byte[max];
-        var text = Encoding.ASCII.GetBytes(s);
+        // RTSS reads OSD text as ANSI; Latin-1 covers ° and · so temperatures render as "77°C".
+        var text = Encoding.Latin1.GetBytes(s);
         Array.Copy(text, bytes, Math.Min(text.Length, max - 1));
         v.WriteArray(offset, bytes, 0, max);
     }

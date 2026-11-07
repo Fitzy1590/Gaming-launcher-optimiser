@@ -29,6 +29,15 @@ public sealed class GameSession(
     public event Action<TempAlert>? Alert;
     public event Action<BenchmarkResult>? BenchmarkCompleted;
 
+    /// <summary>One-launch options from the display plan (e.g. Unity's -screen-width).</summary>
+    public string ExtraArguments { get; init; } = "";
+    /// <summary>Cap for the active screen; null = the game's own target.</summary>
+    public int? EffectiveCap { get; init; }
+    public DisplayInfo? Display { get; init; }
+    public int RenderScale { get; init; } = 100;
+
+    private int? Cap => EffectiveCap ?? game.FpsTarget;
+
     private EtwFpsTracker? _fps;
     private FrameTimeRecorder? _bench;
     private DateTimeOffset _benchStart, _benchEnd;
@@ -69,7 +78,7 @@ public sealed class GameSession(
         int pid;
         try
         {
-            var args = $"{game.Arguments} {game.OptimizerArguments}".Trim();
+            var args = $"{game.Arguments} {game.OptimizerArguments} {ExtraArguments}".Trim();
             pid = GameLauncher.Start(game.ExePath, args, launchAsAdmin);
         }
         catch
@@ -87,12 +96,16 @@ public sealed class GameSession(
 
         // ---------------------------------------------------------------- RTSS: thermal guard + overlay
         var rtss = hardware is { RtssInstalled: true, RtssPath: { } rp } ? new RtssClient(rp) : null;
-        var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && game.FpsTarget is { } cap && rtss is not null
+        // On a screen slower than the target (e.g. a 60 Hz TV), cap just under its refresh for this session.
+        var capChanged = rtss is not null && EffectiveCap is { } ec && ec != game.FpsTarget && rtss.SetFramerateLimit(renderExe, ec);
+        if (capChanged) Status?.Invoke($"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
+        var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap && rtss is not null
             ? new ThermalGovernor(cap, settings.ThermalGuard, settings.CpuTempAlertC, settings.GpuTempAlertC)
             : null;
         if (settings.ThermalGuard.Enabled && game.ThermalGuard && rtss is null && game.FpsTarget is not null)
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
-        var overlay = settings.RtssOverlay && rtss is not null;
+        var overlayStyle = settings.RtssOverlay ? settings.Overlay : OverlayStyle.Off;
+        var overlay = overlayStyle != OverlayStyle.Off && rtss is not null;
 
         // ---------------------------------------------------------------- CPU pinning
         var affinity = CpuAffinityPlanner.Plan(cpuTopology, game.CorePinning);
@@ -170,8 +183,8 @@ public sealed class GameSession(
                 var recorder = fps.PrimaryRecorder;
                 var p99 = recorder?.FrameTimePercentile(99) ?? 0;
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
-                    DateTimeOffset.Now - start, guard?.CurrentCap ?? game.FpsTarget, guard?.IsThrottling ?? false, BenchmarkSecondsLeft());
-                if (overlay) RtssClient.SetOsdText(OverlayLine(live));
+                    DateTimeOffset.Now - start, guard?.CurrentCap ?? Cap, guard?.IsThrottling ?? false, BenchmarkSecondsLeft());
+                if (overlay) RtssClient.SetOsdText(OverlayLine(live, overlayStyle));
                 Live?.Invoke(live);
             }
         }
@@ -183,11 +196,11 @@ public sealed class GameSession(
         fps.Stop();
         _fps = null;
         if (overlay) RtssClient.ClearOsd();
-        if (guard is { IsThrottling: true })
+        if (guard is { IsThrottling: true } || capChanged)
         {
             // Put back exactly what was there: the optimised cap, or no cap if Optimise never set one.
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
-            rtss!.SetFramerateLimit(renderExe, hadCap ? guard.OriginalCap : 0);
+            rtss!.SetFramerateLimit(renderExe, hadCap && game.FpsTarget is { } original ? original : 0);
         }
         if (useGameMode)
         {
@@ -195,7 +208,11 @@ public sealed class GameSession(
         }
 
         var finalRecorder = fps.PrimaryRecorder ?? new FrameTimeRecorder();
-        var summary = finalRecorder.Summarise(game, start, end, game.FpsTarget);
+        var summary = finalRecorder.Summarise(game, start, end, Cap);
+        summary.DisplayKey = Display?.Key;
+        summary.DisplayWidth = Display?.Width ?? 0;
+        summary.DisplayHeight = Display?.Height ?? 0;
+        summary.RenderScale = RenderScale;
         summary.MaxCpuTempC = maxCpu;
         summary.MaxGpuTempC = maxGpu;
         summary.AvgCpuTempC = cpuSamples > 0 ? sumCpu / cpuSamples : null;
@@ -235,10 +252,10 @@ public sealed class GameSession(
             _bench = null;
             _fps?.SetSink(null);
         }
-        var s = done.Summarise(game, started, DateTimeOffset.Now, game.FpsTarget);
+        var s = done.Summarise(game, started, DateTimeOffset.Now, Cap);
         if (!s.HasFpsData) { Status?.Invoke("Benchmark cancelled: not enough frames captured."); return; }
         s.MaxGpuTempC = _benchMaxGpu;
-        var label = $"{game.FpsTarget?.ToString() ?? "uncapped"} target · {game.AppliedChanges.Select(c => c.TweakId).Distinct().Count()} tweaks";
+        var label = $"{Cap?.ToString() ?? "uncapped"} target · {(Display is { } d ? d.Label + " · " : "")}{RenderScale}% render · {game.AppliedChanges.Select(c => c.TweakId).Distinct().Count()} tweaks";
         var result = BenchmarkResult.From(s, label, game.AppliedChanges.Select(c => c.TweakId));
         store.AppendBenchmark(result);
         Native.MessageBeep(0x40);
@@ -246,15 +263,23 @@ public sealed class GameSession(
         BenchmarkCompleted?.Invoke(result);
     }
 
-    /// <summary>One compact line for RTSS. Afterburner already shows FPS/frametime, so this adds what it can't.</summary>
-    private static string OverlayLine(LiveStats l)
+    /// <summary>
+    /// Our RTSS line. Default: just current FPS and temperatures. Extra info only appears while it matters
+    /// (thermal guard lowering the cap, a benchmark recording).
+    /// </summary>
+    internal static string OverlayLine(LiveStats l, OverlayStyle style)
     {
-        var parts = new List<string> { "FITZ" };
-        if (l.Cap is { } cap) parts.Add(l.ThermalThrottling ? $"cap {cap} (thermal)" : $"cap {cap}");
-        if (l.OnePercentLow > 0) parts.Add($"1% low {l.OnePercentLow:0}");
-        if (l.GpuTempC is { } g) parts.Add($"GPU {g:0}C");
-        if (l.CpuTempC is { } c) parts.Add($"CPU {c:0}C");
-        if (l.BenchmarkSecondsLeft is { } b) parts.Add($"BENCH {b}s");
-        return string.Join(" | ", parts);
+        var parts = new List<string>();
+        if (l.Fps > 0) parts.Add($"{l.Fps:0} FPS");
+        if (l.GpuTempC is { } g) parts.Add($"GPU {g:0}°C");
+        if (l.CpuTempC is { } c) parts.Add($"CPU {c:0}°C");
+        if (style == OverlayStyle.Detailed)
+        {
+            if (l.Cap is { } cap) parts.Add($"cap {cap}");
+            if (l.OnePercentLow > 0) parts.Add($"1% low {l.OnePercentLow:0}");
+        }
+        if (l.ThermalThrottling && l.Cap is { } tc) parts.Add($"cooling: cap {tc}");
+        if (l.BenchmarkSecondsLeft is { } b) parts.Add($"benchmark {b}s");
+        return string.Join("  ·  ", parts);
     }
 }

@@ -172,6 +172,26 @@
                 <Button Content="Reset auto-tune history" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding ResetAutoTuneCommand}"
                         Visibility="{Binding HasAutoTuneSteps, Converter={StaticResource Vis}}" ToolTip="Forget what was tried (applied changes stay; use Revert to undo them)" />
 
+                <!-- Display -->
+                <DockPanel Margin="0,18,0,8">
+                    <CheckBox DockPanel.Dock="Right" Content="Auto" IsChecked="{Binding AutoDisplayOn}" ToolTip="Pick resolution and render scale for the screen that's active when you press Play" />
+                    <TextBlock Text="Display" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <TextBlock Text="{Binding DisplayText}" Style="{StaticResource Wrap}" />
+                <ItemsControl ItemsSource="{Binding DisplayProfiles}" Margin="0,6,0,0">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel Margin="0,2">
+                                <Button DockPanel.Dock="Right" Content="Reset" Style="{StaticResource GhostButton}" ToolTip="Forget what was learned for this screen"
+                                        Command="{Binding DataContext.ResetDisplayProfileCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
+                                <TextBlock VerticalAlignment="Center" FontSize="12">
+                                    <Run Text="{Binding Label, Mode=OneWay}" /><Run Text="  ·  " Foreground="{StaticResource Muted}" /><Run Text="{Binding Detail, Mode=OneWay}" Foreground="{StaticResource Muted}" />
+                                </TextBlock>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
                 <!-- CPU & thermals -->
                 <TextBlock Text="CPU cores &amp; thermals" Style="{StaticResource H2}" />
                 <ItemsControl ItemsSource="{Binding PinningOptions}">

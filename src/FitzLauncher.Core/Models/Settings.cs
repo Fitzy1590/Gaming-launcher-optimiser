@@ -26,14 +26,24 @@ public sealed class LauncherSettings
     public ThermalGuardOptions ThermalGuard { get; set; } = new();
     public BackupOptions Backups { get; set; } = new();
 
-    /// <summary>Adds a line to the RTSS on-screen display in its own slot (doesn't touch Afterburner's).</summary>
+    /// <summary>Old on/off switch, kept so existing settings files still load. Use <see cref="Overlay"/>.</summary>
     public bool RtssOverlay { get; set; } = true;
+    /// <summary>The launcher's line in the RTSS on-screen display (its own slot; Afterburner's lines are untouched).</summary>
+    public OverlayStyle Overlay { get; set; } = OverlayStyle.FpsAndTemps;
     /// <summary>Use MSI Afterburner's sensor readings when it's running, so two tools don't poll the same sensors.</summary>
     public bool PreferAfterburnerSensors { get; set; } = true;
     public bool AutoTuneNewGames { get; set; } = true;
     public int BenchmarkSeconds { get; set; } = 60;
     /// <summary>Folder with newer DLSS/XeSS/FSR DLLs to offer as upgrades (in addition to other games' copies).</summary>
     public string? UpscalerDllFolder { get; set; }
+
+    /// <summary>Choose resolution/render scale per active display at launch.</summary>
+    public bool AutoDisplay { get; set; } = true;
+    /// <summary>For engines without a render-scale setting, allow a lower output resolution to reach the target.</summary>
+    public bool AllowLowerOutputResolution { get; set; }
+    public bool AutoCheckUpdates { get; set; } = true;
+    /// <summary>DPAPI-protected GitHub token, only needed while the repository is private.</summary>
+    public string? GitHubTokenProtected { get; set; }
 
     /// <summary>Folders the user scans for games ("Scan game folders"); rechecked for new games at start-up.</summary>
     public List<string> LibraryFolders { get; set; } = [];
@@ -43,6 +53,8 @@ public sealed class LauncherSettings
     /// <summary>GPU driver version seen last run; a change prompts a shader-cache clean.</summary>
     public string? LastSeenDriverVersion { get; set; }
 }
+
+public enum OverlayStyle { Off, FpsAndTemps, Detailed }
 
 public sealed class ThermalGuardOptions
 {

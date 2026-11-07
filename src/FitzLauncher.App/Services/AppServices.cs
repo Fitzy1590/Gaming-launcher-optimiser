@@ -29,6 +29,7 @@ public sealed class AppServices : IDisposable
     public bool IsElevated { get; } = Environment.IsPrivilegedProcess;
     public SaveBackupService SaveBackups { get; }
     public RedistService Redists { get; } = new();
+    public UpdateService Updates { get; }
     public SaveContext SaveContext { get; } = SaveContext.FromEnvironment();
 
     private readonly Lazy<IReadOnlyList<LogicalProcessor>> _topology = new(() => CpuTopologyReader.Read());
@@ -51,6 +52,7 @@ public sealed class AppServices : IDisposable
         Http.DefaultRequestHeaders.UserAgent.ParseAdd("FitzLauncher/0.1");
         GameMode = new GameModeController(Paths, Log.Write);
         SaveBackups = new SaveBackupService(Paths.SaveBackupDir);
+        Updates = new UpdateService(new HttpClient { Timeout = TimeSpan.FromMinutes(10), DefaultRequestHeaders = { { "User-Agent", "FitzLauncher-updater" } } }, this);
         Temps.PreferAfterburner = () => Settings.PreferAfterburnerSensors;
     }
 

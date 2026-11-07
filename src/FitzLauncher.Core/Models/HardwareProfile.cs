@@ -107,4 +107,8 @@ public sealed class DisplayInfo
     /// <summary>Highest refresh rate the display supports at its current resolution.</summary>
     public int MaxRefreshHz { get; set; }
     public bool IsPrimary { get; set; }
+
+    /// <summary>Identifies a screen by what matters for games, so handheld vs monitor get separate profiles.</summary>
+    public string Key => $"{Width}x{Height}@{MaxRefreshHz}";
+    public string Label => $"{Width}×{Height} · {MaxRefreshHz} Hz";
 }

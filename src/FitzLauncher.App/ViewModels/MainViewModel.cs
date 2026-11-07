@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Net.Http;
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Data;
@@ -51,6 +52,52 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string? _tagFilter;
     [ObservableProperty] private bool _showHidden;
     [ObservableProperty] private string _totalsText = "";
+    [ObservableProperty] private FitzLauncher.Core.Updates.ReleaseInfo? _availableUpdate;
+    [ObservableProperty] private string _updateText = "";
+    [ObservableProperty] private bool _isUpdating;
+
+    public bool HasUpdate => AvailableUpdate is not null;
+    partial void OnAvailableUpdateChanged(FitzLauncher.Core.Updates.ReleaseInfo? value) => OnPropertyChanged(nameof(HasUpdate));
+
+    /// <summary>At start-up (if enabled): look for a newer release and show the banner.</summary>
+    public async Task CheckForUpdatesOnStartAsync()
+    {
+        if (!_s.Settings.AutoCheckUpdates) return;
+        await Task.Delay(TimeSpan.FromSeconds(3)); // let the library paint first
+        var r = await _s.Updates.CheckAsync();
+        if (r.Available) ShowUpdate(r.Release!);
+    }
+
+    public void ShowUpdate(FitzLauncher.Core.Updates.ReleaseInfo release)
+    {
+        AvailableUpdate = release;
+        UpdateText = $"Fitz Launcher {release.Version} is available (you have {UpdateService.CurrentVersion}).";
+    }
+
+    [RelayCommand]
+    public async Task InstallUpdateAsync()
+    {
+        if (AvailableUpdate is not { } release) return;
+        if (IsPlaying) { ShowToast("Finish your game first. The update restarts the launcher."); return; }
+        IsUpdating = true;
+        try
+        {
+            var error = await _s.Updates.InstallAsync(release, new Progress<string>(m => UpdateText = $"Updating to {release.Version}: {m}"));
+            if (error.Length > 0) { UpdateText = error; return; }
+            UpdateText = "Restarting…";
+            _s.SaveLibrary();
+            _s.SaveSettings();
+            Application.Current.Shutdown();
+        }
+        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException or TaskCanceledException)
+        {
+            UpdateText = "Update failed: " + e.Message;
+            _s.Log.Write("Update failed: " + e);
+        }
+        finally { IsUpdating = false; }
+    }
+
+    [RelayCommand] private void DismissUpdate() => AvailableUpdate = null;
 
     public MainViewModel(AppServices services)
     {
@@ -61,7 +108,7 @@ public sealed partial class MainViewModel : ObservableObject
         GamesView.CustomSort = new GameSorter(Sort);
         Hardware = new HardwareViewModel(services);
         Sessions = new SessionsViewModel(services);
-        Settings = new SettingsViewModel(services);
+        Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
         RefreshLibraryMeta();
     }
 
@@ -252,7 +299,14 @@ public sealed partial class MainViewModel : ObservableObject
         // A restore point before playing, in case this session corrupts a save.
         await BackupSavesAsync(game, "before playing");
 
-        var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology);
+        var display = await Task.Run(() => PrepareDisplay(game));
+        var session = new GameSession(game, _s.Settings, _s.Hardware, _s.GameMode, _s.Temps, _s.Store, _s.CpuTopology)
+        {
+            Display = display?.Display,
+            ExtraArguments = display?.LaunchArguments ?? "",
+            EffectiveCap = display?.EffectiveCap,
+            RenderScale = display?.RenderScale ?? 100,
+        };
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
@@ -267,6 +321,8 @@ public sealed partial class MainViewModel : ObservableObject
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
             var tune = await Task.Run(() => AutoTune(game, summary));
+            var learned = DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget);
+            if (learned is not null) tune = tune is null ? learned : tune + " " + learned;
             _s.SaveLibrary();
             ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\nAuto-tune: {tune}" : ""));
             await BackupSavesAsync(game, "after playing");
@@ -287,6 +343,41 @@ public sealed partial class MainViewModel : ObservableObject
             RefreshLibraryMeta();
             if (Details?.Card == vm) Details.Reload();
             SessionEnded?.Invoke();
+        }
+    }
+
+    /// <summary>
+    /// Detects the active screen (handheld panel or monitor) and applies its resolution/render scale.
+    /// Unreal changes go through the tweak engine, so "Revert all" restores the game's own settings.
+    /// </summary>
+    private DisplayPlan? PrepareDisplay(Game game)
+    {
+        if (!_s.Settings.AutoDisplay || !game.AutoDisplay) return null;
+        try
+        {
+            var displays = HardwareScanner.CurrentDisplays();
+            var primary = displays.FirstOrDefault(d => d.IsPrimary) ?? displays.FirstOrDefault();
+            if (primary is null) return null;
+            game.LastScan ??= _s.Scanner.Scan(game);
+            var history = _s.Store.LoadSessions(game.Id);
+            var plan = DisplayPlanner.Plan(game, game.LastScan, primary, history, _s.Settings.AllowLowerOutputResolution);
+            if (plan.Actions.Count > 0)
+            {
+                var r = _s.Tweaks.Apply(game.AppliedChanges, new Tweak
+                {
+                    Id = DisplayPlanner.TweakId, Title = "Resolution for the active screen", Description = plan.Summary,
+                    Category = TweakCategory.Graphics, Actions = plan.Actions,
+                }, game);
+                if (!r.Success) _s.Log.Write($"[{game.Name}] display: {r.Message}");
+            }
+            Ui(() => Activity = plan.Summary);
+            _s.Log.Write($"[{game.Name}] display: {plan.Summary}");
+            return plan;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            _s.Log.Write($"[{game.Name}] display detection failed: {e.Message}");
+            return null;
         }
     }
 

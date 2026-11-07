@@ -489,3 +489,98 @@ internal static class TweakTestExtensions
 {
     public static string ManualText(this Tweak t) => string.Join(" ", t.Actions.OfType<ManualStepAction>().Select(a => a.Instructions)) + " " + t.Description;
 }
+
+public class DisplayPlannerTests
+{
+    private static readonly DisplayInfo Handheld = new() { DeviceName = "DISPLAY1", Width = 2560, Height = 1600, CurrentRefreshHz = 120, MaxRefreshHz = 120, IsPrimary = true };
+    private static readonly DisplayInfo Ultrawide = new() { DeviceName = "DISPLAY2", Width = 3440, Height = 1440, CurrentRefreshHz = 144, MaxRefreshHz = 144, IsPrimary = true };
+    private static readonly DisplayInfo Tv60 = new() { DeviceName = "DISPLAY3", Width = 3840, Height = 2160, CurrentRefreshHz = 60, MaxRefreshHz = 60, IsPrimary = true };
+
+    private static SessionSummary Session(DisplayInfo d, double avg, double low, double atTarget, int scale = 100) => new()
+    {
+        HasFpsData = true, AverageFps = avg, OnePercentLowFps = low, TimeAtTarget = atTarget, RenderScale = scale,
+        DisplayKey = d.Key, DisplayWidth = d.Width, DisplayHeight = d.Height,
+        Start = DateTimeOffset.Now.AddMinutes(-30), End = DateTimeOffset.Now,
+    };
+
+    [Fact]
+    public void Unreal_keeps_native_output_and_estimates_render_scale_for_a_bigger_screen()
+    {
+        var game = new Game { FpsTarget = 110 };
+        var scan = new GameScanResult { Engine = GameEngine.Unreal5, ConfigDirectories = ["/cfg/Saved/Config/Windows"] };
+        // 130 avg on the handheld panel → the ultrawide has ~21% more pixels.
+        var plan = DisplayPlanner.Plan(game, scan, Ultrawide, [Session(Handheld, 130, 110, 0.97)], allowLowerOutput: false);
+        Assert.Equal(3440, plan.OutputWidth);
+        Assert.InRange(plan.RenderScale, 77, 90);
+        var ini = plan.Actions.OfType<IniSetAction>().ToList();
+        Assert.Contains(ini, a => a.Key == "ResolutionSizeX" && a.Value == "3440");
+        Assert.Contains(ini, a => a.Key == "sg.ResolutionQuality" && a.Value == plan.RenderScale.ToString());
+        Assert.Equal(110, plan.EffectiveCap);
+    }
+
+    [Fact]
+    public void Learned_scale_per_screen_wins_and_screens_are_independent()
+    {
+        var game = new Game { FpsTarget = 117 };
+        game.DisplayProfiles[Handheld.Key] = new DisplayProfile { RenderScale = 83 };
+        var scan = new GameScanResult { Engine = GameEngine.Unreal5, ConfigDirectories = ["/cfg/Saved/Config/Windows"] };
+        Assert.Equal(83, DisplayPlanner.Plan(game, scan, Handheld, [], false).RenderScale);
+        Assert.Equal(100, DisplayPlanner.Plan(game, scan, Ultrawide, [], false).RenderScale); // nothing learned there yet
+    }
+
+    [Fact]
+    public void Unity_gets_launch_options_and_cap_follows_slow_screens()
+    {
+        var game = new Game { FpsTarget = 117 };
+        var plan = DisplayPlanner.Plan(game, new GameScanResult { Engine = GameEngine.Unity }, Tv60, [], false);
+        Assert.Equal("-screen-width 3840 -screen-height 2160", plan.LaunchArguments);
+        Assert.Equal(57, plan.EffectiveCap);
+        Assert.Equal(117, DisplayPlanner.EffectiveCap(117, 120));
+        Assert.Equal(110, DisplayPlanner.EffectiveCap(117, 113));
+    }
+
+    [Fact]
+    public void Lower_output_resolution_only_when_allowed()
+    {
+        var game = new Game { FpsTarget = 117 };
+        game.DisplayProfiles[Ultrawide.Key] = new DisplayProfile { RenderScale = 77 };
+        var scan = new GameScanResult { Engine = GameEngine.Unity };
+        Assert.Equal(3440, DisplayPlanner.Plan(game, scan, Ultrawide, [], false).OutputWidth);
+        Assert.Equal(2648, DisplayPlanner.Plan(game, scan, Ultrawide, [], true).OutputWidth);
+    }
+
+    [Fact]
+    public void Learns_down_when_missing_target_and_up_with_headroom()
+    {
+        var game = new Game { FpsTarget = 117 };
+        Assert.Contains("lowered to 90%", DisplayPlanner.Learn(game, Session(Ultrawide, 98, 80, 0.5), 117));
+        Assert.Equal(90, game.DisplayProfiles[Ultrawide.Key].RenderScale);
+        Assert.Contains("raised to 100%", DisplayPlanner.Learn(game, Session(Ultrawide, 117, 118, 0.99, 90), 117));
+        Assert.Null(DisplayPlanner.Learn(game, Session(Ultrawide, 117, 118, 0.99), 117)); // already native
+    }
+}
+
+public class ReleaseInfoTests
+{
+    [Fact]
+    public void Parses_latest_release_and_compares_versions()
+    {
+        const string json = """
+        {"tag_name":"v0.3.12","html_url":"https://github.com/x/y/releases/tag/v0.3.12","body":"notes","published_at":"2026-11-07T06:30:00Z",
+         "assets":[{"name":"other.txt","url":"u1","browser_download_url":"d1"},
+                   {"name":"FitzLauncher-win-x64.zip","url":"https://api.github.com/a/1","browser_download_url":"https://github.com/d/1"}]}
+        """;
+        var r = FitzLauncher.Core.Updates.ReleaseInfo.Parse(json)!;
+        Assert.Equal(new Version(0, 3, 12), r.Version);
+        Assert.Equal("https://api.github.com/a/1", r.AssetApiUrl);
+        Assert.True(r.IsNewerThan(new Version(0, 3, 4, 0)));
+        Assert.False(r.IsNewerThan(new Version(0, 3, 12, 0)));
+        Assert.False(r.IsNewerThan(new Version(0, 4, 0)));
+    }
+
+    [Theory]
+    [InlineData("v1.2.3", true)]
+    [InlineData("0.3.7-beta", true)]
+    [InlineData("latest", false)]
+    public void Parses_tags(string tag, bool ok) => Assert.Equal(ok, FitzLauncher.Core.Updates.ReleaseInfo.TryParseVersion(tag, out _));
+}

@@ -29,6 +29,12 @@ public sealed class SessionSummary
     public double? AvgGpuTempC { get; set; }
     public int TempAlerts { get; set; }
 
+    // Display the session ran on, for per-display learning.
+    public string? DisplayKey { get; set; }
+    public int DisplayWidth { get; set; }
+    public int DisplayHeight { get; set; }
+    public int RenderScale { get; set; } = 100;
+
     /// <summary>Average FPS per 10-second bucket, for the small timeline chart.</summary>
     public List<float> FpsTimeline { get; set; } = [];
 }

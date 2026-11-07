@@ -53,6 +53,12 @@ public sealed class Game
     public bool ThermalGuard { get; set; } = true;
     public AutoTuneState AutoTune { get; set; } = new();
 
+    // ---- display
+    /// <summary>Pick resolution/render scale for whichever screen is active at launch (handheld vs monitor).</summary>
+    public bool AutoDisplay { get; set; } = true;
+    /// <summary>Learned render scale and FPS per display ("3440x1440@144").</summary>
+    public Dictionary<string, DisplayProfile> DisplayProfiles { get; set; } = [];
+
     // ---- save backups
     public List<string> SaveDirs { get; set; } = [];
     public bool BackupSaves { get; set; } = true;
@@ -67,6 +73,17 @@ public sealed class Game
     public double? ProgressPercent => CompletionPercent is { } c ? Math.Clamp(c, 0, 100)
         : Status == PlayStatus.Completed ? 100
         : MainStoryHours is > 0 ? Math.Min(100, TotalPlayTime.TotalHours / MainStoryHours.Value * 100) : null;
+}
+
+public sealed class DisplayProfile
+{
+    public string Label { get; set; } = "";
+    /// <summary>Render scale percent (100 = native). Only applied on engines that support it.</summary>
+    public int RenderScale { get; set; } = 100;
+    public double? LastAvgFps { get; set; }
+    public double? LastLowFps { get; set; }
+    public int Sessions { get; set; }
+    public DateTimeOffset? LastPlayed { get; set; }
 }
 
 public enum PlayStatus { None, Backlog, Playing, Beaten, Completed, Abandoned }

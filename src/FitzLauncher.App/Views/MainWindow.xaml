@@ -70,6 +70,18 @@
                 <TextBlock Text="Running without administrator rights: Game Mode, FPS tracking and temperatures are limited. Restart Fitz Launcher as administrator." Foreground="{StaticResource Warn}" TextWrapping="Wrap" />
             </Border>
 
+            <!-- Update available -->
+            <Border Grid.Row="0" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,8"
+                    Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" VerticalAlignment="Top">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <Button Content="Later" Style="{StaticResource GhostButton}" Command="{Binding DismissUpdateCommand}" Margin="0,0,8,0" />
+                        <Button Content="Install and restart" Style="{StaticResource PrimaryButton}" Command="{Binding InstallUpdateCommand}" IsEnabled="{Binding IsUpdating, Converter={StaticResource InvertBool}}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding UpdateText}" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+
             <!-- Live game bar -->
             <Border Grid.Row="1" Background="#1A34D399" Padding="18,9" Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}">
                 <TextBlock Text="{Binding LiveText}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Good}" />

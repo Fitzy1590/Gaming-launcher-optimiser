@@ -291,6 +291,42 @@ public sealed partial class SettingsViewModel : ObservableObject
         BackupStatus = message;
     }
 
+    // ------------------------------------------------------------------ updates
+
+    public Action<FitzLauncher.Core.Updates.ReleaseInfo>? ShowUpdate { get; init; }
+    public Func<Task>? InstallUpdate { get; init; }
+    public string CurrentVersion => $"Version {UpdateService.CurrentVersion}";
+    [ObservableProperty] private string _updateStatus = "";
+    [ObservableProperty] private bool _updateReady;
+    [ObservableProperty] private string _tokenInput = "";
+    public bool HasToken => _s.Settings.GitHubTokenProtected is not null;
+
+    [RelayCommand]
+    private async Task CheckUpdatesAsync()
+    {
+        UpdateStatus = "Checking…";
+        var r = await _s.Updates.CheckAsync();
+        UpdateStatus = r.Message;
+        UpdateReady = r.Available;
+        if (r.Available) ShowUpdate?.Invoke(r.Release!);
+    }
+
+    [RelayCommand]
+    private async Task InstallUpdateNowAsync()
+    {
+        if (InstallUpdate is not null) await InstallUpdate();
+    }
+
+    [RelayCommand]
+    private async Task SaveTokenAsync()
+    {
+        _s.Updates.Token = TokenInput;
+        TokenInput = "";
+        OnPropertyChanged(nameof(HasToken));
+        UpdateStatus = HasToken ? "Token saved (encrypted with your Windows account). Checking…" : "Token removed.";
+        if (HasToken) await CheckUpdatesAsync();
+    }
+
     public bool NoUacShortcut
     {
         get => S.NoUacShortcut;

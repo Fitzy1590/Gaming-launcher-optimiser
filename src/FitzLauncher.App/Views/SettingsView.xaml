@@ -75,6 +75,16 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Display" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="At launch, set each game's resolution for the active screen (handheld or monitor) and learn the render scale that holds the FPS target there" IsChecked="{Binding S.AutoDisplay}" />
+                    <CheckBox Content="Allow a lower output resolution for engines without a render-scale setting (Unity/Source) when the target isn't reachable" IsChecked="{Binding S.AllowLowerOutputResolution}" />
+                    <TextBlock Text="Unreal games keep your screen's native resolution and render internally at a lower scale (upscaled by the engine), which keeps the image sharp. Other engines use native resolution unless you allow the option above."
+                               Style="{StaticResource Wrap}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Thermal guard" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
@@ -95,7 +105,14 @@
             <TextBlock Text="RTSS &amp; MSI Afterburner" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <CheckBox Content="Add a Fitz line to the RTSS overlay (cap, 1% low, thermal guard, benchmark timer)" IsChecked="{Binding S.RtssOverlay}" />
+                    <TextBlock Text="In-game overlay line (shown through RTSS, below Afterburner's)" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="overlay" Content="Off" IsChecked="{Binding S.Overlay, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="overlay" Content="FPS + temps" IsChecked="{Binding S.Overlay, Converter={StaticResource Eq}, ConverterParameter=FpsAndTemps}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="overlay" Content="Detailed" IsChecked="{Binding S.Overlay, Converter={StaticResource Eq}, ConverterParameter=Detailed}" />
+                    </WrapPanel>
+                    <TextBlock Text="Tip: Afterburner draws its own lines too. To see one counter only, either set this to Off, or untick &quot;Show in On-Screen Display&quot; for those items in Afterburner → Settings → Monitoring."
+                               Style="{StaticResource Wrap}" Margin="0,2,0,8" />
                     <CheckBox Content="Use MSI Afterburner's sensor readings when it's running (no double sensor polling)" IsChecked="{Binding S.PreferAfterburnerSensors}" />
                     <TextBlock Text="Designed not to conflict: the overlay line uses its own RTSS slot (Afterburner's lines stay as they are), only per-game RTSS profiles are touched (just the frame limit), and RTSS's global settings are never changed."
                                Style="{StaticResource Wrap}" Margin="0,6,0,0" />
@@ -178,6 +195,29 @@
             <TextBlock Text="Artwork" Style="{StaticResource H2}" />
             <TextBlock Text="Covers come from Steam automatically. For games not on Steam, add a free SteamGridDB API key (steamgriddb.com → Preferences → API)." Style="{StaticResource Wrap}" Margin="0,0,0,6" />
             <TextBox Text="{Binding S.SteamGridDbApiKey}" Width="420" HorizontalAlignment="Left" />
+
+            <TextBlock Text="Updates" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Install and restart" Style="{StaticResource PrimaryButton}" Command="{Binding InstallUpdateNowCommand}" Margin="0,0,8,0"
+                                    Visibility="{Binding UpdateReady, Converter={StaticResource Vis}}" />
+                            <Button Content="Check for updates" Command="{Binding CheckUpdatesCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding CurrentVersion}" VerticalAlignment="Center" FontSize="14" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
+                    <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,10,0,0" />
+                    <TextBlock Text="Private repository? Paste a GitHub token with read access to it (fine-grained token → Contents: Read-only). It's stored encrypted with your Windows account. Not needed if the repository is public."
+                               Style="{StaticResource Wrap}" Margin="0,10,0,6" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Save token" Command="{Binding SaveTokenCommand}" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding TokenInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                    <TextBlock Text="✓ A token is saved." Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding HasToken, Converter={StaticResource Vis}}" />
+                </StackPanel>
+            </Border>
 
             <TextBlock Text="Data" Style="{StaticResource H2}" />
             <StackPanel Orientation="Horizontal">

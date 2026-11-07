@@ -24,6 +24,7 @@ public sealed partial class ChoiceOption<T>(T value, string label, string? hint 
 public sealed record AutoTuneRow(string Title, string Result, string Outcome, bool Good);
 public sealed record BenchmarkRow(string When, string Avg, string Low, string PointLow, string AtTarget, string Delta, bool Better, string Label);
 public sealed record BackupRow(string When, string Size, string Path);
+public sealed record DisplayProfileRow(string Key, string Label, string Detail);
 
 public sealed partial class RuntimeRow(RedistInfo info) : ObservableObject
 {
@@ -43,6 +44,8 @@ public sealed partial class GameDetailsViewModel
     public ObservableCollection<string> SaveDirs { get; } = [];
     public ObservableCollection<BackupRow> Backups { get; } = [];
     public ObservableCollection<RuntimeRow> Runtimes { get; } = [];
+    public ObservableCollection<DisplayProfileRow> DisplayProfiles { get; } = [];
+    [ObservableProperty] private string _displayText = "";
 
     [ObservableProperty] private string _pinningText = "";
     [ObservableProperty] private string _autoTuneStatus = "";
@@ -97,6 +100,7 @@ public sealed partial class GameDetailsViewModel
 
         SaveDirs.Clear();
         foreach (var d in Game.SaveDirs) SaveDirs.Add(d);
+        LoadDisplay();
         OnPropertyChanged(string.Empty);
     }
 
@@ -188,6 +192,36 @@ public sealed partial class GameDetailsViewModel
         Game.AutoTune.TargetReached = false;
         _s.SaveLibrary();
         LoadExtras();
+    }
+
+    // ------------------------------------------------------------------ display
+
+    public bool AutoDisplayOn { get => Game.AutoDisplay; set { Game.AutoDisplay = value; _s.SaveLibrary(); LoadDisplay(); } }
+    public bool HasDisplayProfiles => DisplayProfiles.Count > 0;
+
+    private void LoadDisplay()
+    {
+        DisplayProfiles.Clear();
+        foreach (var (key, p) in Game.DisplayProfiles.OrderByDescending(kv => kv.Value.LastPlayed))
+            DisplayProfiles.Add(new DisplayProfileRow(key, p.Label.Length > 0 ? p.Label : key,
+                $"render {p.RenderScale}%" + (p.LastAvgFps is { } a ? $" · last {a:0} avg / {p.LastLowFps:0} 1% low" : "") + $" · {p.Sessions} session(s)"));
+        OnPropertyChanged(nameof(HasDisplayProfiles));
+
+        if (!_s.Settings.AutoDisplay) { DisplayText = "Off in Settings."; return; }
+        if (!Game.AutoDisplay) { DisplayText = "Off for this game: the game's own resolution is used."; return; }
+        var displays = HardwareScanner.CurrentDisplays();
+        var primary = displays.FirstOrDefault(d => d.IsPrimary) ?? displays.FirstOrDefault();
+        if (primary is null) { DisplayText = "No display detected."; return; }
+        var plan = DisplayPlanner.Plan(Game, Game.LastScan, primary, _s.Store.LoadSessions(Game.Id), _s.Settings.AllowLowerOutputResolution);
+        DisplayText = "At launch: " + plan.Summary + (plan.CanSetResolution ? "" : ". The launcher still tracks FPS per screen.");
+    }
+
+    [RelayCommand]
+    private void ResetDisplayProfile(DisplayProfileRow row)
+    {
+        Game.DisplayProfiles.Remove(row.Key);
+        _s.SaveLibrary();
+        LoadDisplay();
     }
 
     // ------------------------------------------------------------------ saves
