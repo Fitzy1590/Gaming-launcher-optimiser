@@ -39,6 +39,11 @@ public static class CpuAffinityPlanner
                 var mb = vcache[0].L3Bytes / 1024 / 1024;
                 return new AffinityPlan(Mask(vcache), $"V-Cache CCD only ({vcache.Select(c => c.CoreId).Distinct().Count()} cores, {mb} MB L3)");
             }
+            case CorePinning.SingleCcd when l3Groups.Count > 1:
+            {
+                var first = l3Groups.OrderBy(g => g.Min(c => c.Index)).First().ToList();
+                return new AffinityPlan(Mask(first), $"First CCD only ({first.Select(c => c.CoreId).Distinct().Count()} cores / {first.Count} threads): no cross-CCD latency");
+            }
             case CorePinning.PerformanceCores when hybrid:
             {
                 var top = classes.Max();

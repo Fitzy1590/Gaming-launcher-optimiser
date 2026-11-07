@@ -79,6 +79,8 @@ public enum CorePinning
     Off,
     PerformanceCores,
     VCacheCcd,
+    /// <summary>First CCD only, on CPUs with two equal CCDs (Ryzen 9 / Ryzen AI Max). Test it with a benchmark.</summary>
+    SingleCcd,
 }
 
 public sealed class AutoTuneState

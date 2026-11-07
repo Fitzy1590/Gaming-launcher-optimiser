@@ -97,7 +97,8 @@ public sealed partial class HardwareViewModel : ObservableObject
     /// <summary>Scan on first run, or when the cached profile is a week old.</summary>
     public async Task EnsureScannedAsync()
     {
-        if (_s.Hardware is null || DateTimeOffset.Now - _s.Hardware.ScannedAt > TimeSpan.FromDays(7)) await ScanAsync();
+        if (_s.Hardware is null || _s.Hardware.ScanVersion < HardwareProfile.CurrentScanVersion ||
+            DateTimeOffset.Now - _s.Hardware.ScannedAt > TimeSpan.FromDays(7)) await ScanAsync();
     }
 
     [RelayCommand]
@@ -148,7 +149,7 @@ public sealed partial class HardwareViewModel : ObservableObject
         foreach (var d in hw.Displays)
             Facts.Add(new(d.IsPrimary ? "Display" : "Display 2", $"{d.Width}×{d.Height} @ {d.CurrentRefreshHz} Hz" + (d.MaxRefreshHz > d.CurrentRefreshHz ? $" (supports {d.MaxRefreshHz} Hz)" : "")));
         foreach (var d in hw.Drives)
-            Facts.Add(new($"Drive {d.Letter}", $"{d.Kind switch { DriveKind.NvmeSsd => "NVMe SSD", DriveKind.SataSsd => "SATA SSD", DriveKind.Hdd => "Hard drive", _ => "Drive" }}  ·  {d.FreeBytes / 1e9:0} GB free of {d.TotalBytes / 1e9:0} GB"));
+            Facts.Add(new($"Drive {d.Letter}", $"{d.Kind switch { DriveKind.NvmeSsd => "NVMe SSD", DriveKind.SataSsd => "SATA SSD", DriveKind.Hdd => "Hard drive", DriveKind.SdCard => "SD card", _ => "Drive" }}  ·  {d.FreeBytes / 1e9:0} GB free of {d.TotalBytes / 1e9:0} GB"));
         Facts.Add(new("Windows", $"{hw.OsName} (build {hw.OsBuild})  ·  power plan: {hw.ActivePowerPlan}"));
         Facts.Add(new("Settings", string.Join("  ·  ", new[]
         {
@@ -159,6 +160,7 @@ public sealed partial class HardwareViewModel : ObservableObject
             hw.RtssInstalled ? "RTSS installed" : "RTSS not installed",
         })));
         if (hw.IsLaptop) Facts.Add(new("Type", hw.OnBattery ? "Laptop (on battery)" : "Laptop (plugged in)"));
+        if (hw.SystemModel.Length > 0) Facts.Add(new("Device", $"{hw.SystemManufacturer} {hw.SystemModel}".Trim() + (hw.IsApu ? "  ·  APU (shared CPU/GPU power & memory)" : "")));
 
         Recommendations.Clear();
         foreach (var t in SystemAdvisor.Analyse(hw, _s.Library.Games).OrderByDescending(t => t.Recommended))

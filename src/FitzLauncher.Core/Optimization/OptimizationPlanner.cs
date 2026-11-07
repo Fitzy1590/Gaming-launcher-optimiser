@@ -405,12 +405,13 @@ public sealed class OptimizationPlanner
         if (hw is null || game.InstallDir.Length < 2) return;
         var letter = game.InstallDir[..2].ToUpperInvariant();
         var drive = hw.Drives.FirstOrDefault(d => d.Letter.Equals(letter, StringComparison.OrdinalIgnoreCase));
-        if (drive?.Kind != DriveKind.Hdd) return;
+        if (drive?.Kind is not (DriveKind.Hdd or DriveKind.SdCard)) return;
+        var what = drive.Kind == DriveKind.SdCard ? "an SD card" : "a hard drive";
         plan.Tweaks.Add(new Tweak
         {
             Id = "move-to-ssd",
-            Title = "This game is on a hard drive",
-            Description = $"{letter} is a spinning hard drive. Modern games stream assets constantly, and from an HDD that shows up as stutter and texture pop-in no setting can fix. Moving the game to an SSD is the single biggest fix for that.",
+            Title = $"This game is on {what}",
+            Description = $"{letter} is {what}, which is far slower than your NVMe SSD. Modern games stream assets constantly, and from an HDD that shows up as stutter and texture pop-in no setting can fix. Moving the game to an SSD is the single biggest fix for that.",
             Category = TweakCategory.Hardware,
             VisualImpact = VisualImpact.None,
             Risk = TweakRisk.Safe,
@@ -441,6 +442,18 @@ public sealed class OptimizationPlanner
         }
         else if (vendor == GpuVendor.Amd)
         {
+            if (hw?.PrimaryGpu?.IsRdna3OrNewer == true)
+                plan.Tweaks.Add(new Tweak
+                {
+                    Id = "afmf-game",
+                    Title = "Turn on AMD Fluid Motion Frames 2 for this game",
+                    Description = "Driver-level frame generation: from a steady ~58 FPS base it shows ~116 on a 120 Hz screen, and it works in any DX11/DX12/Vulkan game. Use it when your real FPS can't reach the target. Cap the base at half the target (RTSS or in-game) for the smoothest result, and keep Anti-Lag on.",
+                    Category = TweakCategory.Graphics,
+                    VisualImpact = VisualImpact.Low,
+                    ExpectedGain = "Up to ~2x displayed FPS",
+                    Actions = [new ManualStepAction { Instructions = "AMD Software → Gaming → this game → AMD Fluid Motion Frames → On. Alt+R in-game shows whether it's active." }],
+                    Recommended = hw.IsApu,
+                });
             plan.Tweaks.Add(scan.SupportsAntiLag2
                 ? Latency("latency-antilag2", "Turn on AMD Anti-Lag 2",
                     "This game has AMD Anti-Lag 2 built in: AMD's equivalent of NVIDIA Reflex. It syncs the CPU to the GPU in-engine for the lowest input lag on Radeon.",

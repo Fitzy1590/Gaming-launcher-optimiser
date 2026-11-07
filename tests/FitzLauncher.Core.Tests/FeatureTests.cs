@@ -418,3 +418,74 @@ public class MiscFeatureTests
         Assert.Equal(new[] { a, b, c }, LibraryStats.Sort([c, b, a], LibrarySort.MostPlayed).ToArray());
     }
 }
+
+public class ApuTailoringTests
+{
+    private static HardwareProfile StrixHalo() => new()
+    {
+        CpuName = "AMD RYZEN AI MAX+ 395 w/ Radeon 8060S", CpuCores = 16, CpuThreads = 32,
+        Gpus = [new GpuInfo { Name = "AMD Radeon(TM) 8060S Graphics", Vendor = GpuVendor.Amd, VramBytes = 16L << 30,
+                              IsDiscrete = GpuInfo.LooksDiscrete(GpuVendor.Amd, "AMD Radeon(TM) 8060S Graphics") }],
+        RamBytes = 48L << 30, RamSticks = 8, RamConfiguredMhz = 8000, RamType = "LPDDR",
+        Displays = [new DisplayInfo { DeviceName = "DISPLAY1", CurrentRefreshHz = 120, MaxRefreshHz = 120, IsPrimary = true }],
+        Drives = [new DriveInfoLite { Letter = "C:", Kind = DriveKind.NvmeSsd, Model = "ONEXPLAYER 06" }, new DriveInfoLite { Letter = "D:", Kind = DriveKind.SdCard }],
+        VirtualDisplayAdapters = ["MuMuPlayer Virtual Display Adapter"],
+        OsBuild = 26300, RtssInstalled = true, RtssPath = "/rtss",
+    };
+
+    [Theory]
+    [InlineData(GpuVendor.Amd, "AMD Radeon(TM) 8060S Graphics", false)]
+    [InlineData(GpuVendor.Amd, "AMD Radeon 780M Graphics", false)]
+    [InlineData(GpuVendor.Amd, "AMD Radeon RX 7900 XTX", true)]
+    [InlineData(GpuVendor.Intel, "Intel(R) Arc(TM) Graphics", false)]
+    [InlineData(GpuVendor.Intel, "Intel(R) Arc(TM) A770 Graphics", true)]
+    [InlineData(GpuVendor.Nvidia, "NVIDIA GeForce RTX 4060 Laptop GPU", true)]
+    public void Classifies_integrated_vs_dedicated_by_name(GpuVendor v, string name, bool discrete) =>
+        Assert.Equal(discrete, GpuInfo.LooksDiscrete(v, name));
+
+    [Fact]
+    public void Strix_halo_keeps_power_plan_and_gets_apu_advice()
+    {
+        var hw = StrixHalo();
+        Assert.True(hw.IsApu);
+        Assert.True(hw.PrimaryGpu!.IsRdna3OrNewer);
+        Assert.False(SystemAdvisor.Tune(hw).SwitchToHighPerformancePlan);
+        Assert.Equal(0, SystemAdvisor.Tune(hw).FreeMemoryThresholdMb); // 48 GB: memory guard not needed
+
+        var games = new[] { new Game { Name = "On SD", InstallDir = @"D:\Games\X" } };
+        var ids = SystemAdvisor.Analyse(hw, games).Select(t => t.Id).ToList();
+        Assert.Contains("apu-power", ids);
+        Assert.Contains("apu-vram", ids);
+        Assert.Contains("afmf", ids);
+        Assert.Contains("virtual-display", ids);
+        Assert.Contains("games-on-hdd", ids);
+        Assert.DoesNotContain("xmp", ids);          // LPDDR5X-8000 is already full speed
+        Assert.DoesNotContain("dual-channel", ids);
+        Assert.Contains("OneXConsole", SystemAdvisor.Analyse(hw).Single(t => t.Id == "apu-power").ManualText());
+    }
+
+    [Fact]
+    public void Game_plan_offers_afmf_antilag_and_sd_warning_on_strix_halo()
+    {
+        var plan = new OptimizationPlanner().Build(new Game { Name = "G", ExePath = "/g/g.exe", InstallDir = @"D:\Games\G" }, new GameScanResult(), StrixHalo(), 117);
+        var ids = plan.Tweaks.Select(t => t.Id).ToList();
+        Assert.Contains("afmf-game", ids);
+        Assert.Contains("latency-antilag", ids);
+        Assert.Contains("latency-rtss-mode-amd", ids);
+        Assert.Contains("move-to-ssd", ids);
+        Assert.Equal(117, plan.SuggestedTarget);
+    }
+
+    [Fact]
+    public void Single_ccd_pins_first_of_two_equal_ccds()
+    {
+        var cpus = Enumerable.Range(0, 32).Select(i => new LogicalProcessor(i, i / 2, 0, i < 16 ? 0 : 1, 32L << 20)).ToList();
+        Assert.Null(CpuAffinityPlanner.Plan(cpus, CorePinning.Auto)); // equal CCDs: Auto leaves it alone
+        Assert.Equal(0xFFFFUL, CpuAffinityPlanner.Plan(cpus, CorePinning.SingleCcd)!.Mask);
+    }
+}
+
+internal static class TweakTestExtensions
+{
+    public static string ManualText(this Tweak t) => string.Join(" ", t.Actions.OfType<ManualStepAction>().Select(a => a.Instructions)) + " " + t.Description;
+}

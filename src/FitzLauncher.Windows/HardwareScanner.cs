@@ -65,7 +65,11 @@ public static partial class HardwareScanner
         foreach (var vc in Query("SELECT Name, DriverVersion, DriverDate, PNPDeviceID, AdapterRAM FROM Win32_VideoController"))
         {
             var name = vc["Name"]?.ToString() ?? "";
-            if (Regex.IsMatch(name, "(?i)basic display|virtual|remote|parsec|idd|mirage|citrix")) continue;
+            if (Regex.IsMatch(name, "(?i)basic display|virtual|remote|parsec|idd|mirage|citrix"))
+            {
+                if (!name.Contains("Basic Display", StringComparison.OrdinalIgnoreCase)) hw.VirtualDisplayAdapters.Add(name);
+                continue;
+            }
             var pnp = vc["PNPDeviceID"]?.ToString() ?? "";
             var vendor = pnp.Contains("VEN_10DE") || name.Contains("NVIDIA", StringComparison.OrdinalIgnoreCase) ? GpuVendor.Nvidia
                        : pnp.Contains("VEN_1002") || name.Contains("AMD", StringComparison.OrdinalIgnoreCase) || name.Contains("Radeon", StringComparison.OrdinalIgnoreCase) ? GpuVendor.Amd
@@ -82,7 +86,7 @@ public static partial class HardwareScanner
                 VramBytes = vram,
                 DriverVersion = vc["DriverVersion"]?.ToString() ?? "",
                 DriverDate = driverDate,
-                IsDiscrete = vendor == GpuVendor.Nvidia || vram >= 3L * 1024 * 1024 * 1024,
+                IsDiscrete = GpuInfo.LooksDiscrete(vendor, name),
             });
         }
     }
@@ -128,8 +132,12 @@ public static partial class HardwareScanner
 
     private static void ScanSystem(HardwareProfile hw)
     {
-        foreach (var cs in Query("SELECT PCSystemType FROM Win32_ComputerSystem"))
+        foreach (var cs in Query("SELECT PCSystemType, Manufacturer, Model FROM Win32_ComputerSystem"))
+        {
             if (Convert.ToInt32(cs["PCSystemType"] ?? 0) == 2) hw.IsLaptop = true;
+            hw.SystemManufacturer = cs["Manufacturer"]?.ToString()?.Trim() ?? "";
+            hw.SystemModel = cs["Model"]?.ToString()?.Trim() ?? "";
+        }
         if (Query("SELECT Name FROM Win32_Battery").Any()) hw.IsLaptop = true;
         if (Native.GetSystemPowerStatus(out var ps)) hw.OnBattery = ps.ACLineStatus == 0;
     }
@@ -142,7 +150,11 @@ public static partial class HardwareScanner
         {
             var media = Convert.ToInt32(d["MediaType"] ?? 0);
             var bus = Convert.ToInt32(d["BusType"] ?? 0);
-            var kind = bus == 17 ? DriveKind.NvmeSsd : media switch { 3 => DriveKind.Hdd, 4 => DriveKind.SataSsd, _ => DriveKind.Unknown };
+            var friendly = d["FriendlyName"]?.ToString() ?? "";
+            // SD/microSD: bus type SD (12) / MMC (13), or a card reader that reports as SCSI.
+            var kind = bus is 12 or 13 || friendly.Contains("Card Reader", StringComparison.OrdinalIgnoreCase) ? DriveKind.SdCard
+                     : bus == 17 ? DriveKind.NvmeSsd
+                     : media switch { 3 => DriveKind.Hdd, 4 => DriveKind.SataSsd, _ => DriveKind.Unknown };
             kinds[d["DeviceId"]?.ToString() ?? ""] = (kind, d["FriendlyName"]?.ToString() ?? "");
         }
         foreach (var p in Query("SELECT DiskNumber, DriveLetter FROM MSFT_Partition", storage))

@@ -182,6 +182,68 @@ public static class SystemAdvisor
             });
         }
 
+        if (hw.IsApu && gpu is not null)
+        {
+            var device = string.Join(' ', new[] { hw.SystemManufacturer, hw.SystemModel }.Where(x => x.Length > 0 && !x.Contains("To Be Filled", StringComparison.OrdinalIgnoreCase)));
+            var vendorApp = (hw.SystemManufacturer + hw.SystemModel + string.Join(' ', hw.Drives.Select(d => d.Model))).Contains("ONEX", StringComparison.OrdinalIgnoreCase)
+                ? "OneXConsole" : "your device's control app (or AMD Software)";
+            list.Add(new Tweak
+            {
+                Id = "apu-power",
+                Title = $"{gpu.Name}: the CPU and GPU share one power budget",
+                Description = $"On an APU{(device.Length > 0 ? $" ({device})" : "")}, FPS depends mostly on the total power limit (TDP) and on how much of it the GPU gets. " +
+                              $"Game Mode leaves the Windows power plan alone here: forcing High performance raises CPU clocks and steals power from the GPU. Set the TDP in {vendorApp} instead. Your FPS cap also helps, because every frame you don't render is power the GPU can use to keep clocks steady.",
+                Category = TweakCategory.Hardware,
+                VisualImpact = VisualImpact.None,
+                ExpectedGain = "The biggest single factor on an APU",
+                Actions = [new ManualStepAction { Instructions = $"{vendorApp}: choose the highest sustained TDP your cooling handles while plugged in (on Strix Halo devices this is typically the 'Performance'/'Turbo' mode), and keep it plugged in for gaming." }],
+                Recommended = true,
+            });
+
+            var vram = gpu.VramGb;
+            list.Add(new Tweak
+            {
+                Id = "apu-vram",
+                Title = vram >= 8 ? $"{vram:0} GB of RAM reserved for graphics: good" : $"Only {vram:0.#} GB of RAM reserved for graphics",
+                Description = vram >= 8
+                    ? $"Your GPU uses part of system RAM as video memory. {vram:0} GB dedicated is a good balance for 1080p-1440p gaming (Windows sees the rest, {hw.RamGb:0} GB). Raise it only if games warn about VRAM; lowering it gives apps more RAM."
+                    : "Your GPU uses part of system RAM as video memory, and games check that amount to pick texture settings. Raising it to 8-16 GB avoids stutter from textures spilling into shared memory.",
+                Category = TweakCategory.Hardware,
+                VisualImpact = VisualImpact.None,
+                ExpectedGain = vram >= 8 ? "" : "Fewer VRAM stutters, higher texture settings",
+                Actions = [new ManualStepAction { Instructions = "AMD Software → Performance → Tuning → Variable Graphics Memory (or BIOS → UMA Frame Buffer Size). Restart after changing." }],
+                Recommended = vram < 8,
+            });
+        }
+
+        if (gpu?.IsRdna3OrNewer == true)
+        {
+            list.Add(new Tweak
+            {
+                Id = "afmf",
+                Title = "AMD Fluid Motion Frames 2 (driver frame generation)",
+                Description = "AFMF 2 inserts a generated frame between real ones for any DX11/DX12/Vulkan game, without needing game support. From a steady 55-60 FPS base it shows 110-117 on your 120 Hz screen. It adds some input lag, so pair it with Anti-Lag. It works best with the in-game cap set to half your target (e.g. 58) and V-Sync off.",
+                Category = TweakCategory.Graphics,
+                VisualImpact = VisualImpact.Low,
+                ExpectedGain = "Up to ~2x displayed FPS",
+                Actions = [new ManualStepAction { Instructions = "AMD Software → Gaming → this game (or Global) → AMD Fluid Motion Frames → On (Search Mode: High; Performance Mode: Auto). Press Alt+R in-game to confirm it's active." }],
+                Recommended = hw.IsApu,
+            });
+        }
+
+        if (hw.VirtualDisplayAdapters.Count > 0)
+        {
+            list.Add(new Tweak
+            {
+                Id = "virtual-display",
+                Title = $"Virtual display adapter: {string.Join(", ", hw.VirtualDisplayAdapters)}",
+                Description = "Emulators and streaming tools add a virtual monitor. That's harmless while it's unused, but some games then open on the invisible screen, pick the wrong refresh rate, or lose FreeSync. If you see that, disable the adapter in Device Manager while gaming.",
+                Category = TweakCategory.Info,
+                VisualImpact = VisualImpact.None,
+                Actions = [new ManualStepAction { Instructions = "Device Manager → Display adapters → right-click the virtual adapter → Disable device (re-enable it when you use the emulator)." }],
+            });
+        }
+
         if (gpu?.DriverDate is { } date && (DateTime.Now - date).TotalDays > 180)
         {
             list.Add(new Tweak
@@ -234,14 +296,14 @@ public static class SystemAdvisor
 
         if (games is not null)
         {
-            var hdd = hw.Drives.Where(d => d.Kind == DriveKind.Hdd).Select(d => d.Letter).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var hdd = hw.Drives.Where(d => d.Kind is DriveKind.Hdd or DriveKind.SdCard).Select(d => d.Letter).ToHashSet(StringComparer.OrdinalIgnoreCase);
             var onHdd = games.Where(g => g.InstallDir.Length >= 2 && hdd.Contains(g.InstallDir[..2])).Select(g => g.Name).ToList();
             if (onHdd.Count > 0)
             {
                 list.Add(new Tweak
                 {
                     Id = "games-on-hdd",
-                    Title = $"{onHdd.Count} game(s) installed on a hard drive",
+                    Title = $"{onHdd.Count} game(s) on slow storage (hard drive or SD card)",
                     Description = "Moving these to an SSD will cut stutter and load times: " + string.Join(", ", onHdd.Take(8)) + (onHdd.Count > 8 ? "…" : ""),
                     Category = TweakCategory.Hardware,
                     VisualImpact = VisualImpact.None,
@@ -276,8 +338,9 @@ public static class SystemAdvisor
             // ISLC-style guard: purge the standby list when free memory drops below this.
             FreeMemoryThresholdMb = ramGb switch { < 12 => 2048, < 20 => 1536, < 40 => 1024, _ => 0 },
             StandbyListMinimumMb = 1024,
-            // Don't switch to High Performance on X3D (breaks core parking) or modern-standby laptops on battery.
-            SwitchToHighPerformancePlan = !(hw?.CpuHasVCache ?? false) && !(hw?.OnBattery ?? false),
+            // Don't switch to High Performance on X3D (breaks core parking), on battery, or on APUs:
+            // there the CPU and GPU share one power budget, and pinning CPU clocks high starves the GPU.
+            SwitchToHighPerformancePlan = !(hw?.CpuHasVCache ?? false) && !(hw?.OnBattery ?? false) && !(hw?.IsApu ?? false),
             // Windows 11 makes timer resolution requests per-process, so ours wouldn't reach the game.
             UseTimerResolution = !(hw?.IsWindows11 ?? true),
             TrimBackgroundWorkingSets = ramGb < 20,

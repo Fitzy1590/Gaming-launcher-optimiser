@@ -58,6 +58,7 @@ public sealed partial class GameDetailsViewModel
         PinningOptions.Add(new(CorePinning.Off, "Off", "Let Windows schedule freely."));
         PinningOptions.Add(new(CorePinning.PerformanceCores, "P-cores", "Intel hybrid: keep the game off E-cores."));
         PinningOptions.Add(new(CorePinning.VCacheCcd, "V-Cache CCD", "Ryzen 7950X3D/9950X3D: keep the game on the 3D V-Cache die."));
+        PinningOptions.Add(new(CorePinning.SingleCcd, "Single CCD", "Two equal CCDs (Ryzen 9, Ryzen AI Max+ 395): keep the game on one 8-core CCD to avoid cross-CCD latency. Benchmark it (Ctrl+Alt+B) with and without; it helps some games and not others."));
         LoadExtras();
     }
 
