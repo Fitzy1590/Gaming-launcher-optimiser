@@ -110,6 +110,9 @@ click-through overlay that never steals focus, and plays a sound that also works
 - **Runtimes check:** "Won't start?" finds the VC++, DirectX, .NET, PhysX, OpenAL and XNA installers bundled in the
   repack, checks which are missing on your PC, and installs them silently.
 
+### How it works page
+A plain-language guide in the left pane (F1): what each feature does, a three-step quick start and shortcuts.
+
 ### Library, progress & Big Picture
 - Status (Backlog / Playing / Beaten / 100% / Dropped), **tags**, favourites, hidden games, and sorting by recent,
   most played, A–Z, added or progress.
@@ -191,3 +194,7 @@ Tag a commit `v0.1.0` (etc.) and CI publishes a GitHub Release with the zip.
 - [ ] Play: Game Mode messages appear, the launcher minimises, live FPS/temps show in the top bar
 - [ ] After quitting: session summary toast with avg FPS / 1% low; history chart updates
 - [ ] Services restart and the power plan returns to normal after the game closes
+
+## Credits
+- UI design pass guided by [unslop](https://github.com/heydamir/unslop) by Damir Sokolovsky ([@heydamir](https://x.com/heydamir)), CC BY 4.0.
+- Frame-time capture follows the event model of Intel's [PresentMon](https://github.com/GameTechDev/PresentMon); sensors via [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor).

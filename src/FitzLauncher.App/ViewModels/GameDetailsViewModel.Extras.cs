@@ -78,7 +78,7 @@ public sealed partial class GameDetailsViewModel
             var result = st.ResultLow is { } rl ? $"1% low {st.BaselineLow:0} → {rl:0}" : $"waiting for next session (baseline 1% low {st.BaselineLow:0})";
             AutoTuneSteps.Add(new AutoTuneRow(st.Title, result, st.Outcome switch
             {
-                AutoTuneOutcome.Kept => "✓ kept", AutoTuneOutcome.Reverted => "↶ reverted", AutoTuneOutcome.Skipped => "skipped", _ => "testing",
+                AutoTuneOutcome.Kept => "Kept", AutoTuneOutcome.Reverted => "Reverted", AutoTuneOutcome.Skipped => "Skipped", _ => "Testing",
             }, st.Outcome == AutoTuneOutcome.Kept));
         }
         AutoTuneStatus = !Game.AutoTune.Enabled ? "Off. Turn it on to let the launcher test graphics changes between sessions."
@@ -319,7 +319,7 @@ public sealed partial class GameDetailsViewModel
             return infos.Select(i => (info: i, installed: _s.Redists.IsInstalled(i))).ToList();
         });
         Runtimes.Clear();
-        foreach (var (info, installed) in rows) Runtimes.Add(new RuntimeRow(info) { Installed = installed, State = installed ? "✓ installed" : "missing" });
+        foreach (var (info, installed) in rows) Runtimes.Add(new RuntimeRow(info) { Installed = installed, State = installed ? "Installed" : "Missing" });
         RuntimesChecked = true;
         var missing = Runtimes.Count(r => !r.Installed);
         RuntimeStatus = Runtimes.Count == 0 ? "This repack doesn't bundle any runtimes the launcher recognises."
@@ -333,11 +333,11 @@ public sealed partial class GameDetailsViewModel
     {
         foreach (var row in Runtimes.Where(r => !r.Installed).ToList())
         {
-            row.State = "installing…";
+            row.State = "Installing…";
             RuntimeStatus = $"Installing {row.Name}…";
             var (ok, msg) = await RedistService.InstallAsync(row.Info);
             row.Installed = ok;
-            row.State = ok ? "✓ " + msg.ToLowerInvariant() : "✗ " + msg;
+            row.State = ok ? msg : "Failed: " + msg;
             _s.Log.Write($"[{Game.Name}] runtime {row.Name}: {msg}");
         }
         RuntimeStatus = Runtimes.All(r => r.Installed) ? "Done. Try launching the game." : "Some runtimes failed. Run their installers manually from the game folder.";

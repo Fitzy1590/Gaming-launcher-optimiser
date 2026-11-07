@@ -1,0 +1,153 @@
+<UserControl x:Class="FitzLauncher.App.Views.AboutView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <UserControl.Resources>
+        <!-- One explained feature: icon column, title, plain-language text -->
+        <Style x:Key="Feature" TargetType="ContentControl">
+            <Setter Property="Margin" Value="0,0,0,24" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Style="{StaticResource Icon}" Text="{TemplateBinding Tag}" Foreground="{StaticResource Secondary}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                            <ContentPresenter Grid.Column="1" />
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="FeatureTitle" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontWeight" Value="Medium" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+        </Style>
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <Grid Margin="32,24,32,48" MaxWidth="1040" HorizontalAlignment="Left">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="48" />
+                <ColumnDefinition Width="300" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Features -->
+            <StackPanel>
+                <TextBlock Text="How it works" Style="{StaticResource H1}" />
+                <TextBlock Text="Fitz Launcher keeps your games in one place and gets them running at a steady frame rate on whatever screen you're using. Everything it changes can be undone."
+                           Style="{StaticResource Wrap}" FontSize="14" LineHeight="22" Margin="0,8,0,32" MaxWidth="640" HorizontalAlignment="Left" />
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE8F1;">
+                    <StackPanel>
+                        <TextBlock Text="All your games in one place" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Point it at your game folders and tick what to add. It finds the right exe, cleans up repack names and fetches cover art. Tag games, mark them Playing or Beaten, and see hours played and how far through you are." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE945;">
+                    <StackPanel>
+                        <TextBlock Text="One click for smoother FPS" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Pick 90, 100, 110 or 117 on a game. It reads the game's files, caps the frame rate there and applies the fixes that don't change how the game looks, like shader-stutter fixes and making sure the right GPU is used. Changes that trade a little quality for FPS are listed separately for you to choose." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE768;">
+                    <StackPanel>
+                        <TextBlock Text="Game Mode when you press Play" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="While you play it pauses Windows Update, background downloads, search indexing and OneDrive, frees up memory, and gives the game priority. When you quit, everything goes back to how it was, even if the PC crashed." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7F4;">
+                    <StackPanel>
+                        <TextBlock Text="Right settings for each screen" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="It notices whether you're on the handheld screen or your monitor and sets the resolution to match. On bigger screens it can render a little lower and upscale so you still hit your FPS target, and it remembers what works on each screen." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE9D2;">
+                    <StackPanel>
+                        <TextBlock Text="Measures every session" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="It records your average FPS and 1% lows (how smooth it felt) without injecting anything into the game. Press Ctrl+Alt+B in a game for a 60-second benchmark to compare settings." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE9CA;">
+                    <StackPanel>
+                        <TextBlock Text="Keeps an eye on temperatures" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="If the CPU or GPU runs hot for a while you get an on-screen alert. With the thermal guard on, it lowers the frame cap a step to cool things down, then puts it back." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE9F5;">
+                    <StackPanel>
+                        <TextBlock Text="Learns what works" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="With auto-tune on, after a session that misses your target it tries one small graphics change, then keeps it only if the next session is smoother." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE8C8;">
+                    <StackPanel>
+                        <TextBlock Text="Looks after your repacks" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Backs up your saves before and after playing, with optional copies to Google Drive or a USB stick. If a game won't start, it can install the runtimes the repack shipped with, and it can update DLSS, XeSS and FSR files from your other games." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7FC;">
+                    <StackPanel>
+                        <TextBlock Text="Big Picture for the couch" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Press F11 for a fullscreen view you can drive with a controller: browse, play and switch FPS targets without a mouse." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE72E;" Margin="0">
+                    <StackPanel>
+                        <TextBlock Text="Safe to try" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Config files are backed up before the first change, and Revert all puts a game back exactly as it was. Your RTSS and Afterburner setups aren't touched; the launcher only adds its own overlay line and per-game frame limits." />
+                    </StackPanel>
+                </ContentControl>
+            </StackPanel>
+
+            <!-- Quick start + shortcuts -->
+            <StackPanel Grid.Column="2" Margin="0,48,0,0">
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Quick start" Style="{StaticResource FeatureTitle}" Margin="0,0,0,12" />
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="1" Style="{StaticResource Figure}" Foreground="{StaticResource Muted}" />
+                            <TextBlock Grid.Column="1" Style="{StaticResource Wrap}" Text="Library → Scan game folders, and add your games" />
+                        </Grid>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="2" Style="{StaticResource Figure}" Foreground="{StaticResource Muted}" />
+                            <TextBlock Grid.Column="1" Style="{StaticResource Wrap}" Text="Open a game and click an FPS target (117 suits a 120 Hz screen)" />
+                        </Grid>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="24" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                            <TextBlock Text="3" Style="{StaticResource Figure}" Foreground="{StaticResource Muted}" />
+                            <TextBlock Grid.Column="1" Style="{StaticResource Wrap}" Text="Press Play. When you quit, you'll see how smooth it ran" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Shortcuts" Style="{StaticResource FeatureTitle}" Margin="0,0,0,12" />
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl F" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Search" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl N" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Add a game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="Enter" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Play the selected game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel Margin="0,0,0,8"><Border Style="{StaticResource Keycap}"><TextBlock Text="F11" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Big Picture" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                        <DockPanel><Border Style="{StaticResource Keycap}"><TextBlock Text="Ctrl Alt B" Style="{StaticResource Figure}" FontSize="12" /></Border><TextBlock Text="Benchmark, in-game" Style="{StaticResource Wrap}" VerticalAlignment="Center" /></DockPanel>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{Binding AppVersion}" Style="{StaticResource MutedText}" Margin="4,8,0,0" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

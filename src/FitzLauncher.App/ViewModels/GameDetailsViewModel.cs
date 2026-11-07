@@ -45,6 +45,9 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     [ObservableProperty] private PointCollection _historyLine = [];
     [ObservableProperty] private PointCollection _lastTimeline = [];
     [ObservableProperty] private string _lastSessionText = "";
+    [ObservableProperty] private double _targetY;
+    [ObservableProperty] private bool _hasTargetLine;
+    [ObservableProperty] private string _targetLabel = "";
     [ObservableProperty] private bool _hasHistory;
     [ObservableProperty] private string _appliedSummary = "";
 
@@ -157,7 +160,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
         RebuildPlan();
         Card.Refresh();
         Status = failed.Count == 0
-            ? $"✓ Applied {applied} optimisation(s) with no visual change.{(manual > 0 ? " The frame cap needs one manual step (see below)." : "")}{(Suggestions.Any(x => x.Recommended && !x.IsApplied) ? " Recommended graphics changes are listed below." : "")}"
+            ? $"Applied {applied} optimisation(s) with no visual change.{(manual > 0 ? " The frame cap needs one manual step (see below)." : "")}{(Suggestions.Any(x => x.Recommended && !x.IsApplied) ? " Recommended graphics changes are listed below." : "")}"
             : $"Applied {applied}; {failed.Count} couldn't be applied: {string.Join("; ", failed)}";
         foreach (var f in failed) _s.Log.Write($"[{Game.Name}] {f}");
     }
@@ -260,10 +263,15 @@ public sealed partial class GameDetailsViewModel : ObservableObject
         History.Clear();
         foreach (var s in sessions.Take(12)) History.Add(new SessionRow(s));
         HasHistory = sessions.Count > 0;
-        HistoryLine = Sparkline.Build(sessions.Take(20).Reverse().Select(s => s.AverageFps).ToList(), 360, 60);
+        HistoryLine = Sparkline.Build(sessions.Take(20).Reverse().Select(s => s.AverageFps).ToList(), 400, 40);
         if (sessions.FirstOrDefault() is { } last)
         {
-            LastTimeline = Sparkline.Build(last.FpsTimeline.Select(f => (double)f).ToList(), 360, 60);
+            var values = last.FpsTimeline.Select(f => (double)f).ToList();
+            var (points, targetY) = Sparkline.BuildWithTarget(values, 400, 96, last.TargetFps);
+            LastTimeline = points;
+            HasTargetLine = targetY is not null;
+            TargetY = targetY ?? 0;
+            TargetLabel = last.TargetFps is { } t ? $"cap {t}" : "";
             LastSessionText = SessionRow.Describe(last);
         }
         OnPropertyChanged(nameof(Subtitle));
@@ -324,6 +332,20 @@ public sealed class SessionRow(SessionSummary s)
 
 public static class Sparkline
 {
+    /// <summary>Like <see cref="Build"/>, but scaled so the target fits too; returns the target's Y for the cap line.</summary>
+    public static (PointCollection points, double? targetY) BuildWithTarget(IReadOnlyList<double> values, double width, double height, double? target)
+    {
+        var points = new PointCollection();
+        if (values.Count < 2) { points.Freeze(); return (points, null); }
+        var lo = Math.Min(values.Min(), target ?? double.MaxValue) * 0.92;
+        var hi = Math.Max(values.Max(), target ?? 0) * 1.04;
+        var range = Math.Max(hi - lo, 1);
+        double Y(double v) => height - (v - lo) / range * height;
+        for (var i = 0; i < values.Count; i++) points.Add(new Point(i * width / (values.Count - 1), Y(values[i])));
+        points.Freeze();
+        return (points, target is { } t ? Y(t) : null);
+    }
+
     public static PointCollection Build(IReadOnlyList<double> values, double width, double height)
     {
         var points = new PointCollection();

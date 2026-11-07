@@ -13,7 +13,7 @@ using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Library, Hardware, Sessions, Settings }
+public enum Page { Library, Hardware, Sessions, Settings, About }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -115,6 +115,7 @@ public sealed partial class MainViewModel : ObservableObject
     public bool IsEmpty => Games.Count == 0;
     public string LibraryCount => Games.Count == 1 ? "1 game" : $"{Games.Count} games";
     public bool NotElevated => !_s.IsElevated;
+    public string AppVersion => $"Fitz Launcher {UpdateService.CurrentVersion}";
     public LibrarySort[] SortOptions { get; } = Enum.GetValues<LibrarySort>();
 
     private bool Filter(object o)
@@ -429,14 +430,14 @@ public sealed partial class MainViewModel : ObservableObject
 
     private static string FormatLive(GameViewModel vm, LiveStats l)
     {
-        var parts = new List<string> { $"▶ {vm.Name}", $"{l.Elapsed:h\\:mm\\:ss}" };
+        var parts = new List<string> { vm.Name, $"{l.Elapsed:h\\:mm\\:ss}" };
         if (l.Fps > 0) parts.Add($"{l.Fps:0} FPS");
         if (l.OnePercentLow > 0) parts.Add($"1% low {l.OnePercentLow:0}");
         if (l.Cap is { } cap) parts.Add(l.ThermalThrottling ? $"cap {cap} (thermal guard)" : $"cap {cap}");
         if (l.CpuTempC is { } c) parts.Add($"CPU {c:0}°C");
         if (l.GpuTempC is { } g) parts.Add($"GPU {g:0}°C");
         if (l.GpuLoad is { } load) parts.Add($"GPU {load:0}%");
-        if (l.BenchmarkSecondsLeft is { } b) parts.Add($"⏺ benchmark {b}s");
+        if (l.BenchmarkSecondsLeft is { } b) parts.Add($"benchmark {b}s");
         return string.Join("   ·   ", parts);
     }
 
@@ -451,7 +452,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         if (s.MaxGpuTempC is { } g) text += $"  ·  GPU max {g:0}°C";
         if (s.MaxCpuTempC is { } c) text += $"  ·  CPU max {c:0}°C";
-        if (s.TempAlerts > 0) text += $"  ·  ⚠ {s.TempAlerts} heat alert(s)";
+        if (s.TempAlerts > 0) text += $"  ·  {s.TempAlerts} heat alert(s)";
         return text;
     }
 

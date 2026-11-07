@@ -42,7 +42,7 @@ public sealed class ImpactToBrush : IValueConverter
     public object Convert(object value, Type t, object p, CultureInfo c) => Application.Current.FindResource(value?.ToString() switch
     {
         "None" => "Good",
-        "Low" => "Accent",
+        "Low" => "Secondary",
         "Medium" => "Warn",
         _ => "Bad",
     });

@@ -10,13 +10,13 @@
         <Border>
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                    <GradientStop Color="#990E1014" Offset="0" />
-                    <GradientStop Color="#FF0E1014" Offset="0.75" />
+                    <GradientStop Color="#99141415" Offset="0" />
+                    <GradientStop Color="#FF141415" Offset="0.75" />
                 </LinearGradientBrush>
             </Border.Background>
         </Border>
 
-        <Grid Margin="70,50,70,40">
+        <Grid Margin="72,48,72,40">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -26,7 +26,7 @@
 
             <DockPanel>
                 <TextBlock DockPanel.Dock="Right" x:Name="Clock" FontSize="22" Foreground="{StaticResource Muted}" />
-                <TextBlock Text="Fitz Launcher" FontSize="30" FontWeight="SemiBold" />
+                <TextBlock Text="Fitz Launcher" FontSize="30" FontWeight="Medium" />
             </DockPanel>
 
             <!-- Cover carousel -->
@@ -40,14 +40,14 @@
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
                         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-                        <Setter Property="Margin" Value="14" />
+                        <Setter Property="Margin" Value="16" />
                         <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
                         <Setter Property="RenderTransform"><Setter.Value><ScaleTransform ScaleX="1" ScaleY="1" /></Setter.Value></Setter>
                         <Setter Property="Opacity" Value="0.6" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
-                                    <Border x:Name="ring" CornerRadius="16" BorderThickness="4" BorderBrush="Transparent" Padding="3">
+                                    <Border x:Name="ring" CornerRadius="16" BorderThickness="4" BorderBrush="Transparent" Padding="4">
                                         <ContentPresenter />
                                     </Border>
                                     <ControlTemplate.Triggers>
@@ -70,7 +70,7 @@
                     <DataTemplate DataType="{x:Type vm:GameViewModel}">
                         <Grid Width="250" Height="375">
                             <Border CornerRadius="12" Background="{StaticResource Surface2}">
-                                <TextBlock Text="{Binding Initials}" FontSize="64" FontWeight="Bold" Foreground="#33FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding Initials}" FontSize="64" FontWeight="Medium" Foreground="#33FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
                             </Border>
                             <Border CornerRadius="12" Visibility="{Binding HasCover, Converter={StaticResource Vis}}">
                                 <Border.Background><ImageBrush ImageSource="{Binding Cover}" Stretch="UniformToFill" /></Border.Background>
@@ -81,20 +81,20 @@
             </ListBox>
 
             <!-- Selected game -->
-            <StackPanel Grid.Row="2" DataContext="{Binding Details}" Margin="0,10,0,20">
-                <TextBlock Text="{Binding Name}" FontSize="40" FontWeight="SemiBold" />
+            <StackPanel Grid.Row="2" DataContext="{Binding Details}" Margin="0,8,0,20">
+                <TextBlock Text="{Binding Name}" FontSize="40" FontWeight="Medium" />
                 <TextBlock Text="{Binding Subtitle}" FontSize="18" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
                 <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Width="420" HorizontalAlignment="Left" Margin="0,12,0,0"
                              Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
-                <TextBlock Text="{Binding LastSessionText}" FontSize="16" Foreground="{StaticResource Muted}" Margin="0,10,0,0" />
+                <TextBlock Text="{Binding LastSessionText}" FontSize="16" Foreground="{StaticResource Muted}" Margin="0,8,0,0" />
                 <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
-                    <TextBlock Text="FPS target" FontSize="16" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,14,0" />
+                    <TextBlock Text="FPS target" FontSize="16" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,16,0" />
                     <ItemsControl ItemsSource="{Binding Targets}">
                         <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border x:Name="b" CornerRadius="10" Padding="18,8" Margin="0,0,8,0" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="2">
-                                    <TextBlock Text="{Binding Label}" FontSize="18" FontWeight="SemiBold" />
+                                <Border x:Name="b" CornerRadius="10" Padding="16,8" Margin="0,0,8,0" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="2">
+                                    <TextBlock Text="{Binding Label}" Style="{StaticResource Figure}" FontSize="18" />
                                 </Border>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsSelected}" Value="True">
@@ -105,15 +105,17 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
-                    <TextBlock Text="{Binding BusyText}" FontSize="16" Foreground="{StaticResource Accent}" VerticalAlignment="Center" Margin="16,0,0,0"
+                    <TextBlock Text="{Binding BusyText}" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="16,0,0,0"
                                Visibility="{Binding IsBusy, Converter={StaticResource Vis}}" />
                 </StackPanel>
-                <TextBlock Text="{Binding Status}" FontSize="15" Foreground="{StaticResource Good}" Margin="0,10,0,0" TextWrapping="Wrap" TextTrimming="None" MaxWidth="1100" HorizontalAlignment="Left" />
+                <TextBlock Text="{Binding Status}" FontSize="16" Foreground="{StaticResource Secondary}" Margin="0,8,0,0" TextWrapping="Wrap" TextTrimming="None" MaxWidth="1100" HorizontalAlignment="Left" />
             </StackPanel>
 
             <!-- Button hints -->
-            <TextBlock Grid.Row="3" FontSize="17" Foreground="{StaticResource Muted}"
-                       Text="Ⓐ Play    Ⓧ Optimise    LB / RB  FPS target (1-click optimise)    Ⓨ Favourite    Ⓑ Exit     ·     Keyboard: ← → Enter  X  Q/E  F  Esc" />
+            <StackPanel Grid.Row="3" Orientation="Horizontal">
+                <Border Style="{StaticResource Keycap}"><TextBlock Text="A" Style="{StaticResource Figure}" FontSize="16" /></Border><TextBlock Text="Play" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,24,0" /><Border Style="{StaticResource Keycap}"><TextBlock Text="X" Style="{StaticResource Figure}" FontSize="16" /></Border><TextBlock Text="Optimise" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,24,0" /><Border Style="{StaticResource Keycap}"><TextBlock Text="LB / RB" Style="{StaticResource Figure}" FontSize="16" /></Border><TextBlock Text="FPS target" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,24,0" /><Border Style="{StaticResource Keycap}"><TextBlock Text="Y" Style="{StaticResource Figure}" FontSize="16" /></Border><TextBlock Text="Favourite" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,24,0" /><Border Style="{StaticResource Keycap}"><TextBlock Text="B" Style="{StaticResource Figure}" FontSize="16" /></Border><TextBlock Text="Back" FontSize="16" Foreground="{StaticResource Secondary}" VerticalAlignment="Center" Margin="0,0,24,0" />
+                <TextBlock Text="Keyboard: arrows, Enter, X, Q / E, F, Esc" FontSize="14" Foreground="{StaticResource Muted}" VerticalAlignment="Center" />
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

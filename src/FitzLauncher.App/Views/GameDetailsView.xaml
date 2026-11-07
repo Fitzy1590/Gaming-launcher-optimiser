@@ -4,42 +4,43 @@
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Hero -->
-            <Grid Height="190">
+            <Grid Height="192">
                 <Border Background="{StaticResource Surface2}" />
                 <Image Source="{Binding Hero}" Stretch="UniformToFill" VerticalAlignment="Center" />
                 <Border>
                     <Border.Background>
                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#00161A20" Offset="0.2" />
-                            <GradientStop Color="#FF161A20" Offset="1" />
+                            <GradientStop Color="#0019191B" Offset="0.2" />
+                            <GradientStop Color="#FF19191B" Offset="1" />
                         </LinearGradientBrush>
                     </Border.Background>
                 </Border>
-                <StackPanel VerticalAlignment="Bottom" Margin="22,0,22,10">
+                <StackPanel VerticalAlignment="Bottom" Margin="24,0,24,8">
                     <TextBlock Text="{Binding Name}" Style="{StaticResource H1}" />
                     <TextBlock Text="{Binding Subtitle}" Style="{StaticResource MutedText}" />
                 </StackPanel>
             </Grid>
 
-            <StackPanel Margin="22,8,22,28">
+            <StackPanel Margin="24,8,24,32">
                 <!-- Actions -->
                 <DockPanel>
-                    <Button DockPanel.Dock="Left" Content="▶  Play" Style="{StaticResource PlayButton}" Command="{Binding PlayCommand}" ToolTip="Starts the game with Game Mode, FPS tracking and temperature alerts (Enter)" />
+                    <Button DockPanel.Dock="Left" Style="{StaticResource PlayButton}" Command="{Binding PlayCommand}" ToolTip="Starts the game with Game Mode, FPS tracking and temperature alerts (Enter)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="14" /><TextBlock Text="Play" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="Edit" Style="{StaticResource GhostButton}" Command="{Binding EditCommand}" />
                         <Button Content="Folder" Style="{StaticResource GhostButton}" Command="{Binding OpenFolderCommand}" />
-                        <Button Content="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveCommand}" Foreground="{StaticResource Bad}" />
+                        <Button Content="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveCommand}" />
                     </StackPanel>
                 </DockPanel>
 
                 <!-- Status / busy -->
-                <TextBlock Text="{Binding BusyText}" Foreground="{StaticResource Accent}" Margin="0,12,0,0" Visibility="{Binding IsBusy, Converter={StaticResource Vis}}" />
-                <Border Background="#1434D399" CornerRadius="8" Padding="10,8" Margin="0,12,0,0" Visibility="{Binding Status, Converter={StaticResource HasValue}}">
+                <TextBlock Text="{Binding BusyText}" Foreground="{StaticResource Secondary}" Margin="0,12,0,0" Visibility="{Binding IsBusy, Converter={StaticResource Vis}}" />
+                <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,12,0,0" Visibility="{Binding Status, Converter={StaticResource HasValue}}">
                     <TextBlock Text="{Binding Status}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
                 </Border>
 
                 <!-- FPS targets -->
-                <TextBlock Text="FPS target: one click to optimise" Style="{StaticResource H2}" />
+                <TextBlock Text="FPS target" Style="{StaticResource H2}" />
+                <TextBlock Text="One click sets the cap and applies every change that doesn't affect image quality" Style="{StaticResource Wrap}" Margin="0,0,0,12" />
                 <ItemsControl ItemsSource="{Binding Targets}" IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
@@ -50,9 +51,9 @@
                                 <RadioButton Style="{StaticResource TargetToggle}" GroupName="target"
                                              IsChecked="{Binding IsSelected, Mode=OneWay}"
                                              Command="{Binding Command}" CommandParameter="{Binding Value}">
-                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" FontSize="14" />
+                                    <TextBlock Text="{Binding Label}" Style="{StaticResource Figure}" FontSize="14" />
                                 </RadioButton>
-                                <Ellipse Width="7" Height="7" Fill="{StaticResource Good}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,4,11,0"
+                                <Ellipse Width="6" Height="6" Fill="{StaticResource Secondary}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,16,0"
                                          Visibility="{Binding IsSuggested, Converter={StaticResource Vis}}" ToolTip="Suggested for your PC" IsHitTestVisible="False" />
                             </Grid>
                         </DataTemplate>
@@ -60,9 +61,9 @@
                 </ItemsControl>
                 <TextBlock Text="{Binding SuggestedTargetText}" Style="{StaticResource Wrap}" Margin="0,8,0,0" />
 
-                <StackPanel Orientation="Horizontal" Margin="0,14,0,0">
-                    <Button Content="⚡ Optimise" Style="{StaticResource PrimaryButton}" Command="{Binding OptimiseCommand}" Padding="22,9"
-                            ToolTip="Scans every game file and applies all tweaks that don't reduce image quality, plus the frame cap for your target." />
+                <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding OptimiseCommand}" Padding="24,8"
+                            ToolTip="Scans every game file and applies all tweaks that don't reduce image quality, plus the frame cap for your target." ><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE945;" FontSize="14" /><TextBlock Text="Optimise" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     <Button Content="Rescan" Margin="8,0,0,0" Command="{Binding RescanCommand}" />
                     <Button Content="Revert all" Margin="8,0,0,0" Style="{StaticResource GhostButton}" Command="{Binding RevertAllCommand}"
                             Visibility="{Binding HasChanges, Converter={StaticResource Vis}}" ToolTip="Restore every setting the launcher changed for this game" />
@@ -76,19 +77,22 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Style="{StaticResource Chip}" Margin="0,0,6,6">
-                                <TextBlock Text="{Binding}" FontSize="11.5" Foreground="{StaticResource Muted}" />
+                            <Border Style="{StaticResource Chip}" Margin="0,0,8,8">
+                                <TextBlock Text="{Binding}" FontSize="12" Foreground="{StaticResource Muted}" />
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
                 <!-- Notes -->
-                <ItemsControl ItemsSource="{Binding Notes}" Visibility="{Binding HasNotes, Converter={StaticResource Vis}}" Margin="0,6,0,0">
+                <ItemsControl ItemsSource="{Binding Notes}" Visibility="{Binding HasNotes, Converter={StaticResource Vis}}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Border Background="#14FBBF24" CornerRadius="8" Padding="10,8" Margin="0,0,0,6">
-                                <TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}" />
+                            <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
+                                <DockPanel>
+                                    <Ellipse DockPanel.Dock="Left" Width="6" Height="6" Fill="{StaticResource Warn}" Margin="0,8,12,0" VerticalAlignment="Top" />
+                                    <TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                                </DockPanel>
                             </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -99,12 +103,12 @@
                 <ItemsControl ItemsSource="{Binding OneClick}" ItemTemplate="{StaticResource OneClickRow}" />
 
                 <!-- Suggestions -->
-                <DockPanel Margin="0,18,0,8" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}">
+                <DockPanel Margin="0,16,0,8" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}">
                     <Button DockPanel.Dock="Right" Content="Apply recommended" Command="{Binding ApplyRecommendedCommand}" />
                     <TextBlock Text="Graphics suggestions" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
                 </DockPanel>
                 <TextBlock Text="These trade a little image quality for FPS. They're marked Recommended when your last session missed the target. Each one can be reverted."
-                           Style="{StaticResource Wrap}" Margin="0,0,0,10" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}" />
+                           Style="{StaticResource Wrap}" Margin="0,0,0,8" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}" />
                 <ItemsControl ItemsSource="{Binding Suggestions}" ItemTemplate="{StaticResource TweakRow}" />
 
                 <!-- Library / progress -->
@@ -118,9 +122,9 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,6,0,4" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,8,0,4" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
                 <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" />
-                <Grid Margin="0,10,0,0">
+                <Grid Margin="0,8,0,0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="10" />
@@ -129,15 +133,15 @@
                         <ColumnDefinition Width="90" />
                     </Grid.ColumnDefinitions>
                     <StackPanel>
-                        <TextBlock Text="Tags (comma separated)" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBlock Text="Tags (comma separated)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
                         <TextBox Text="{Binding TagsText, UpdateSourceTrigger=LostFocus}" />
                     </StackPanel>
                     <StackPanel Grid.Column="2">
-                        <TextBlock Text="Main story (h)" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBlock Text="Main story (h)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
                         <TextBox Text="{Binding MainStoryHoursText, UpdateSourceTrigger=LostFocus}" ToolTip="Roughly how long the main story is. The progress bar compares this with your playtime." />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
-                        <TextBlock Text="Done %" Style="{StaticResource MutedText}" Margin="0,0,0,3" />
+                        <TextBlock Text="Done %" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
                         <TextBox Text="{Binding CompletionText, UpdateSourceTrigger=LostFocus}" ToolTip="Optional: type the completion % from the game's menu. It overrides the hours estimate." />
                     </StackPanel>
                 </Grid>
@@ -147,7 +151,7 @@
                 </StackPanel>
 
                 <!-- Auto-tune -->
-                <DockPanel Margin="0,18,0,8">
+                <DockPanel Margin="0,16,0,8">
                     <CheckBox DockPanel.Dock="Right" Content="On" IsChecked="{Binding AutoTuneOn}" />
                     <TextBlock Text="Auto-tune" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
                 </DockPanel>
@@ -155,13 +159,13 @@
                 <ItemsControl ItemsSource="{Binding AutoTuneSteps}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,3">
+                            <Grid Margin="0,4">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
-                                    <TextBlock Text="{Binding Title}" FontSize="12.5" />
+                                    <TextBlock Text="{Binding Title}" FontSize="13" />
                                     <TextBlock Text="{Binding Result}" Style="{StaticResource MutedText}" />
                                 </StackPanel>
                                 <TextBlock Grid.Column="1" Text="{Binding Outcome}" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0" />
@@ -173,12 +177,12 @@
                         Visibility="{Binding HasAutoTuneSteps, Converter={StaticResource Vis}}" ToolTip="Forget what was tried (applied changes stay; use Revert to undo them)" />
 
                 <!-- Display -->
-                <DockPanel Margin="0,18,0,8">
+                <DockPanel Margin="0,16,0,8">
                     <CheckBox DockPanel.Dock="Right" Content="Auto" IsChecked="{Binding AutoDisplayOn}" ToolTip="Pick resolution and render scale for the screen that's active when you press Play" />
                     <TextBlock Text="Display" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
                 </DockPanel>
                 <TextBlock Text="{Binding DisplayText}" Style="{StaticResource Wrap}" />
-                <ItemsControl ItemsSource="{Binding DisplayProfiles}" Margin="0,6,0,0">
+                <ItemsControl ItemsSource="{Binding DisplayProfiles}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,2">
@@ -204,7 +208,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
-                <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,10,0,0" />
+                <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,8,0,0" />
 
                 <!-- Benchmarks -->
                 <TextBlock Text="Benchmarks" Style="{StaticResource H2}" />
@@ -212,7 +216,7 @@
                 <ItemsControl ItemsSource="{Binding Benchmarks}" Margin="0,8,0,0" Visibility="{Binding HasBenchmarks, Converter={StaticResource Vis}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <Grid Margin="0,3" ToolTip="{Binding Label}">
+                            <Grid Margin="0,4" ToolTip="{Binding Label}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="105" />
                                     <ColumnDefinition Width="*" />
@@ -220,7 +224,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{Binding When}" Style="{StaticResource MutedText}" />
                                 <TextBlock Grid.Column="1" FontSize="12">
-                                    <Run Text="{Binding Avg, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" avg · " Foreground="{StaticResource Muted}" />
+                                    <Run Text="{Binding Avg, Mode=OneWay}" FontWeight="Medium" /><Run Text=" avg · " Foreground="{StaticResource Muted}" />
                                     <Run Text="{Binding Low, Mode=OneWay}" /><Run Text=" 1% · " Foreground="{StaticResource Muted}" />
                                     <Run Text="{Binding PointLow, Mode=OneWay}" /><Run Text=" 0.1% · " Foreground="{StaticResource Muted}" />
                                     <Run Text="{Binding AtTarget, Mode=OneWay}" /><Run Text=" on target" Foreground="{StaticResource Muted}" />
@@ -232,7 +236,7 @@
                 </ItemsControl>
 
                 <!-- Save backups -->
-                <DockPanel Margin="0,18,0,8">
+                <DockPanel Margin="0,16,0,8">
                     <CheckBox DockPanel.Dock="Right" Content="Auto backup" IsChecked="{Binding BackupSavesOn}" ToolTip="Back up before and after every session (only when saves changed)" />
                     <TextBlock Text="Save backups" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
                 </DockPanel>
@@ -240,21 +244,21 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,2">
-                                <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" ToolTip="Remove this folder"
+                                <Button DockPanel.Dock="Right" Content="×" Style="{StaticResource GhostButton}" ToolTip="Remove this folder"
                                         Command="{Binding DataContext.RemoveSaveDirCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}" />
                                 <TextBlock Text="{Binding}" FontSize="12" VerticalAlignment="Center" ToolTip="{Binding}" TextTrimming="CharacterEllipsis" />
                             </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <WrapPanel Margin="0,6,0,0">
+                <WrapPanel Margin="0,8,0,0">
                     <Button Style="{StaticResource ChipButton}" Content="Find saves" Command="{Binding FindSavesCommand}" ToolTip="Checks Goldberg/CODEX/RUNE/EMPRESS/OnlineFix emulator folders, Unreal/Unity locations and folders named after the game" />
                     <Button Style="{StaticResource ChipButton}" Content="Add folder…" Command="{Binding AddSaveDirCommand}" />
                     <Button Style="{StaticResource ChipButton}" Content="Back up now" Command="{Binding BackupNowCommand}" />
                     <Button Style="{StaticResource ChipButton}" Content="Open backups" Command="{Binding OpenBackupFolderCommand}" />
                 </WrapPanel>
                 <TextBlock Text="{Binding SaveStatus}" Style="{StaticResource Wrap}" Visibility="{Binding SaveStatus, Converter={StaticResource HasValue}}" />
-                <ItemsControl ItemsSource="{Binding Backups}" Margin="0,6,0,0">
+                <ItemsControl ItemsSource="{Binding Backups}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,2">
@@ -276,12 +280,12 @@
                             Visibility="{Binding HasMissingRuntimes, Converter={StaticResource Vis}}" />
                 </WrapPanel>
                 <TextBlock Text="{Binding RuntimeStatus}" Style="{StaticResource Wrap}" Visibility="{Binding RuntimeStatus, Converter={StaticResource HasValue}}" />
-                <ItemsControl ItemsSource="{Binding Runtimes}" Margin="0,6,0,0">
+                <ItemsControl ItemsSource="{Binding Runtimes}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <DockPanel Margin="0,2">
                                 <TextBlock DockPanel.Dock="Right" Text="{Binding State}" FontSize="12" Foreground="{StaticResource Muted}" />
-                                <TextBlock Text="{Binding Name}" FontSize="12.5" />
+                                <TextBlock Text="{Binding Name}" FontSize="13" />
                             </DockPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -293,15 +297,21 @@
                            Visibility="{Binding HasHistory, Converter={StaticResource NotVis}}" />
                 <StackPanel Visibility="{Binding HasHistory, Converter={StaticResource Vis}}">
                     <TextBlock Text="{Binding LastSessionText}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
-                    <Border Style="{StaticResource Card}" Margin="0,10,0,0">
+                    <Border Style="{StaticResource Card}" Margin="0,8,0,0">
                         <StackPanel>
-                            <TextBlock Text="Last session: FPS over time" Style="{StaticResource MutedText}" Margin="0,0,0,6" />
-                            <Canvas Width="360" Height="60" HorizontalAlignment="Left">
-                                <Polyline Points="{Binding LastTimeline}" Stroke="{StaticResource Accent}" StrokeThickness="2" StrokeLineJoin="Round" />
+                            <DockPanel Margin="0,0,0,8">
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Accent}" Text="{Binding TargetLabel}" />
+                                <TextBlock Text="Last session, FPS over time" Style="{StaticResource MutedText}" />
+                            </DockPanel>
+                            <!-- The one detailed graphic: FPS trace against the cap line -->
+                            <Canvas Width="400" Height="96" HorizontalAlignment="Left" ClipToBounds="True">
+                                <Line X1="0" X2="400" Y1="{Binding TargetY}" Y2="{Binding TargetY}" Stroke="{StaticResource Accent}" StrokeThickness="1" StrokeDashArray="4 3"
+                                      Visibility="{Binding HasTargetLine, Converter={StaticResource Vis}}" />
+                                <Polyline Points="{Binding LastTimeline}" Stroke="{StaticResource Text}" StrokeThickness="1.5" StrokeLineJoin="Round" />
                             </Canvas>
-                            <TextBlock Text="Average FPS per session" Style="{StaticResource MutedText}" Margin="0,12,0,6" />
-                            <Canvas Width="360" Height="60" HorizontalAlignment="Left">
-                                <Polyline Points="{Binding HistoryLine}" Stroke="{StaticResource Good}" StrokeThickness="2" StrokeLineJoin="Round" />
+                            <TextBlock Text="Average FPS per session" Style="{StaticResource MutedText}" Margin="0,16,0,8" />
+                            <Canvas Width="400" Height="40" HorizontalAlignment="Left">
+                                <Polyline Points="{Binding HistoryLine}" Stroke="{StaticResource Secondary}" StrokeThickness="1.5" StrokeLineJoin="Round" />
                             </Canvas>
                         </StackPanel>
                     </Border>
@@ -317,7 +327,7 @@
                                     <TextBlock Text="{Binding When}" Style="{StaticResource MutedText}" />
                                     <TextBlock Grid.Column="1" Text="{Binding Duration}" Style="{StaticResource MutedText}" />
                                     <TextBlock Grid.Column="2" FontSize="12">
-                                        <Run Text="{Binding Avg, Mode=OneWay}" FontWeight="SemiBold" /><Run Text=" avg · " Foreground="{StaticResource Muted}" />
+                                        <Run Text="{Binding Avg, Mode=OneWay}" FontWeight="Medium" /><Run Text=" avg · " Foreground="{StaticResource Muted}" />
                                         <Run Text="{Binding Low, Mode=OneWay}" /><Run Text=" 1% low · " Foreground="{StaticResource Muted}" />
                                         <Run Text="{Binding Temps, Mode=OneWay}" Foreground="{StaticResource Muted}" />
                                     </TextBlock>

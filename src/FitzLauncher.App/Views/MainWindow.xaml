@@ -12,46 +12,75 @@
         <KeyBinding Key="D2" Modifiers="Control" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.Hardware}" />
         <KeyBinding Key="D3" Modifiers="Control" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.Sessions}" />
         <KeyBinding Key="D4" Modifiers="Control" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.Settings}" />
+        <KeyBinding Key="F1" Command="{Binding NavigateCommand}" CommandParameter="{x:Static vm:Page.About}" />
     </Window.InputBindings>
 
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200" />
+            <ColumnDefinition Width="240" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
         <!-- ============================== Nav rail -->
-        <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
+        <Border Background="{StaticResource Deep}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,1,0">
             <DockPanel>
-                <StackPanel DockPanel.Dock="Top" Margin="22,22,0,24" Orientation="Horizontal">
-                    <Border Width="30" Height="30" CornerRadius="8" Background="{StaticResource Accent}">
-                        <TextBlock Text="F" FontWeight="Bold" FontSize="17" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <StackPanel DockPanel.Dock="Top" Margin="24,24,24,24" Orientation="Horizontal">
+                    <Border Width="24" Height="24" CornerRadius="6" Background="{StaticResource Accent}">
+                        <TextBlock Text="F" FontWeight="Medium" FontSize="14" Foreground="{StaticResource OnAccent}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                     </Border>
-                    <TextBlock Text="Fitz Launcher" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0" />
+                    <TextBlock Text="Fitz Launcher" FontSize="15" FontWeight="Medium" VerticalAlignment="Center" Margin="12,0,0,0" />
                 </StackPanel>
 
-                <!-- Live session panel -->
-                <Border DockPanel.Dock="Bottom" Margin="10" Padding="12" CornerRadius="10" Background="#1A34D399"
-                        Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}">
+                <!-- Live session -->
+                <Border DockPanel.Dock="Bottom" Margin="12" Padding="12" CornerRadius="12" Background="{StaticResource Surface2}"
+                        BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}">
                     <StackPanel>
                         <StackPanel Orientation="Horizontal">
-                            <Ellipse Width="8" Height="8" Fill="{StaticResource Good}" Margin="0,0,7,0" />
-                            <TextBlock Text="GAME MODE ON" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Good}" />
+                            <Ellipse Width="8" Height="8" Fill="{StaticResource Good}" Margin="0,0,8,0" VerticalAlignment="Center" />
+                            <TextBlock Text="Game Mode on" FontSize="13" FontWeight="Medium" />
                         </StackPanel>
-                        <TextBlock Text="{Binding Activity}" Style="{StaticResource Wrap}" FontSize="11" Margin="0,6,0,0" />
+                        <TextBlock Text="{Binding Activity}" Style="{StaticResource Wrap}" FontSize="12" LineHeight="16" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
-                <TextBlock DockPanel.Dock="Bottom" Text="{Binding LibraryCount}" Style="{StaticResource MutedText}" Margin="22,0,0,10" />
+                <TextBlock DockPanel.Dock="Bottom" Text="{Binding LibraryCount}" Style="{StaticResource MutedText}" Margin="24,0,0,12" />
 
                 <StackPanel>
-                    <RadioButton Style="{StaticResource NavButton}" Content="Library" GroupName="nav"
-                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Library}" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="Hardware &amp; temps" GroupName="nav"
-                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Hardware}" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="FPS history" GroupName="nav"
-                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Sessions}" />
-                    <RadioButton Style="{StaticResource NavButton}" Content="Settings" GroupName="nav"
-                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Settings}" />
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Library}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE8F1;" Width="16" />
+                            <TextBlock Text="Library" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Hardware}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE950;" Width="16" />
+                            <TextBlock Text="Hardware &amp; temps" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Sessions}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE9D2;" Width="16" />
+                            <TextBlock Text="FPS history" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Settings}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE713;" Width="16" />
+                            <TextBlock Text="Settings" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
+                    <TextBlock Text="Help" Style="{StaticResource MutedText}" Margin="24,24,0,8" />
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=About}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE946;" Width="16" />
+                            <TextBlock Text="How it works" Margin="12,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </RadioButton>
                 </StackPanel>
             </DockPanel>
         </Border>
@@ -66,12 +95,12 @@
             </Grid.RowDefinitions>
 
             <!-- Not-admin warning -->
-            <Border Background="#33FBBF24" Padding="14,8" Visibility="{Binding NotElevated, Converter={StaticResource Vis}}">
-                <TextBlock Text="Running without administrator rights: Game Mode, FPS tracking and temperatures are limited. Restart Fitz Launcher as administrator." Foreground="{StaticResource Warn}" TextWrapping="Wrap" />
+            <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,8" Visibility="{Binding NotElevated, Converter={StaticResource Vis}}">
+                <TextBlock Text="Running without administrator rights, so Game Mode, FPS tracking and temperatures are limited. Restart Fitz Launcher as administrator" Foreground="{StaticResource Warn}" TextWrapping="Wrap" />
             </Border>
 
             <!-- Update available -->
-            <Border Grid.Row="0" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="20,8"
+            <Border Grid.Row="0" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,8"
                     Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" VerticalAlignment="Top">
                 <DockPanel>
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
@@ -83,15 +112,18 @@
             </Border>
 
             <!-- Live game bar -->
-            <Border Grid.Row="1" Background="#1A34D399" Padding="18,9" Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}">
-                <TextBlock Text="{Binding LiveText}" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource Good}" />
+            <Border Grid.Row="1" Background="{StaticResource Surface}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,8" Visibility="{Binding IsPlaying, Converter={StaticResource Vis}}">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource Good}" Margin="0,0,12,0" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding LiveText}" Style="{StaticResource Figure}" FontSize="13" />
+                </StackPanel>
             </Border>
 
             <!-- Toast -->
-            <Border Grid.Row="2" Background="{StaticResource Surface2}" BorderBrush="{StaticResource Accent}" BorderThickness="0,0,0,2" Padding="18,10"
+            <Border Grid.Row="2" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24,8"
                     Visibility="{Binding HasToast, Converter={StaticResource Vis}}">
                 <DockPanel>
-                    <Button DockPanel.Dock="Right" Content="✕" Style="{StaticResource GhostButton}" Command="{Binding DismissToastCommand}" />
+                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding DismissToastCommand}" ToolTip="Dismiss"><TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="12" /></Button>
                     <TextBlock Text="{Binding Toast}" TextWrapping="Wrap" VerticalAlignment="Center" />
                 </DockPanel>
             </Border>
@@ -109,16 +141,16 @@
                 </Grid.RowDefinitions>
 
                 <!-- Toolbar -->
-                <DockPanel Margin="28,22,20,14">
+                <DockPanel Margin="28,24,20,16">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                        <Button Content="+ Add game" Style="{StaticResource PrimaryButton}" Click="AddGame_Click" ToolTip="Add a game exe or shortcut (Ctrl+N). You can also drag &amp; drop exes or folders onto the window." />
-                        <Button Content="📁 Scan game folders" Margin="8,0,0,0" Click="ScanFolders_Click" ToolTip="Pick your games folder(s), review everything found, and add only what you tick." />
-                        <Button Content="🎮 Big Picture" Margin="8,0,0,0" Command="{Binding BigPictureCommand}" ToolTip="Fullscreen controller mode (F11)" />
+                        <Button Click="AddGame_Click" ToolTip="Add a game exe or shortcut (Ctrl+N), or drag and drop exes or folders onto the window"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="14" /><TextBlock Text="Add game" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="ScanFolders_Click" ToolTip="Pick your games folders, review everything found, and add only what you tick"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE8B7;" FontSize="14" /><TextBlock Text="Scan game folders" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding BigPictureCommand}" ToolTip="Fullscreen controller mode (F11)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="14" /><TextBlock Text="Big Picture" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     </StackPanel>
                     <Grid Width="320" HorizontalAlignment="Left">
-                        <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Padding="30,7,8,7" />
-                        <TextBlock Text="⌕" Foreground="{StaticResource Muted}" FontSize="15" Margin="11,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False" />
-                        <TextBlock Text="Search  (Ctrl+F)" Foreground="{StaticResource Muted}" Margin="31,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
+                        <TextBox x:Name="SearchBox" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Padding="32,8,8,8" />
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE721;" FontSize="14" Foreground="{StaticResource Muted}" Margin="12,0,0,0" IsHitTestVisible="False" />
+                        <TextBlock Text="Search  (Ctrl+F)" Foreground="{StaticResource Muted}" Margin="32,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False"
                                    Visibility="{Binding Search, Converter={StaticResource EmptyVis}}" />
                     </Grid>
                 </DockPanel>
@@ -133,14 +165,14 @@
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Beaten" Command="{Binding SetStatusFilterCommand}" CommandParameter="Beaten" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="100%" Command="{Binding SetStatusFilterCommand}" CommandParameter="Completed" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="status" Content="Dropped" Command="{Binding SetStatusFilterCommand}" CommandParameter="Abandoned" />
-                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="6,2,12,8" />
-                        <TextBlock Text="Sort" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,6" />
+                        <Border Width="1" Background="{StaticResource BorderBrush}" Margin="8,2,12,8" />
+                        <TextBlock Text="Sort" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="0,0,8,8" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Recent" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=RecentlyPlayed}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Most played" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=MostPlayed}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="A–Z" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=Name}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Added" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=RecentlyAdded}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="sort" Content="Progress" IsChecked="{Binding Sort, Converter={StaticResource Eq}, ConverterParameter=Progress}" />
-                        <CheckBox Content="Show hidden" IsChecked="{Binding ShowHidden}" Margin="8,0,0,6" FontSize="12" />
+                        <CheckBox Content="Show hidden" IsChecked="{Binding ShowHidden}" Margin="8,0,0,8" FontSize="12" />
                     </WrapPanel>
                     <WrapPanel>
                         <ItemsControl ItemsSource="{Binding AllTags}">
@@ -154,8 +186,8 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Button Style="{StaticResource ChipButton}" Background="{StaticResource AccentSoft}" BorderBrush="{StaticResource Accent}"
-                                Content="{Binding TagFilter}" ContentStringFormat="#{0}  ✕" Command="{Binding SetTagFilterCommand}" CommandParameter="{Binding TagFilter}"
+                        <Button Style="{StaticResource ChipButton}" BorderBrush="{StaticResource StrongBorder}"
+                                Content="{Binding TagFilter}" ContentStringFormat="#{0}  ×" Command="{Binding SetTagFilterCommand}" CommandParameter="{Binding TagFilter}"
                                 Visibility="{Binding TagFilter, Converter={StaticResource HasValue}}" ToolTip="Clear tag filter" />
                     </WrapPanel>
                 </StackPanel>
@@ -163,10 +195,10 @@
                 <!-- Empty state -->
                 <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource Vis}}">
                     <TextBlock Text="Your library is empty" Style="{StaticResource H1}" HorizontalAlignment="Center" />
-                    <TextBlock Text="Add a game exe, or drop exes, shortcuts or game folders anywhere on this window." Style="{StaticResource MutedText}" FontSize="14" Margin="0,8,0,18" HorizontalAlignment="Center" />
+                    <TextBlock Text="Add a game exe, or drop exes, shortcuts or game folders anywhere on this window." Style="{StaticResource MutedText}" FontSize="14" Margin="0,8,0,16" HorizontalAlignment="Center" />
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Button Content="📁 Scan my game folders" Style="{StaticResource PrimaryButton}" Click="ScanFolders_Click" />
-                        <Button Content="+ Add one game" Margin="8,0,0,0" Click="AddGame_Click" />
+                        <Button Style="{StaticResource PrimaryButton}" Click="ScanFolders_Click"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE8B7;" FontSize="14" /><TextBlock Text="Scan my game folders" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Margin="8,0,0,0" Click="AddGame_Click"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="14" /><TextBlock Text="Add one game" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     </StackPanel>
                 </StackPanel>
 
@@ -187,12 +219,12 @@
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ring" CornerRadius="12" BorderThickness="2" BorderBrush="Transparent" Padding="2">
+                                        <Border x:Name="ring" CornerRadius="16" BorderThickness="2" BorderBrush="Transparent" Padding="2">
                                             <ContentPresenter />
                                         </Border>
                                         <ControlTemplate.Triggers>
                                             <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="ring" Property="BorderBrush" Value="#55FFFFFF" />
+                                                <Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource StrongBorder}" />
                                             </Trigger>
                                             <Trigger Property="IsSelected" Value="True">
                                                 <Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource Accent}" />
@@ -205,22 +237,22 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate DataType="{x:Type vm:GameViewModel}">
-                            <Grid Width="164" Height="246" Cursor="Hand" ToolTip="{Binding Name}" Opacity="{Binding CardOpacity}">
+                            <Grid Width="168" Height="252" Cursor="Hand" ToolTip="{Binding Name}" Opacity="{Binding CardOpacity}">
                                 <Grid.InputBindings>
                                     <MouseBinding Gesture="LeftDoubleClick" Command="{Binding DataContext.PlaySelectedCommand, RelativeSource={RelativeSource AncestorType=ListBox}}" />
                                 </Grid.InputBindings>
                                 <!-- Placeholder -->
-                                <Border CornerRadius="10" Background="{StaticResource Surface2}">
-                                    <TextBlock Text="{Binding Initials}" FontSize="44" FontWeight="Bold" Foreground="#33FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                <Border CornerRadius="12" Background="{StaticResource Surface2}">
+                                    <TextBlock Text="{Binding Initials}" FontSize="44" FontWeight="Medium" Foreground="#33FFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <!-- Cover -->
-                                <Border CornerRadius="10" Visibility="{Binding HasCover, Converter={StaticResource Vis}}">
+                                <Border CornerRadius="12" Visibility="{Binding HasCover, Converter={StaticResource Vis}}">
                                     <Border.Background>
                                         <ImageBrush ImageSource="{Binding Cover}" Stretch="UniformToFill" />
                                     </Border.Background>
                                 </Border>
                                 <!-- Name strip -->
-                                <Border CornerRadius="0,0,10,10" VerticalAlignment="Bottom" Padding="10,22,10,8">
+                                <Border CornerRadius="0,0,12,12" VerticalAlignment="Bottom" Padding="12,24,12,12">
                                     <Border.Background>
                                         <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                                             <GradientStop Color="#00000000" Offset="0" />
@@ -228,26 +260,26 @@
                                         </LinearGradientBrush>
                                     </Border.Background>
                                     <StackPanel>
-                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
-                                        <TextBlock Text="{Binding PlayTimeText}" FontSize="11" Foreground="#B3FFFFFF" />
-                                        <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Height="3" Margin="0,5,0,0"
+                                        <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" />
+                                        <TextBlock Text="{Binding PlayTimeText}" FontSize="12" Foreground="#B3FFFFFF" />
+                                        <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Height="3" Margin="0,4,0,0"
                                                      Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
                                     </StackPanel>
                                 </Border>
                                 <!-- Badges -->
-                                <Border Background="#CC000000" CornerRadius="6" Padding="6,2" Margin="7" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                <Border Background="#CC141415" CornerRadius="6" Padding="8,2" Margin="8" HorizontalAlignment="Right" VerticalAlignment="Top"
                                         Visibility="{Binding HasFpsBadge, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="{Binding FpsBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource Good}" />
+                                    <TextBlock Text="{Binding FpsBadge}" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Text}" />
                                 </Border>
-                                <Border Background="#CC000000" CornerRadius="6" Padding="6,2" Margin="7" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                <Border Background="#CC141415" CornerRadius="6" Padding="8,2" Margin="8" HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding IsOptimized, Converter={StaticResource Vis}}" ToolTip="Optimised">
-                                    <TextBlock Text="⚡" FontSize="11" Foreground="{StaticResource Warn}" />
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE945;" FontSize="12" Foreground="{StaticResource Text}" />
                                 </Border>
-                                <TextBlock Text="★" FontSize="14" Foreground="{StaticResource Warn}" Margin="0,30,9,0" HorizontalAlignment="Right" VerticalAlignment="Top"
+                                <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="14" Foreground="{StaticResource Text}" Margin="0,32,8,0" HorizontalAlignment="Right" VerticalAlignment="Top"
                                            Visibility="{Binding IsFavourite, Converter={StaticResource Vis}}" />
-                                <Border Background="#CC34D399" CornerRadius="6" Padding="6,2" Margin="7,32,7,7" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                <Border Background="{StaticResource Accent}" CornerRadius="6" Padding="8,2" Margin="8,32,8,8" HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding IsRunning, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="PLAYING" FontSize="10" FontWeight="Bold" Foreground="#06281C" />
+                                    <TextBlock Text="Playing" FontSize="12" FontWeight="Medium" Foreground="{StaticResource OnAccent}" />
                                 </Border>
                             </Grid>
                         </DataTemplate>
@@ -265,6 +297,8 @@
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Hardware}" />
             <views:SessionsView Grid.Row="3" DataContext="{Binding Sessions}"
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Sessions}" />
+            <views:AboutView Grid.Row="3"
+                             Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=About}" />
             <views:SettingsView Grid.Row="3" DataContext="{Binding Settings}"
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Settings}" />
         </Grid>

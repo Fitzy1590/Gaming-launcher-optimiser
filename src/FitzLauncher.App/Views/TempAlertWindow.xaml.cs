@@ -22,7 +22,7 @@ public partial class TempAlertWindow : Window
         InitializeComponent();
         _sound = sound;
         _overlay = overlay;
-        Title_.Text = $"🔥 {alert.Component} {alert.TempC:0} °C";
+        Title_.Text = $"{alert.Component} at {alert.TempC:0} °C";
         Body.Text = alert.Component == "GPU"
             ? $"Above your {alert.ThresholdC:0} °C limit. Try a lower FPS target, or check the fans and airflow."
             : $"Above your {alert.ThresholdC:0} °C limit. Check the CPU cooler and airflow, and close heavy background apps.";

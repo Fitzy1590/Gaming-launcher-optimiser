@@ -29,42 +29,42 @@
                         </Grid.ColumnDefinitions>
                         <StackPanel>
                             <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" FontSize="13.5" TextWrapping="Wrap" TextTrimming="None" MaxWidth="320" />
-                                <Border Style="{StaticResource Chip}" Margin="8,0,0,0" Background="{StaticResource AccentSoft}"
+                                <TextBlock Text="{Binding Title}" FontWeight="Medium" FontSize="14" TextWrapping="Wrap" TextTrimming="None" MaxWidth="320" />
+                                <Border Style="{StaticResource Chip}" Margin="8,0,0,0" Background="{StaticResource Surface2}"
                                         Visibility="{Binding Recommended, Converter={StaticResource Vis}}" VerticalAlignment="Center">
-                                    <TextBlock Text="Recommended" FontSize="11" Foreground="{StaticResource Accent}" />
+                                    <TextBlock Text="Recommended" FontSize="12" Foreground="{StaticResource Text}" />
                                 </Border>
                             </StackPanel>
-                            <TextBlock Text="{Binding Reason}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}" Margin="0,3,0,0"
+                            <TextBlock Text="{Binding Reason}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}" Margin="0,4,0,0"
                                        Visibility="{Binding HasReason, Converter={StaticResource Vis}}" />
                             <TextBlock Text="{Binding Description}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
-                            <TextBlock Text="{Binding ManualSteps}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,6,0,0"
+                            <TextBlock Text="{Binding ManualSteps}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,8,0,0"
                                        Visibility="{Binding IsManual, Converter={StaticResource Vis}}" />
                             <WrapPanel Margin="0,8,0,0">
                                 <Border Style="{StaticResource Chip}">
                                     <StackPanel Orientation="Horizontal">
-                                        <Ellipse Width="7" Height="7" Fill="{Binding ImpactLevel, Converter={StaticResource ImpactBrush}}" Margin="0,0,5,0" />
-                                        <TextBlock Text="{Binding ImpactText}" FontSize="11" Foreground="{StaticResource Muted}" />
+                                        <Ellipse Width="7" Height="7" Fill="{Binding ImpactLevel, Converter={StaticResource ImpactBrush}}" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding ImpactText}" FontSize="12" Foreground="{StaticResource Muted}" />
                                     </StackPanel>
                                 </Border>
                                 <Border Style="{StaticResource Chip}" Visibility="{Binding HasGain, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="{Binding Gain}" FontSize="11" Foreground="{StaticResource Good}" />
+                                    <TextBlock Text="{Binding Gain}" FontSize="12" Foreground="{StaticResource Good}" />
                                 </Border>
                                 <Border Style="{StaticResource Chip}" Visibility="{Binding HasRisk, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="{Binding RiskText}" FontSize="11" Foreground="{StaticResource Warn}" />
+                                    <TextBlock Text="{Binding RiskText}" FontSize="12" Foreground="{StaticResource Warn}" />
                                 </Border>
                                 <Border Style="{StaticResource Chip}" Visibility="{Binding NeedsRestart, Converter={StaticResource Vis}}">
-                                    <TextBlock Text="Restart needed" FontSize="11" Foreground="{StaticResource Muted}" />
+                                    <TextBlock Text="Restart needed" FontSize="12" Foreground="{StaticResource Muted}" />
                                 </Border>
                             </WrapPanel>
-                            <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,6,0,0"
+                            <TextBlock Text="{Binding Message}" Style="{StaticResource MutedText}" Margin="0,8,0,0"
                                        Visibility="{Binding Message, Converter={StaticResource HasValue}}" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="10,0,0,0"
+                        <StackPanel Grid.Column="1" VerticalAlignment="Top" Margin="8,0,0,0"
                                     Visibility="{Binding IsAutomatic, Converter={StaticResource Vis}}">
                             <Button Content="Apply" Command="{Binding ApplyCommand}" Visibility="{Binding IsApplied, Converter={StaticResource NotVis}}" />
                             <StackPanel Visibility="{Binding IsApplied, Converter={StaticResource Vis}}">
-                                <TextBlock Text="✓ Applied" Foreground="{StaticResource Good}" HorizontalAlignment="Center" Margin="0,0,0,4" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,4"><TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource Good}" /><TextBlock Text="Applied" FontSize="12" Foreground="{StaticResource Secondary}" Margin="4,0,0,0" /></StackPanel>
                                 <Button Content="Revert" Style="{StaticResource GhostButton}" Command="{Binding RevertCommand}" />
                             </StackPanel>
                         </StackPanel>
@@ -74,14 +74,14 @@
 
             <!-- Compact row for the 1-click list. -->
             <DataTemplate x:Key="OneClickRow" DataType="{x:Type vm:TweakViewModel}">
-                <Grid Margin="0,3" ToolTip="{Binding Description}">
+                <Grid Margin="0,4" ToolTip="{Binding Description}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="18" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="✓" Foreground="{StaticResource Good}" Visibility="{Binding IsApplied, Converter={StaticResource Vis}}" />
-                    <TextBlock Text="○" Foreground="{StaticResource Muted}" Visibility="{Binding IsApplied, Converter={StaticResource NotVis}}" />
+                    <TextBlock Style="{StaticResource Icon}" Text="&#xE73E;" FontSize="12" Foreground="{StaticResource Good}" VerticalAlignment="Top" Margin="0,4,0,0" Visibility="{Binding IsApplied, Converter={StaticResource Vis}}" />
+                    <Ellipse Width="8" Height="8" Stroke="{StaticResource Muted}" StrokeThickness="1" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="2,6,0,0" Visibility="{Binding IsApplied, Converter={StaticResource NotVis}}" />
                     <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="13" />
                     <TextBlock Grid.Column="2" Text="{Binding Gain}" Style="{StaticResource MutedText}" Margin="8,0,0,0" />
                 </Grid>

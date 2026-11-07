@@ -12,7 +12,7 @@
             <TextBlock Text="{Binding Totals}" Style="{StaticResource MutedText}" Margin="0,2,0,16" />
         </StackPanel>
 
-        <Grid Grid.Row="1" Margin="0,0,0,6" TextElement.Foreground="{StaticResource Muted}">
+        <Grid Grid.Row="1" Margin="0,0,0,8" TextElement.Foreground="{StaticResource Muted}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="170" />
                 <ColumnDefinition Width="*" />
@@ -23,14 +23,14 @@
                 <ColumnDefinition Width="90" />
                 <ColumnDefinition Width="160" />
             </Grid.ColumnDefinitions>
-            <TextBlock Text="WHEN" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="1" Text="GAME" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="2" Text="PLAYED" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="3" Text="TARGET" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="4" Text="AVG FPS" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="5" Text="1% LOW" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="6" Text="ON TARGET" Style="{StaticResource MutedText}" />
-            <TextBlock Grid.Column="7" Text="MAX TEMPS" Style="{StaticResource MutedText}" />
+            <TextBlock Text="When" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="1" Text="Game" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="2" Text="Played" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="3" Text="Target" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="4" Text="Avg FPS" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="5" Text="1% low" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="6" Text="On target" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="7" Text="Max temps" Style="{StaticResource MutedText}" />
         </Grid>
 
         <ListBox Grid.Row="2" ItemsSource="{Binding Rows}" Background="Transparent" BorderThickness="0"
@@ -41,7 +41,7 @@
                     <Setter Property="Template">
                         <Setter.Value>
                             <ControlTemplate TargetType="ListBoxItem">
-                                <Border x:Name="b" Padding="0,9" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Background="Transparent">
+                                <Border x:Name="b" Padding="0,8" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1" Background="Transparent">
                                     <ContentPresenter />
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -68,15 +68,15 @@
                             <ColumnDefinition Width="160" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding When}" Foreground="{StaticResource Muted}" />
-                        <TextBlock Grid.Column="1" Text="{Binding Game}" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="2" Text="{Binding Duration}" />
-                        <TextBlock Grid.Column="3" Text="{Binding Target}" Foreground="{StaticResource Muted}" />
-                        <TextBlock Grid.Column="4" Text="{Binding Avg}" Foreground="{StaticResource Good}" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="5" Text="{Binding Low}" />
-                        <TextBlock Grid.Column="6" Text="{Binding AtTarget}" />
+                        <TextBlock Grid.Column="1" Text="{Binding Game}" FontWeight="Medium" />
+                        <TextBlock Grid.Column="2" Text="{Binding Duration}" Style="{StaticResource Figure}" FontSize="13" />
+                        <TextBlock Grid.Column="3" Text="{Binding Target}" Style="{StaticResource Figure}" FontSize="13" Foreground="{StaticResource Muted}" />
+                        <TextBlock Grid.Column="4" Text="{Binding Avg}" Style="{StaticResource Figure}" FontSize="13" />
+                        <TextBlock Grid.Column="5" Text="{Binding Low}" Style="{StaticResource Figure}" FontSize="13" />
+                        <TextBlock Grid.Column="6" Text="{Binding AtTarget}" Style="{StaticResource Figure}" FontSize="13" />
                         <StackPanel Grid.Column="7" Orientation="Horizontal">
-                            <TextBlock Text="{Binding Temps}" Foreground="{StaticResource Muted}" />
-                            <TextBlock Text="  ⚠" Foreground="{StaticResource Bad}" Visibility="{Binding HadAlerts, Converter={StaticResource Vis}}" ToolTip="Temperature alerts during this session" />
+                            <TextBlock Text="{Binding Temps}" Style="{StaticResource Figure}" FontSize="13" Foreground="{StaticResource Muted}" />
+                            <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="12" Margin="8,0,0,0" Foreground="{StaticResource Bad}" Visibility="{Binding HadAlerts, Converter={StaticResource Vis}}" ToolTip="Temperature alerts during this session" />
                         </StackPanel>
                     </Grid>
                 </DataTemplate>
