@@ -29,22 +29,30 @@ public static class GameImporter
 
     private static Game Create(string exe, string? nameHint)
     {
-        var exeDir = Path.GetDirectoryName(exe)!;
-        var root = GameScanner.GuessRootFromExe(exeDir);
-        string? name = null;
+        var root = GameScanner.GuessRootFromExe(Path.GetDirectoryName(exe)!);
+        var name = ProductName(exe) ?? GameNameCleaner.Clean(nameHint ?? Path.GetFileName(root));
+        return FromExe(exe, name);
+    }
+
+    /// <summary>A library entry for an exe the user has already chosen (Scan game folders window).</summary>
+    public static Game FromExe(string exe, string name) =>
+        new() { Name = name, ExePath = exe, InstallDir = GameScanner.GuessRootFromExe(Path.GetDirectoryName(exe)!) };
+
+    /// <summary>Many games set a proper ProductName ("ELDEN RING™"); engines and tools don't count.</summary>
+    public static string? ProductName(string exe)
+    {
         try
         {
-            // Many games set a proper ProductName ("ELDEN RING™").
             var product = FileVersionInfo.GetVersionInfo(exe).ProductName?.Replace("™", "").Replace("®", "").Trim();
             if (!string.IsNullOrWhiteSpace(product) && product.Length > 2 &&
                 !product.Contains("Unreal", StringComparison.OrdinalIgnoreCase) &&
                 !product.Contains("Unity", StringComparison.OrdinalIgnoreCase) &&
-                !product.Contains("Microsoft", StringComparison.OrdinalIgnoreCase))
-                name = product;
+                !product.Contains("Microsoft", StringComparison.OrdinalIgnoreCase) &&
+                !product.Contains("Launcher", StringComparison.OrdinalIgnoreCase))
+                return product;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        name ??= GameNameCleaner.Clean(nameHint ?? Path.GetFileName(root));
-        return new Game { Name = name, ExePath = exe, InstallDir = root };
+        return null;
     }
 
     /// <summary>Resolves a .lnk with the Windows Script Host COM object (always present on Windows).</summary>

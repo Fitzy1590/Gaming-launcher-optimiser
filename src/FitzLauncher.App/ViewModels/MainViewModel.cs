@@ -123,15 +123,22 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task AddPathsAsync(IEnumerable<string> paths)
     {
-        var added = new List<GameViewModel>();
+        var games = new List<Game>();
         foreach (var path in paths)
         {
             var game = await Task.Run(() => GameImporter.FromPath(path));
-            if (game is null)
-            {
-                ShowToast($"Couldn't find a game executable in {Path.GetFileName(path)}.");
-                continue;
-            }
+            if (game is null) ShowToast($"Couldn't find a game executable in {Path.GetFileName(path)}.");
+            else games.Add(game);
+        }
+        await AddGamesAsync(games);
+    }
+
+    /// <summary>Adds prepared games (from a file pick, drag & drop or the Scan game folders window).</summary>
+    public async Task<int> AddGamesAsync(IEnumerable<Game> games)
+    {
+        var added = new List<GameViewModel>();
+        foreach (var game in games)
+        {
             if (_s.Library.Games.Any(g => g.ExePath.Equals(game.ExePath, StringComparison.OrdinalIgnoreCase)))
             {
                 ShowToast($"{game.Name} is already in your library.");
@@ -139,18 +146,19 @@ public sealed partial class MainViewModel : ObservableObject
             }
             game.FpsTarget = Hardware.Profile?.PrimaryDisplay?.MaxRefreshHz is > 0 and < 92 ? null : _s.Settings.DefaultFpsTarget;
             game.AutoTune.Enabled = _s.Settings.AutoTuneNewGames;
-            game.Status = PlayStatus.Backlog;
+            if (game.Status == PlayStatus.None) game.Status = PlayStatus.Backlog;
             _s.Library.Games.Add(game);
             var vm = new GameViewModel(game);
             Games.Add(vm);
             added.Add(vm);
         }
-        if (added.Count == 0) return;
+        if (added.Count == 0) return 0;
         _s.SaveLibrary();
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(LibraryCount));
         RefreshLibraryMeta();
         Selected = added[0];
+        if (added.Count > 1) ShowToast($"Added {added.Count} games. Fetching artwork in the background…");
 
         // Artwork in the background, a few at a time; the cards show initials until it arrives.
         using var gate = new SemaphoreSlim(4);
@@ -160,6 +168,18 @@ public sealed partial class MainViewModel : ObservableObject
             try { await FetchArtworkAsync(vm); }
             finally { gate.Release(); }
         }));
+        return added.Count;
+    }
+
+    /// <summary>At start-up: quietly look for games added to the saved game folders since last time.</summary>
+    public async Task CheckLibraryFoldersAsync()
+    {
+        var folders = _s.Settings.LibraryFolders.Where(Directory.Exists).ToList();
+        if (folders.Count == 0) return;
+        var exes = _s.Library.Games.Select(g => g.ExePath).ToList();
+        var dirs = _s.Library.Games.Select(g => g.InstallDir).ToList();
+        var count = await Task.Run(() => folders.SelectMany(f => FitzLauncher.Core.Scanning.LibraryFolderScanner.Scan(f, exes, dirs)).Count(g => g.SuggestAdd));
+        if (count > 0) ShowToast($"Found {count} new game(s) in your game folders. Click \"Scan game folders\" to review and add them.");
     }
 
     public async Task FetchArtworkAsync(GameViewModel vm)

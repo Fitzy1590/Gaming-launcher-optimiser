@@ -11,8 +11,12 @@ A fast, clean Windows game launcher for all your games and repacks, with one-cli
 ## Features
 
 ### Library
-- **Add games manually:** pick an `.exe` or shortcut, use **Add folder of games** (each subfolder becomes a game),
-  or **drag & drop** exes, shortcuts or folders onto the window.
+- **Scan game folders:** pick one or more folders where your games are installed, then review every game found
+  before anything is added. You can tick or untick each one, rename it, and choose which exe it launches (click to cycle
+  through the candidates, or browse). Each game is flagged *New*, *Already in library*, *Not installed* (a FitGirl/DODI
+  `setup.exe` + `.bin` installer that hasn't been run yet), *No exe found* or *on SD card*. The folders are remembered:
+  scanning again, and the check at start-up, show only new games.
+- **Add one game:** pick an `.exe` or shortcut, or **drag & drop** exes, shortcuts or folders onto the window.
 - Repack/scene folder names are cleaned automatically (`Elden.Ring.v1.10-[FitGirl Repack]` → *Elden Ring*).
   The installer, redistributable and crash-reporter exes are ignored when the launcher picks the game exe.
 - **Artwork** is fetched automatically: portrait cover plus a wide hero image from Steam's store (no key needed).
@@ -163,7 +167,7 @@ Tag a commit `v0.1.0` (etc.) and CI publishes a GitHub Release with the zip.
 
 ## Testing checklist
 - [ ] Launcher starts, the hardware scan fills in the **Hardware & temps** page
-- [ ] Adding an exe / folder / drag-drop works; artwork appears
+- [ ] **Scan game folders** finds your games with the right exe; adding works; artwork appears
 - [ ] Optimise at 117 on an Unreal game: `Engine.ini` gets `t.MaxFPS=117`; **Revert all** restores it
 - [ ] Play: Game Mode messages appear, the launcher minimises, live FPS/temps show in the top bar
 - [ ] After quitting: session summary toast with avg FPS / 1% low; history chart updates

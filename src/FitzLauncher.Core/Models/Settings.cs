@@ -35,6 +35,9 @@ public sealed class LauncherSettings
     /// <summary>Folder with newer DLSS/XeSS/FSR DLLs to offer as upgrades (in addition to other games' copies).</summary>
     public string? UpscalerDllFolder { get; set; }
 
+    /// <summary>Folders the user scans for games ("Scan game folders"); rechecked for new games at start-up.</summary>
+    public List<string> LibraryFolders { get; set; } = [];
+
     public bool StartWithWindows { get; set; }
     public bool NoUacShortcut { get; set; }
     /// <summary>GPU driver version seen last run; a change prompts a shader-cache clean.</summary>

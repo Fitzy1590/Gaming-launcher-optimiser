@@ -41,6 +41,8 @@ public partial class App : Application
 
         // First run: scan the hardware so tweaks can be tailored. Cached afterwards.
         _ = vm.Hardware.EnsureScannedAsync();
+        // Tell the user about games added to their saved game folders since last time.
+        _ = vm.CheckLibraryFoldersAsync();
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)

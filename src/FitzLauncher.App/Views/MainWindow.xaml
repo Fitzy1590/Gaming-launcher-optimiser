@@ -100,7 +100,7 @@
                 <DockPanel Margin="28,22,20,14">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Content="+ Add game" Style="{StaticResource PrimaryButton}" Click="AddGame_Click" ToolTip="Add a game exe or shortcut (Ctrl+N). You can also drag &amp; drop exes or folders onto the window." />
-                        <Button Content="Add folder of games" Margin="8,0,0,0" Click="AddFolder_Click" ToolTip="Pick a folder that contains several games/repacks; each subfolder is added." />
+                        <Button Content="📁 Scan game folders" Margin="8,0,0,0" Click="ScanFolders_Click" ToolTip="Pick your games folder(s), review everything found, and add only what you tick." />
                         <Button Content="🎮 Big Picture" Margin="8,0,0,0" Command="{Binding BigPictureCommand}" ToolTip="Fullscreen controller mode (F11)" />
                     </StackPanel>
                     <Grid Width="320" HorizontalAlignment="Left">
@@ -152,7 +152,10 @@
                 <StackPanel Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="{Binding IsEmpty, Converter={StaticResource Vis}}">
                     <TextBlock Text="Your library is empty" Style="{StaticResource H1}" HorizontalAlignment="Center" />
                     <TextBlock Text="Add a game exe, or drop exes, shortcuts or game folders anywhere on this window." Style="{StaticResource MutedText}" FontSize="14" Margin="0,8,0,18" HorizontalAlignment="Center" />
-                    <Button Content="+ Add your first game" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Center" Click="AddGame_Click" />
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Button Content="📁 Scan my game folders" Style="{StaticResource PrimaryButton}" Click="ScanFolders_Click" />
+                        <Button Content="+ Add one game" Margin="8,0,0,0" Click="AddGame_Click" />
+                    </StackPanel>
                 </StackPanel>
 
                 <!-- Game grid -->

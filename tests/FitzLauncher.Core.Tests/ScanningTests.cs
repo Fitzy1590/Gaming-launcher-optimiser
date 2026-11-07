@@ -94,3 +94,58 @@ public class GameScannerTests
         Assert.Empty(PeImports.Read(d.File("x.exe", "not a pe")));
     }
 }
+
+public class LibraryFolderScannerTests
+{
+    [Fact]
+    public void Lists_each_subfolder_with_status_and_never_adds_by_itself()
+    {
+        using var d = new TestDir();
+        var root = d.Dir("Games");
+        d.File("Games/Hollow Knight/hollow_knight.exe", sizeBytes: 1000);
+        d.File("Games/Hollow Knight/UnityPlayer.dll", "x");
+        var known = d.File("Games/Stray/Stray.exe", sizeBytes: 1000);
+        d.File("Games/Elden Ring [FitGirl Repack]/setup.exe", sizeBytes: 1000);
+        d.File("Games/Elden Ring [FitGirl Repack]/fg-01.bin", "x");
+        d.File("Games/Elden Ring [FitGirl Repack]/fg-02.bin", "x");
+        d.Dir("Games/Empty Folder");
+
+        var found = LibraryFolderScanner.Scan(root, [known], []);
+        Assert.Equal(4, found.Count);
+
+        var hk = found.Single(f => f.Name == "Hollow Knight");
+        Assert.Equal(FoundGameStatus.New, hk.Status);
+        Assert.True(hk.SuggestAdd);
+        Assert.EndsWith("hollow_knight.exe", hk.Exe);
+
+        Assert.Equal(FoundGameStatus.AlreadyInLibrary, found.Single(f => f.Name == "Stray").Status);
+
+        var er = found.Single(f => f.Name == "Elden Ring");
+        Assert.Equal(FoundGameStatus.NotInstalled, er.Status);
+        Assert.False(er.SuggestAdd);
+
+        Assert.Equal(FoundGameStatus.NoExe, found.Single(f => f.Name == "Empty Folder").Status);
+    }
+
+    [Fact]
+    public void A_folder_that_is_itself_a_game_is_one_result()
+    {
+        using var d = new TestDir();
+        var game = d.Dir("Cyberpunk 2077");
+        d.File("Cyberpunk 2077/launcher.exe", sizeBytes: 100);
+        d.File("Cyberpunk 2077/bin/x64/Cyberpunk2077.exe", sizeBytes: 5_000_000);
+        var found = LibraryFolderScanner.Scan(game, [], []);
+        Assert.Single(found);
+        Assert.True(found[0].Candidates.Count >= 2);
+    }
+
+    [Fact]
+    public void Installed_game_with_leftover_setup_is_not_mistaken_for_installer()
+    {
+        using var d = new TestDir();
+        d.File("G/setup.exe", "x");
+        d.File("G/data.bin", "x");
+        d.File("G/Game.exe", sizeBytes: 2_000_000);
+        Assert.False(LibraryFolderScanner.IsUninstalledRepack(d.Path_("G")));
+    }
+}

@@ -96,15 +96,10 @@ public partial class MainWindow : Window
         if (dlg.ShowDialog(this) == true) await _vm.AddPathsAsync(dlg.FileNames);
     }
 
-    private async void AddFolder_Click(object sender, RoutedEventArgs e)
+    private void ScanFolders_Click(object sender, RoutedEventArgs e)
     {
-        var dlg = new OpenFolderDialog { Title = "Pick a folder containing your games (each subfolder becomes a game)" };
-        if (dlg.ShowDialog(this) != true) return;
-        var folder = dlg.FolderName;
-        var subfolders = Directory.GetDirectories(folder);
-        // If the picked folder is itself a game (has an exe in its root), add just it.
-        var targets = Directory.EnumerateFiles(folder, "*.exe").Any() || subfolders.Length == 0 ? [folder] : subfolders;
-        await _vm.AddPathsAsync(targets);
+        var dlg = new ScanFoldersWindow(new ScanFoldersViewModel(_vm.Services, _vm)) { Owner = this };
+        dlg.ShowDialog();
     }
 
     private async void OnDrop(object sender, DragEventArgs e)
