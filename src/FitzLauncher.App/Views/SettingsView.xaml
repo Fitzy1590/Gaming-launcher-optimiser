@@ -8,6 +8,37 @@
         <StackPanel Margin="32,24,32,40" MaxWidth="760" HorizontalAlignment="Left">
             <TextBlock Text="Settings" Style="{StaticResource H1}" />
 
+            <TextBlock Text="Updates" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Install and restart" Style="{StaticResource PrimaryButton}" Command="{Binding InstallUpdateNowCommand}" Margin="0,0,8,0"
+                                    Visibility="{Binding UpdateReady, Converter={StaticResource Vis}}" />
+                            <Button Content="Check for updates" Command="{Binding CheckUpdatesCommand}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding CurrentVersion}" VerticalAlignment="Center" FontSize="14" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
+                    <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,8,0,0" />
+                    <CheckBox Content="Check my games for official updates once a day (Steam/GOG versions; on the first launch of the day)" IsChecked="{Binding S.GameUpdateCheckDaily}" Margin="0,8,0,0" />
+                    <CheckBox Content="Install it automatically (the launcher restarts itself; never while a game is running)" IsChecked="{Binding S.AutoInstallUpdates}" Margin="24,4,0,0"
+                              IsEnabled="{Binding S.AutoCheckUpdates}" />
+                    <DockPanel Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Right" Content="Reinstall latest version" Command="{Binding ReinstallLatestCommand}" />
+                        <TextBlock Text="Force update: downloads the latest release and reinstalls it, even if you already have it. Use it if files are damaged or antivirus removed one."
+                                   Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    </DockPanel>
+                    <TextBlock Text="Private repository? Paste a GitHub token with read access to it (fine-grained token → Contents: Read-only). It's stored encrypted with your Windows account. Not needed if the repository is public."
+                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Save token" Command="{Binding SaveTokenCommand}" Margin="8,0,0,0" />
+                        <TextBox Text="{Binding TokenInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                    <TextBlock Text="Token saved" Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding HasToken, Converter={StaticResource Vis}}" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Default FPS target for new games" Style="{StaticResource H2}" />
             <StackPanel Orientation="Horizontal">
                 <RadioButton Style="{StaticResource TargetToggle}" GroupName="def" Content="90"  IsChecked="{Binding S.DefaultFpsTarget, Converter={StaticResource Eq}, ConverterParameter=90}" />
@@ -361,37 +392,6 @@
                         <Button Content="Restore from sync…" Style="{StaticResource GhostButton}" Command="{Binding RestoreFromSyncCommand}" />
                     </StackPanel>
                     <TextBlock Text="{Binding SyncStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding SyncStatus, Converter={StaticResource HasValue}}" />
-                </StackPanel>
-            </Border>
-
-            <TextBlock Text="Updates" Style="{StaticResource H2}" />
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <DockPanel>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-                            <Button Content="Install and restart" Style="{StaticResource PrimaryButton}" Command="{Binding InstallUpdateNowCommand}" Margin="0,0,8,0"
-                                    Visibility="{Binding UpdateReady, Converter={StaticResource Vis}}" />
-                            <Button Content="Check for updates" Command="{Binding CheckUpdatesCommand}" />
-                        </StackPanel>
-                        <TextBlock Text="{Binding CurrentVersion}" VerticalAlignment="Center" FontSize="14" />
-                    </DockPanel>
-                    <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
-                    <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,8,0,0" />
-                    <CheckBox Content="Check my games for official updates once a day (Steam/GOG versions; on the first launch of the day)" IsChecked="{Binding S.GameUpdateCheckDaily}" Margin="0,8,0,0" />
-                    <CheckBox Content="Install it automatically (the launcher restarts itself; never while a game is running)" IsChecked="{Binding S.AutoInstallUpdates}" Margin="24,4,0,0"
-                              IsEnabled="{Binding S.AutoCheckUpdates}" />
-                    <DockPanel Margin="0,12,0,0">
-                        <Button DockPanel.Dock="Right" Content="Reinstall latest version" Command="{Binding ReinstallLatestCommand}" />
-                        <TextBlock Text="Force update: downloads the latest release and reinstalls it, even if you already have it. Use it if files are damaged or antivirus removed one."
-                                   Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="0,0,12,0" />
-                    </DockPanel>
-                    <TextBlock Text="Private repository? Paste a GitHub token with read access to it (fine-grained token → Contents: Read-only). It's stored encrypted with your Windows account. Not needed if the repository is public."
-                               Style="{StaticResource Wrap}" Margin="0,8,0,8" />
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Save token" Command="{Binding SaveTokenCommand}" Margin="8,0,0,0" />
-                        <TextBox Text="{Binding TokenInput, UpdateSourceTrigger=PropertyChanged}" />
-                    </DockPanel>
-                    <TextBlock Text="Token saved" Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding HasToken, Converter={StaticResource Vis}}" />
                 </StackPanel>
             </Border>
 
