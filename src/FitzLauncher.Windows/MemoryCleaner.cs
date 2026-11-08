@@ -23,6 +23,13 @@ public static class MemoryCleaner
         _privilegesEnabled = true;
     }
 
+    /// <summary>Free physical memory, % (cheap: no privileges needed).</summary>
+    public static double FreePercent()
+    {
+        var status = new Native.MemoryStatusEx { Length = (uint)Marshal.SizeOf<Native.MemoryStatusEx>() };
+        return Native.GlobalMemoryStatusEx(ref status) && status.TotalPhys > 0 ? status.AvailPhys * 100.0 / status.TotalPhys : 100;
+    }
+
     public static MemorySnapshot Snapshot()
     {
         var status = new Native.MemoryStatusEx { Length = (uint)Marshal.SizeOf<Native.MemoryStatusEx>() };

@@ -15,6 +15,9 @@ public sealed class BackgroundLimiter
 
     public event Action<string>? Throttled;
 
+    /// <summary>The busiest non-game process at the last sample (for the stutter detective).</summary>
+    public (string? Name, double Cpu) LastTop { get; private set; }
+
     public void Tick(IReadOnlyCollection<int> gamePids)
     {
         var now = DateTime.UtcNow;
@@ -39,7 +42,10 @@ public sealed class BackgroundLimiter
         }
         foreach (var gone in _lastCpu.Keys.Where(k => !names.ContainsKey(k)).ToList()) _lastCpu.Remove(gone);
 
-        var (throttle, release) = _detector.Update(usage, new HashSet<int>(gamePids));
+        var game = new HashSet<int>(gamePids);
+        LastTop = usage.Where(kv => !game.Contains(kv.Key) && kv.Value.Item1 is not ("Idle" or "System")).Select(kv => (kv.Value.Item1, kv.Value.Item2))
+            .DefaultIfEmpty((null!, 0)).MaxBy(x => x.Item2);
+        var (throttle, release) = _detector.Update(usage, game);
         foreach (var pid in throttle)
         {
             try

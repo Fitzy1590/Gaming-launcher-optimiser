@@ -29,6 +29,13 @@ public sealed class FrameTimeRecorder
 
     public long FrameCount { get { lock (_lock) return _frames; } }
 
+    // Timestamped spikes for the stutter detective (capped so memory stays constant).
+    private readonly List<StutterEvent> _stutters = [];
+    public const int MaxStutterEvents = 3000;
+
+    /// <summary>Frames much slower than the ones around them, with when they happened.</summary>
+    public List<StutterEvent> Stutters { get { lock (_lock) return [.. _stutters]; } }
+
     public void AddFrame(double frameTimeMs)
     {
         if (frameTimeMs <= 0 || frameTimeMs > IgnoreAboveMs) return;
@@ -47,6 +54,10 @@ public sealed class FrameTimeRecorder
                 _timelineMs = 0;
                 _timelineFrames = 0;
             }
+
+            // A stutter: at least 25 ms and 2.5× the recent average frame time.
+            if (frameTimeMs >= 25 && _recent.Count > 10 && frameTimeMs > 2.5 * (_recentMs / _recent.Count) && _stutters.Count < MaxStutterEvents)
+                _stutters.Add(new StutterEvent(DateTimeOffset.UtcNow, (float)frameTimeMs));
 
             _recent.Enqueue(frameTimeMs);
             _recentMs += frameTimeMs;

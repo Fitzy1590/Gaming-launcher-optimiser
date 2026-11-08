@@ -353,7 +353,10 @@ public sealed partial class MainViewModel : ObservableObject
         var display = await Task.Run(() => PrepareDisplay(game));
         // FPS cap remembered for this PC and screen, then the cooling mode on top.
         var screen = display?.Display ?? await Task.Run(CurrentScreen);
-        var coolingPlan = CoolingPlan.For(game.Cooling ?? _s.Settings.DefaultCooling);
+        // A/B test in progress: this run uses the next setup and records a benchmark automatically.
+        var abTest = game.AbTest is { Done: false } t0 ? t0 : null;
+        var abSetup = abTest?.Next;
+        var coolingPlan = CoolingPlan.For(abSetup?.Cooling ?? game.Cooling ?? _s.Settings.DefaultCooling);
         int? sessionCap = display?.EffectiveCap;
         if (DeviceCaps.For(game, Environment.MachineName, screen) is { } saved)
         {
@@ -362,6 +365,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         if (coolingPlan.CapSteps > 0 && (sessionCap ?? game.FpsTarget) is { } baseCap and > 0)
             sessionCap = CoolingPlan.StepDown(baseCap, coolingPlan.CapSteps);
+        if (abSetup?.Cap is { } abCap) sessionCap = abCap;
         var limiterMode = await Task.Run(() => PrepareLimiterMode(game));
         var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto ? _s.RyzenAdj : null;
         // Undervolt ladder: first undervolted session starts one step in.
@@ -376,6 +380,7 @@ public sealed partial class MainViewModel : ObservableObject
             Display = display?.Display,
             ExtraArguments = display?.LaunchArguments ?? "",
             EffectiveCap = sessionCap,
+            AutoBenchmark = abTest is null ? null : (abTest.WarmupSeconds, abTest.Seconds),
             Cooling = SafeMode || coolingPlan.Mode == CoolingMode.Off ? null : coolingPlan,
             RenderScale = display?.RenderScale ?? 100,
             LimiterMode = limiterMode,
@@ -412,7 +417,16 @@ public sealed partial class MainViewModel : ObservableObject
                 trainer = await _s.Trainers.StartAsync(t, line => Ui(() => Activity = line), trainerCts.Token);
                 if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
             });
-        session.BenchmarkCompleted += b => Ui(() => ShowToast($"Benchmark ({b.Seconds}s): avg {b.AverageFps:0} FPS · 1% low {b.OnePercentLowFps:0} · 0.1% low {b.PointOnePercentLowFps:0}" + (b.TimeAtTarget is { } t ? $" · {t:P0} on target" : "")));
+        if (abTest is not null)
+            session.BenchmarkCompleted += b => Ui(() =>
+            {
+                var run = new AbRun { AverageFps = b.AverageFps, OnePercentLowFps = b.OnePercentLowFps, StutterCount = b.StutterCount, MaxGpuTempC = b.MaxGpuTempC };
+                var which = abTest.NextName;
+                if (abTest.ResultA is null) abTest.ResultA = run; else abTest.ResultB ??= run;
+                _s.SaveLibrary();
+                ShowToast(abTest.Done ? $"A/B test finished. {abTest.Verdict()}" : $"A/B run {which} recorded. Next time you press Play, run B ({abTest.B.Label}) starts: play the same part again.");
+            });
+        if (abTest is null) session.BenchmarkCompleted += b => Ui(() => ShowToast($"Benchmark ({b.Seconds}s): avg {b.AverageFps:0} FPS · 1% low {b.OnePercentLowFps:0} · 0.1% low {b.PointOnePercentLowFps:0}" + (b.TimeAtTarget is { } t ? $" · {t:P0} on target" : "")));
         SessionStarted?.Invoke();
 
         try

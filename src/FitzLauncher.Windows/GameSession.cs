@@ -32,6 +32,14 @@ public sealed class GameSession(
     /// <summary>Raised once the game process has started (used to start a trainer alongside it).</summary>
     public event Action? Launched;
 
+    /// <summary>Record a benchmark automatically: after <c>Warmup</c> seconds, for <c>Seconds</c> (A/B tests).</summary>
+    public (int Warmup, int Seconds)? AutoBenchmark { get; init; }
+    private bool _autoBenchStarted;
+
+    /// <summary>Why the session stuttered (set when it ends).</summary>
+    public FitzLauncher.Core.Fps.StutterReport? StutterReport { get; private set; }
+    private readonly List<FitzLauncher.Core.Fps.ContextSample> _samples = [];
+
     /// <summary>One-launch options from the display plan (e.g. Unity's -screen-width).</summary>
     public string ExtraArguments { get; init; } = "";
     /// <summary>Cap for the active screen; null = the game's own target.</summary>
@@ -390,6 +398,12 @@ public sealed class GameSession(
                 if (r.GpuLoad is { } gl) { gpuLoadSum += gl; gpuLoadSamples++; }
                 Push(cpuHistory, new ThermalSample(r.CpuTempC, r.CpuLoad, null));
                 Push(gpuHistory, new ThermalSample(r.GpuTempC, r.GpuLoad, r.GpuPowerW));
+                if (_samples.Count < 20_000)
+                {
+                    var top = limiter?.LastTop ?? (null, 0);
+                    _samples.Add(new FitzLauncher.Core.Fps.ContextSample(DateTimeOffset.UtcNow, r.CpuTempC, r.GpuTempC, r.CpuLoad, r.GpuLoad,
+                        MemoryCleaner.FreePercent(), top.Name, top.Cpu, _guard?.IsThrottling == true));
+                }
 
                 if (CheckSustained(r.CpuTempC, settings.CpuTempAlertC, ref cpuHotSince, ref lastCpuAlert))
                 { alerts++; Alert?.Invoke(new TempAlert("CPU", r.CpuTempC!.Value, settings.CpuTempAlertC, ThermalDiagnosis.Explain("CPU", [.. cpuHistory], settings.CpuTempAlertC))); }
@@ -430,6 +444,11 @@ public sealed class GameSession(
                 lock (_capLock) livePower = _livePower;
                 if (powerSet && tick % 30 == 0 && livePower is { } lp) RyzenAdj!.Apply(lp, PowerMaxWatts);
 
+                if (AutoBenchmark is { } ab && !_autoBenchStarted && DateTimeOffset.Now - start >= TimeSpan.FromSeconds(ab.Warmup) - _sleep.Asleep)
+                {
+                    _autoBenchStarted = StartBenchmark(ab.Seconds);
+                    if (_autoBenchStarted) Note($"A/B test: recording {ab.Seconds}s", 6);
+                }
                 CheckBenchmark(r.GpuTempC);
 
                 var recorder = fps.PrimaryRecorder;
@@ -485,6 +504,14 @@ public sealed class GameSession(
         summary.PowerWatts = powerSet ? PowerWatts : null;
         summary.LimiterMode = LimiterMode;
         summary.AsleepSeconds = Math.Round(_sleep.Asleep.TotalSeconds);
+
+        // Stutter detective: match each spike with what the PC was doing at that moment.
+        if (summary.HasFpsData && fps.PrimaryRecorder is { } rec)
+        {
+            StutterReport = FitzLauncher.Core.Fps.StutterDetective.Analyze(game, start.ToUniversalTime(), end.ToUniversalTime(), rec.Stutters, _samples, settings.CpuTempAlertC, settings.GpuTempAlertC);
+            try { Json.Save(Path.Combine(paths.Root, "stutters", $"{game.Id:N}.json"), StutterReport); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
 
         // Crash check: abnormal exit code, or Windows logged an "Application Error" for the game exe.
         var crashCode = crashWatch.CrashExitCode();

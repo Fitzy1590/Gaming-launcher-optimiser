@@ -315,6 +315,82 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Stutter detective -->
+                <TextBlock Text="Stutter detective" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="Play a session and this explains any stutters: when they happened and what caused them." Style="{StaticResource Wrap}"
+                                   Visibility="{Binding HasStutterReport, Converter={StaticResource NotVis}}" />
+                        <StackPanel Visibility="{Binding HasStutterReport, Converter={StaticResource Vis}}">
+                            <TextBlock Text="{Binding StutterSummary}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                            <ItemsControl ItemsSource="{Binding StutterCauses}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,8">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Wrap}" />
+                                            <TextBlock Text="{Binding Fix}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="Worst moments (time into the session)" Style="{StaticResource MutedText}" Margin="0,4,0,4" />
+                            <ItemsControl ItemsSource="{Binding StutterMoments}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Figure}" FontSize="12" Margin="0,0,0,2" /></DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- A/B benchmark -->
+                <TextBlock Text="A/B test" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Visibility="{Binding AbIdle, Converter={StaticResource Vis}}">
+                            <TextBlock Text="Compare two setups on the same part of the game: the launcher records a benchmark in each run and tells you which is smoother and cooler." Style="{StaticResource Wrap}" Margin="0,0,0,8" />
+                            <WrapPanel Margin="0,0,0,8">
+                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="abkind" Content="Cooling modes" IsChecked="{Binding AbKind, Mode=OneWay, Converter={StaticResource Eq}, ConverterParameter=Cooling}" Command="{Binding SetAbKindCommand}" CommandParameter="Cooling" />
+                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="abkind" Content="FPS caps" IsChecked="{Binding AbKind, Mode=OneWay, Converter={StaticResource Eq}, ConverterParameter=FpsCap}" Command="{Binding SetAbKindCommand}" CommandParameter="FpsCap" />
+                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="abkind" Content="Something I change" IsChecked="{Binding AbKind, Mode=OneWay, Converter={StaticResource Eq}, ConverterParameter=Manual}" Command="{Binding SetAbKindCommand}" CommandParameter="Manual" />
+                            </WrapPanel>
+                            <StackPanel Visibility="{Binding AbIsManual, Converter={StaticResource NotVis}}">
+                                <TextBlock Text="A" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                            <ItemsControl ItemsSource="{Binding AbOptionsA}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="abA" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding PickCommand}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                                <TextBlock Text="B" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,4,0,0" />
+                            <ItemsControl ItemsSource="{Binding AbOptionsB}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="abB" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding PickCommand}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding AbIsManual, Converter={StaticResource Vis}}">
+                                <DockPanel Margin="0,0,0,4"><TextBlock DockPanel.Dock="Left" Text="A is" Width="48" VerticalAlignment="Center" /><TextBox Text="{Binding AbManualA, UpdateSourceTrigger=PropertyChanged}" ToolTip="e.g. DXVK off" /></DockPanel>
+                                <DockPanel><TextBlock DockPanel.Dock="Left" Text="B is" Width="48" VerticalAlignment="Center" /><TextBox Text="{Binding AbManualB, UpdateSourceTrigger=PropertyChanged}" ToolTip="e.g. DXVK on" /></DockPanel>
+                            </StackPanel>
+                            <Button Content="Start A/B test" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,12,0,0" Command="{Binding StartAbCommand}" />
+                        </StackPanel>
+                        <StackPanel Visibility="{Binding AbIdle, Converter={StaticResource NotVis}}">
+                            <TextBlock Text="{Binding AbStatus}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                                <Button Content="Keep the winner" Style="{StaticResource PrimaryButton}" Command="{Binding ApplyAbWinnerCommand}" Margin="0,0,8,0" Visibility="{Binding AbDone, Converter={StaticResource Vis}}" />
+                                <Button Content="{Binding AbEndText}" Style="{StaticResource GhostButton}" Command="{Binding CancelAbCommand}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Game updates -->
                 <DockPanel Margin="0,24,0,8">
                     <Button DockPanel.Dock="Right" Content="Check" Style="{StaticResource GhostButton}" Command="{Binding CheckGameUpdateCommand}" />

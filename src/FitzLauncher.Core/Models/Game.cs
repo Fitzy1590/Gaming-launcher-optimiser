@@ -96,6 +96,9 @@ public sealed class Game
     /// <summary>Cooling mode for this game; null = the default in Settings.</summary>
     public FitzLauncher.Core.Optimization.CoolingMode? Cooling { get; set; }
 
+    /// <summary>A/B benchmark in progress or finished (null = none).</summary>
+    public FitzLauncher.Core.Optimization.AbTest? AbTest { get; set; }
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

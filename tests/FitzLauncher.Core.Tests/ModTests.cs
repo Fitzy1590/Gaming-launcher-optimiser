@@ -612,3 +612,57 @@ public class FomodChoiceTests
         Assert.Equal("01 1K/a.dds", Assert.Single(picked.Files).Source);
     }
 }
+
+public class StutterDetectiveTests
+{
+    [Fact]
+    public void Blames_background_app_and_thermal_moments()
+    {
+        var start = DateTimeOffset.UtcNow;
+        var game = new FitzLauncher.Core.Models.Game { Name = "G" };
+        var stutters = new List<FitzLauncher.Core.Fps.StutterEvent>
+        {
+            new(start.AddMinutes(10), 60), new(start.AddMinutes(10).AddSeconds(1), 45),   // background spike
+            new(start.AddMinutes(20), 80),                                                 // hot
+        };
+        var samples = new List<FitzLauncher.Core.Fps.ContextSample>
+        {
+            new(start.AddMinutes(10), 70, 70, 40, 90, 40, "OneDrive", 25, false),
+            new(start.AddMinutes(20), 70, 92, 40, 99, 40, null, 0, true),
+        };
+        var r = FitzLauncher.Core.Fps.StutterDetective.Analyze(game, start, start.AddMinutes(30), stutters, samples, 90, 90);
+        Assert.Equal(3, r.TotalStutters);
+        Assert.Equal(FitzLauncher.Core.Fps.StutterCause.BackgroundApp, r.Causes[0].Cause);
+        Assert.Contains("OneDrive", r.Causes[0].Title);
+        Assert.Contains(r.Causes, c => c.Cause == FitzLauncher.Core.Fps.StutterCause.Thermal);
+        Assert.Equal(2, r.WorstMoments.Count);
+    }
+
+    [Fact]
+    public void Smooth_session_says_so()
+    {
+        var r = FitzLauncher.Core.Fps.StutterDetective.Analyze(new FitzLauncher.Core.Models.Game(), DateTimeOffset.Now, DateTimeOffset.Now.AddMinutes(5), [], [], 90, 90);
+        Assert.Contains("smooth", r.Summary);
+    }
+}
+
+public class AbTestTests
+{
+    [Fact]
+    public void Picks_the_smoother_cooler_setup_and_calls_ties()
+    {
+        var t = new FitzLauncher.Core.Optimization.AbTest
+        {
+            A = new() { Label = "Off" }, B = new() { Label = "Cool" },
+            ResultA = new() { AverageFps = 110, OnePercentLowFps = 80, MaxGpuTempC = 88, StutterCount = 20 },
+        };
+        Assert.Equal("B", t.NextName);
+        t.ResultB = new() { AverageFps = 108, OnePercentLowFps = 88, MaxGpuTempC = 78, StutterCount = 8 };
+        Assert.True(t.Done);
+        Assert.StartsWith("B (Cool) is better", t.Verdict());
+        Assert.Contains("10°C cooler", t.Verdict());
+
+        t.ResultB = new() { AverageFps = 110, OnePercentLowFps = 80.5, MaxGpuTempC = 88, StutterCount = 20 };
+        Assert.StartsWith("Too close to call", t.Verdict());
+    }
+}
