@@ -169,6 +169,18 @@ public sealed class AppServices : IDisposable
         lock (_saveLock) Store.SaveSettings(Settings);
     }
 
+    /// <summary>Quiet, low-power sleep (started after the window opens).</summary>
+    public FitzLauncher.Windows.LowPowerSleep? Sleep { get; private set; }
+
+    public FitzLauncher.Windows.LowPowerSleep StartLowPowerSleep(Func<bool> sessionOwnsPower)
+    {
+        Sleep = new FitzLauncher.Windows.LowPowerSleep(Paths,
+            () => Hardware?.IsApu == true && RyzenAdjClient.Find(Settings.RyzenAdjPath) is { } p ? new RyzenAdjClient(p, Paths) : null,
+            () => Settings.SleepWatts, () => Settings.LowPowerSleep, sessionOwnsPower, Log.Write);
+        Sleep.RecoverIfNeeded();
+        return Sleep;
+    }
+
     private FitzLauncher.Windows.ConsoleBridge? _console;
 
     /// <summary>PS button → OneXConsole (and driving it with the Sony pad).</summary>
@@ -184,6 +196,7 @@ public sealed class AppServices : IDisposable
 
     public void Dispose()
     {
+        Sleep?.Dispose();
         _console?.Dispose();
         FitzLauncher.Windows.PlayStationPads.Shared.Dispose();
         Temps.Dispose();

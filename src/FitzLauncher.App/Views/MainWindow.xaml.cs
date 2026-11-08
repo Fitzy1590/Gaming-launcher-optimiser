@@ -46,6 +46,12 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
             Activate();
         };
 
+        vm.DeviceSleepChanged += asleep =>
+        {
+            if (asleep) _nav.Stop();
+            else if (!vm.SafeMode && !vm.IsPlaying) _nav.Start();
+        };
+
         Drop += OnDrop;
         SourceInitialized += (_, _) =>
         {

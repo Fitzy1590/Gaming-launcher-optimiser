@@ -35,6 +35,25 @@ public sealed class PlayStationPads : IDisposable
         }
     }
 
+    private bool _paused;
+
+    /// <summary>While the device sleeps: close the controllers and stop looking for them (lets the chip idle).</summary>
+    public bool Paused
+    {
+        get => _paused;
+        set
+        {
+            lock (_gate)
+            {
+                if (_paused == value) return;
+                _paused = value;
+                if (value) { foreach (var r in _readers) r.Dispose(); _readers.Clear(); }
+                _lastScan = DateTime.MinValue;
+            }
+            if (!value) ThreadPool.QueueUserWorkItem(_ => Scan());
+        }
+    }
+
     public IReadOnlyList<string> Connected { get { lock (_gate) return _readers.Select(r => r.Name).ToList(); } }
 
     /// <summary>Starts reading (reference counted: each caller that starts it should stop it).</summary>
@@ -66,7 +85,7 @@ public sealed class PlayStationPads : IDisposable
             lock (_gate)
             {
                 _readers.RemoveAll(r => r.Closed);
-                if (_users == 0) return;
+                if (_users == 0 || _paused) return;
                 // With a pad connected, look for a second one only every 15 s.
                 if (_readers.Count > 0 && DateTime.UtcNow - _lastScan < TimeSpan.FromSeconds(15)) return;
                 _lastScan = DateTime.UtcNow;

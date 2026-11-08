@@ -165,6 +165,9 @@ public sealed class GameSession(
     private int? _livePower;
     private bool _hud;
 
+    /// <summary>This session set the APU power limit (and puts it back after sleep itself).</summary>
+    public bool OwnsPowerLimit { get { lock (_capLock) return _livePower is not null; } }
+
     /// <summary>Quick HUD (View + LB held): shows the target and power line until released.</summary>
     public void SetHud(bool open) => _hud = open;
 
@@ -389,6 +392,7 @@ public sealed class GameSession(
         {
             while (await timer.WaitForNextTickAsync(ct).ConfigureAwait(false))
             {
+                if (LowPowerSleep.Asleep) continue; // nothing to watch while the device sleeps; keeps the chip idle
                 tick++;
                 // Process list every 4 s; sensors every 2 s.
                 if (tick % 2 == 0)

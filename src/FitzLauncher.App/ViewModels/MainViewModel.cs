@@ -35,6 +35,29 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Raised when a temperature alert should be shown on top of the game.</summary>
     public event Action<TempAlert>? TempAlertRaised;
     public event Action? SessionStarted;
+    /// <summary>The device went to sleep (true) or woke (false).</summary>
+    public event Action<bool>? DeviceSleepChanged;
+
+    public bool SessionOwnsPower => _session?.OwnsPowerLimit == true;
+    private bool _consoleWasRunning;
+
+    /// <summary>Low-power sleep: stop the launcher's own polling while asleep, start it again on wake.</summary>
+    public void OnDeviceSleep(bool asleep)
+    {
+        FitzLauncher.Windows.PlayStationPads.Shared.Paused = asleep;
+        if (asleep)
+        {
+            _consoleWasRunning = _s.ConsoleButton.Running;
+            if (_consoleWasRunning) _s.ConsoleButton.Stop();
+        }
+        else
+        {
+            if (_consoleWasRunning) _s.ConsoleButton.Start();
+            // The firmware resets power limits on wake; a running game puts its own back.
+            if (_session?.OwnsPowerLimit == true) _session.OnResume();
+        }
+        DeviceSleepChanged?.Invoke(asleep);
+    }
     public event Action? SessionEnded;
     /// <summary>Asks the view to open the edit dialog; returns true if saved.</summary>
     public Func<Game, bool>? EditGameDialog { get; set; }

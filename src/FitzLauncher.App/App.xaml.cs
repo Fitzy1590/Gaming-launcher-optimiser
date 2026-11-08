@@ -119,6 +119,7 @@ public partial class App : Application
         }
         _ = vm.Hardware.EnsureScannedAsync();
         _services.ApplyConsoleButton();
+        _services.StartLowPowerSleep(() => vm.SessionOwnsPower).AsleepChanged += asleep => Dispatcher.BeginInvoke(() => vm.OnDeviceSleep(asleep));
         // Tell the user about games added to their saved game folders since last time.
         _ = vm.CheckLibraryFoldersAsync();
         _ = vm.CheckForUpdatesOnStartAsync();

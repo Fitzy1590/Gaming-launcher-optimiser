@@ -211,6 +211,22 @@ public sealed partial class SettingsViewModel : ObservableObject
     private OverlayEditorViewModel? _overlayEditor;
     /// <summary>The default in-game overlay layout.</summary>
     public OverlayEditorViewModel OverlayEditor => _overlayEditor ??= new OverlayEditorViewModel(_s.Settings.EffectiveOverlay, _s.SaveSettings);
+    public int HibernateMinutes
+    {
+        get => _s.Settings.HibernateAfterMinutes;
+        set { _s.Settings.HibernateAfterMinutes = value; OnPropertyChanged(); OnPropertyChanged(nameof(HibernateLabel)); }
+    }
+    public string HibernateLabel => HibernateMinutes == 0 ? "Never" : $"{HibernateMinutes} min";
+    [ObservableProperty] private string _hibernateText = "";
+
+    [RelayCommand]
+    private async Task ApplyHibernateAsync()
+    {
+        _s.SaveSettings();
+        var minutes = HibernateMinutes;
+        HibernateText = await Task.Run(() => FitzLauncher.Windows.LowPowerSleep.SetHibernateAfter(minutes));
+    }
+
     public bool StabiliseByDefault { get => _s.Settings.StabiliseByDefault; set { _s.Settings.StabiliseByDefault = value; _s.SaveSettings(); OnPropertyChanged(); } }
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;

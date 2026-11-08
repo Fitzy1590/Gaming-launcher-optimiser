@@ -29,6 +29,7 @@ public sealed class TemperatureMonitor : IDisposable
 
     public SensorReading Read()
     {
+        if (LowPowerSleep.Asleep) return default; // let the chip idle while the device sleeps
         lock (_lock)
         {
             var ab = PreferAfterburner() ? AfterburnerReader.TryRead() : null;

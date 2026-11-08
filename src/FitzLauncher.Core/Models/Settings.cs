@@ -126,6 +126,12 @@ public sealed class LauncherSettings
     public bool PauseOnSleep { get; set; } = true;
     /// <summary>Let Windows' idle timers turn off the screen / sleep during a game; controller input counts as activity.</summary>
     public bool IdleSleepInGame { get; set; } = true;
+    /// <summary>While asleep: best power efficiency mode, a low APU power limit and no launcher polling (quiet fans).</summary>
+    public bool LowPowerSleep { get; set; } = true;
+    /// <summary>APU power limit while asleep (RyzenAdj).</summary>
+    public int SleepWatts { get; set; } = 6;
+    /// <summary>Windows "hibernate after" while asleep, in minutes (0 = never). Applied when changed.</summary>
+    public int HibernateAfterMinutes { get; set; }
     /// <summary>Ryzen all-core Curve Optimizer offset via RyzenAdj, approached in small steps.</summary>
     public bool UndervoltEnabled { get; set; }
     public int UndervoltTarget { get; set; } = -15;

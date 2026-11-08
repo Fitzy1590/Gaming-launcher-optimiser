@@ -251,6 +251,19 @@
                 <StackPanel>
                     <CheckBox Content="Pause the game when the screen turns off or the device sleeps, and carry on where you left off when it wakes" IsChecked="{Binding S.PauseOnSleep}" />
                     <CheckBox Content="Let the device sleep when idle during a game (controller input counts as activity)" IsChecked="{Binding S.IdleSleepInGame}" />
+                    <CheckBox Content="Low-power sleep: best power efficiency mode, a low APU power limit and no launcher polling while asleep (quieter fans)" IsChecked="{Binding S.LowPowerSleep}" />
+                    <DockPanel Margin="26,4,0,0" Visibility="{Binding S.LowPowerSleep, Converter={StaticResource Vis}}">
+                        <TextBlock DockPanel.Dock="Left" Text="Power while asleep" Width="140" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding S.SleepWatts, StringFormat={}{0} W}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                        <Slider Minimum="4" Maximum="15" Value="{Binding S.SleepWatts}" ToolTip="APU power limit while the screen is off (needs RyzenAdj)" />
+                    </DockPanel>
+                    <DockPanel Margin="0,8,0,0">
+                        <Button DockPanel.Dock="Right" Content="Apply" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding ApplyHibernateCommand}" />
+                        <TextBlock DockPanel.Dock="Left" Text="Hibernate after asleep for" Width="180" VerticalAlignment="Center" />
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding HibernateLabel}" Width="64" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                        <Slider Minimum="0" Maximum="240" TickFrequency="15" SmallChange="15" LargeChange="15" Value="{Binding HibernateMinutes}" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding HibernateText}" Style="{StaticResource MutedText}" Visibility="{Binding HibernateText, Converter={StaticResource HasValue}}" />
                     <TextBlock Text="Press the power button (or leave it idle) and the game is frozen: no CPU, no sound, no heat in your bag. Wake it, sign in, and the game unfreezes after a second with your FPS cap, power limit and undervolt put back. Sleep time isn't counted as play time. Turn pausing off per game on the game page for online games that drop the connection anyway."
                                Style="{StaticResource Wrap}" Margin="0,8,0,8" />
                     <TextBlock Text="{Binding IdleTimeoutsText}" Style="{StaticResource MutedText}" />
