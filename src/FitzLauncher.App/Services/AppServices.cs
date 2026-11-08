@@ -112,7 +112,8 @@ public sealed class AppServices : IDisposable
     public Dictionary<UpscalerDllKind, UpscalerDllInfo> BestUpscalerDlls()
     {
         var all = Library.Games.SelectMany(g => g.LastScan?.UpscalerDlls ?? []).ToList();
-        if (Settings.UpscalerDllFolder is { } dir && Directory.Exists(dir))
+        // The launcher's own library of official DLLs, then your optional folder.
+        foreach (var dir in new[] { Path.Combine(Paths.Root, "dll-library"), Settings.UpscalerDllFolder }.Where(d => d is not null && Directory.Exists(d)).Cast<string>())
         {
             var folderScan = new GameScanner(ScanContext.FromEnvironment())
                 .Scan(new Game { Name = "dll-folder", ExePath = Path.Combine(dir, "none.exe"), InstallDir = dir });
@@ -137,6 +138,8 @@ public sealed class AppServices : IDisposable
     public static bool SkipSaveOnExit { get; set; }
     private GameUpdateService? _gameUpdates;
     public GameUpdateService GameUpdates => _gameUpdates ??= new GameUpdateService(this);
+    private UpscalerUpdateService? _upscalers;
+    public UpscalerUpdateService Upscalers => _upscalers ??= new UpscalerUpdateService(this);
     public TrainerService Trainers => _trainers ??= new TrainerService(this);
     /// <summary>Longer timeout and a User-Agent for mod stores and downloads.</summary>
     public HttpClient StoreHttp { get; } = CreateStoreHttp();

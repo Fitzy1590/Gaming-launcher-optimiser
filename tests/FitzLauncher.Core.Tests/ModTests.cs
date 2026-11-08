@@ -666,3 +666,50 @@ public class AbTestTests
         Assert.StartsWith("Too close to call", t.Verdict());
     }
 }
+
+public class UpscalerAdvisorTests
+{
+    private static FitzLauncher.Core.Models.GpuInfo Amd8060S => new() { Name = "AMD Radeon(TM) 8060S Graphics", Vendor = FitzLauncher.Core.Models.GpuVendor.Amd };
+
+    [Fact]
+    public void Dlss_only_game_on_radeon_suggests_optiscaler()
+    {
+        var scan = new FitzLauncher.Core.Models.GameScanResult { Upscalers = [FitzLauncher.Core.Models.Upscaler.Dlss] };
+        var a = FitzLauncher.Core.Upscalers.UpscalerAdvisor.Advise(scan, Amd8060S);
+        Assert.True(a.SuggestOptiScaler);
+        Assert.Contains("DLSS", a.InGame);
+    }
+
+    [Fact]
+    public void Prefers_xess_on_radeon_and_dlss_on_rtx()
+    {
+        var scan = new FitzLauncher.Core.Models.GameScanResult { Upscalers = [FitzLauncher.Core.Models.Upscaler.Dlss, FitzLauncher.Core.Models.Upscaler.Xess, FitzLauncher.Core.Models.Upscaler.Fsr] };
+        Assert.Equal("XeSS", FitzLauncher.Core.Upscalers.UpscalerAdvisor.Advise(scan, Amd8060S).Best);
+        Assert.False(FitzLauncher.Core.Upscalers.UpscalerAdvisor.Advise(scan, Amd8060S).SuggestOptiScaler);
+        var rtx = new FitzLauncher.Core.Models.GpuInfo { Name = "NVIDIA GeForce RTX 4070", Vendor = FitzLauncher.Core.Models.GpuVendor.Nvidia };
+        Assert.Equal("DLSS", FitzLauncher.Core.Upscalers.UpscalerAdvisor.Advise(scan, rtx).Best);
+    }
+
+    [Fact]
+    public void Anti_cheat_blocks_optiscaler()
+    {
+        var scan = new FitzLauncher.Core.Models.GameScanResult { Upscalers = [FitzLauncher.Core.Models.Upscaler.Dlss] };
+        var a = FitzLauncher.Core.Upscalers.UpscalerAdvisor.Advise(scan, Amd8060S, new FitzLauncher.Core.Mods.GameModLayout { HasAntiCheat = true });
+        Assert.False(a.SuggestOptiScaler);
+    }
+
+    [Fact]
+    public void OptiScaler_avoids_existing_proxy_dll()
+    {
+        using var t = new TestDir();
+        t.File("opti/OptiScaler.dll", "x");
+        t.File("opti/OptiScaler.ini", "[x]");
+        t.File("opti/libxess.dll", "x");
+        var tweak = FitzLauncher.Core.Upscalers.UpscalerAdvisor.OptiScalerTweak(t.Path_("opti"), t.Path_("game"), n => n == "dxgi.dll");
+        Assert.NotNull(tweak);
+        var targets = tweak!.Actions.OfType<FitzLauncher.Core.Models.FileReplaceAction>().Select(a => Path.GetFileName(a.TargetPath)).ToList();
+        Assert.Contains("winmm.dll", targets);
+        Assert.Contains("OptiScaler.ini", targets);
+        Assert.DoesNotContain("dxgi.dll", targets);
+    }
+}

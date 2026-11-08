@@ -545,6 +545,35 @@ public sealed partial class MainViewModel : ObservableObject
     private static void ShowDeviceCheck(DeviceCheckViewModel vm) =>
         new Views.DeviceCheckWindow(vm) { Owner = Application.Current.MainWindow }.Show();
 
+    /// <summary>Once a day: fetch new official upscaler DLLs and swap them into games (in the background).</summary>
+    public async Task UpscalersDailyAsync()
+    {
+        if (!_s.Settings.KeepUpscalersUpdated || _s.Settings.LastUpscalerCheck?.LocalDateTime.Date == DateTime.Today) return;
+        await Task.Delay(TimeSpan.FromSeconds(40));
+        await UpdateUpscalersAsync(manual: false);
+    }
+
+    [RelayCommand]
+    private Task UpdateUpscalers() => UpdateUpscalersAsync(manual: true);
+
+    public async Task UpdateUpscalersAsync(bool manual)
+    {
+        if (manual) ShowToast("Checking for new XeSS / FSR / DLSS DLLs…");
+        try
+        {
+            var fresh = await _s.Upscalers.RefreshLibraryAsync();
+            var (games, dlls) = IsPlaying && !manual ? (0, 0) : await Task.Run(() => _s.Upscalers.ApplyToLibrary(g => Games.Any(v => v.Game == g && v.IsRunning)));
+            if (dlls > 0 || fresh.Count > 0 || manual)
+                ShowToast((fresh.Count > 0 ? $"New: {string.Join(", ", fresh)}. " : "") +
+                          (dlls > 0 ? $"Updated {dlls} upscaler DLL(s) in {games} game(s) (backed up; revert on each game's page)." : manual ? "All games already have the newest DLLs." : ""));
+            Details?.Reload();
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException or IOException)
+        {
+            if (manual) ShowToast($"Couldn't update upscaler DLLs: {e.Message}");
+        }
+    }
+
     /// <summary>First launch of the day: check official sources for game updates (in the background).</summary>
     public async Task CheckGameUpdatesDailyAsync()
     {

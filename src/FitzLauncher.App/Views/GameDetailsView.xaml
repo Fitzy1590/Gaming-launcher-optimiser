@@ -588,6 +588,36 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Upscaling -->
+                <DockPanel Margin="0,24,0,8">
+                    <Button DockPanel.Dock="Right" Content="Update DLLs" Style="{StaticResource GhostButton}" Command="{Binding UpdateGameDllsCommand}" Visibility="{Binding HasUpscalerDlls, Converter={StaticResource Vis}}" />
+                    <TextBlock Text="Upscaling" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="{Binding UpscalerBest}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                        <TextBlock Text="{Binding UpscalerWhy}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding UpscalerInGame}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                        <ItemsControl ItemsSource="{Binding UpscalerDllLines}" Margin="0,4,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Figure}" FontSize="12" Margin="0,0,0,2" /></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding UpscalerFrameGen}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpscalerFrameGen, Converter={StaticResource HasValue}}" />
+                        <Border Background="{StaticResource Surface2}" CornerRadius="10" Padding="12" Margin="0,12,0,0">
+                            <StackPanel>
+                                <TextBlock Text="OptiScaler" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="{Binding OptiScalerWhy}" Style="{StaticResource Wrap}" Margin="0,4,0,8" />
+                                <StackPanel Orientation="Horizontal">
+                                    <Button Content="Install OptiScaler" Style="{StaticResource PrimaryButton}" Command="{Binding InstallOptiScalerCommand}" Visibility="{Binding OptiScalerInstalled, Converter={StaticResource NotVis}}" />
+                                    <Button Content="Remove OptiScaler" Command="{Binding RemoveOptiScalerCommand}" Visibility="{Binding OptiScalerInstalled, Converter={StaticResource Vis}}" />
+                                </StackPanel>
+                                <TextBlock Text="Official release from github.com/optiscaler/OptiScaler. Single-player only: anti-cheat can flag injected DLLs." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Border>
+
                 <!-- AMD Software features -->
                 <StackPanel Visibility="{Binding IsAmdGpu, Converter={StaticResource Vis}}">
                     <DockPanel Margin="0,24,0,8">

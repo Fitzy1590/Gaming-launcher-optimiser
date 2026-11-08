@@ -131,6 +131,7 @@ public sealed class TweakEngine(IRegistryAccess registry, string backupRoot)
                     File.Copy(fr.TargetPath, backup, overwrite: true);
                 }
                 previous = backup;
+                Directory.CreateDirectory(Path.GetDirectoryName(fr.TargetPath)!);
                 File.Copy(fr.SourcePath, fr.TargetPath, overwrite: true);
                 break;
             }

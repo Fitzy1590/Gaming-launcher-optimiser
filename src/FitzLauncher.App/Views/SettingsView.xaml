@@ -211,6 +211,7 @@
             <TextBlock Text="Controllers" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}" DataContext="{Binding Controllers}">
                 <StackPanel>
+                    <CheckBox Content="Open straight into Big Picture (good for handhelds)" IsChecked="{Binding DataContext.S.StartInBigPicture, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,0,8" />
                     <CheckBox Content="Use a controller in the launcher's menus (D-pad or stick to move, A select, B back, LB/RB pages, Start play, X mods, Y search)" IsChecked="{Binding GamepadNavigation}" />
                     <DockPanel Margin="0,12,0,4">
                         <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" />
@@ -398,6 +399,16 @@
                     <TextBlock Text="Both use a Windows Task Scheduler task that runs with highest privileges, the standard way to skip the prompt. Turn them off to remove the tasks."
                                Style="{StaticResource Wrap}" Margin="0,8,0,0" />
                     <TextBlock Text="{Binding StartupStatus}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Visibility="{Binding StartupStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Upscaler DLLs" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Keep upscaler DLLs up to date in all games (checked daily; backed up and revertible)" IsChecked="{Binding S.KeepUpscalersUpdated}" />
+                    <TextBlock Style="{StaticResource Wrap}" Margin="0,8,0,8"
+                               Text="New official releases are downloaded from Intel (XeSS), AMD GPUOpen (FSR 3.1) and, on NVIDIA PCs, NVIDIA (DLSS), then swapped into every game that ships an older copy. Games with anti-cheat and running games are skipped; XeSS only updates within the same major version automatically." />
+                    <Button Content="Update now" HorizontalAlignment="Left" Command="{Binding DataContext.UpdateUpscalersCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
                 </StackPanel>
             </Border>
 

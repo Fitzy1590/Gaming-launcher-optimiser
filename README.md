@@ -189,6 +189,20 @@ download it into the launcher's trainers folder (or use one you downloaded), and
 starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
 often flag trainers; the launcher never changes antivirus settings and tells you what happened.
 
+### Upscalers (DLSS Swapper-style, built in)
+- **Always-current DLLs**: once a day the launcher downloads new official releases into its own DLL library: Intel
+  XeSS (github.com/intel/xess), AMD FSR 3.1 (GPUOpen FidelityFX SDK, newest v1.x release with the game-facing DLL) and,
+  on PCs with an NVIDIA GPU, DLSS Super Resolution / Frame Generation / Ray Reconstruction (github.com/NVIDIA/DLSS).
+  New copies are swapped into every game that ships an older one, backed up and revertible. Anti-cheat games and
+  running games are skipped; XeSS updates automatically only within a major version. Settings → Upscaler DLLs → Update now.
+- **Best upscaler per game**: the game page says which upscaler suits your GPU (DLSS on RTX; FSR 4 via FSR 3.1 on
+  Radeon RX 9000; XeSS on other Radeon and Intel GPUs, FSR 3.1 for extra FPS), shows each DLL's version and whether a
+  newer one is available, and suggests frame generation options.
+- **OptiScaler**: one-click install of the official release (github.com/optiscaler/OptiScaler) for games whose own
+  upscaler doesn't suit your GPU, such as DLSS-only games on Radeon. Installed under a proxy name that doesn't clash with
+  ReShade/DXVK, fully revertible; not offered for games with anti-cheat.
+- **Start in Big Picture**: Settings → Controllers, for handhelds.
+
 ### Insights and AMD features
 - **Stutter detective**: after each session, every stutter is matched to what the PC was doing at that moment (shader
   compiling, a background app's CPU spike, memory nearly full, overheating, CPU maxed out, or uneven frame pacing). The

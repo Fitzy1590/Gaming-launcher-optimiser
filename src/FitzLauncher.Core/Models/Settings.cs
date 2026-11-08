@@ -71,6 +71,15 @@ public sealed class LauncherSettings
     /// <summary>Launcher version the device check last ran for (it runs again after each update).</summary>
     public string? DeviceCheckedVersion { get; set; }
 
+    // ---- upscalers
+    /// <summary>Download new official XeSS/FSR(/DLSS) DLLs daily and swap them into games.</summary>
+    public bool KeepUpscalersUpdated { get; set; } = true;
+    public Dictionary<string, string> UpscalerEtags { get; set; } = [];
+    public DateTimeOffset? LastUpscalerCheck { get; set; }
+
+    /// <summary>Open straight into Big Picture (handheld).</summary>
+    public bool StartInBigPicture { get; set; }
+
     /// <summary>Cooling mode for games without their own.</summary>
     public FitzLauncher.Core.Optimization.CoolingMode DefaultCooling { get; set; } = FitzLauncher.Core.Optimization.CoolingMode.Off;
     /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>

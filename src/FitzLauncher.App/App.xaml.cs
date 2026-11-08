@@ -123,6 +123,8 @@ public partial class App : Application
         _ = vm.CheckForUpdatesOnStartAsync();
         _ = vm.CheckGameUpdatesDailyAsync();
         _ = vm.DeviceCheckOnStartAsync();
+        _ = vm.UpscalersDailyAsync();
+        if (_services.Settings.StartInBigPicture) Dispatcher.BeginInvoke(() => vm.BigPictureCommand.Execute(null), DispatcherPriority.ApplicationIdle);
         if (nxm is not null) _ = vm.HandleNxmAsync(nxm);
     }
 
