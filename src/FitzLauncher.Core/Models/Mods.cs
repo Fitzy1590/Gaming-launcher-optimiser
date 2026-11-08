@@ -31,6 +31,9 @@ public sealed class InstalledMod
     public string? GameVersionAtInstall { get; set; }
     /// <summary>How files were placed, for the details view ("FOMOD: picked Core + 2K textures").</summary>
     public string? InstallNotes { get; set; }
+    /// <summary>Newest version on the store at the last check, when newer than the installed one.</summary>
+    public string? UpdateVersion { get; set; }
+    public DateTimeOffset? UpdateCheckedAt { get; set; }
 
     [JsonIgnore] public string SourceLabel => Source switch { ModSource.Nexus => "Nexus", ModSource.Thunderstore => "Thunderstore", ModSource.ModIo => "mod.io", _ => "Local" };
 }

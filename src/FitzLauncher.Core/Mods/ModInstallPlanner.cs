@@ -35,7 +35,7 @@ public static class ModInstallPlanner
     private static readonly HashSet<string> PakExt = new(StringComparer.OrdinalIgnoreCase) { ".pak", ".utoc", ".ucas", ".sig" };
 
     public static ModInstallPlan Plan(IReadOnlyList<string> archiveEntries, GameModLayout layout, string modName,
-        Func<string, bool> existsInGame, string? fomodXml = null, string? overrideRoot = null)
+        Func<string, bool> existsInGame, string? fomodXml = null, string? overrideRoot = null, IReadOnlyDictionary<string, HashSet<string>>? fomodChoices = null)
     {
         var entries = archiveEntries.Select(Normalize).Where(e => e.Length > 0 && !e.EndsWith('/')).Distinct().ToList();
         var plan = new ModInstallPlan();
@@ -46,7 +46,7 @@ public static class ModInstallPlanner
         if (fomodXml is not null && fomodPath is not null && overrideRoot is null)
         {
             var baseDir = fomodPath[..^"fomod/ModuleConfig.xml".Length];
-            var result = FomodInstaller.Resolve(fomodXml, entries.Where(e => e.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase)).Select(e => e[baseDir.Length..]).ToList());
+            var result = FomodInstaller.Resolve(fomodXml, entries.Where(e => e.StartsWith(baseDir, StringComparison.OrdinalIgnoreCase)).Select(e => e[baseDir.Length..]).ToList(), fomodChoices);
             var root = layout.DataDir ?? "";
             plan.TargetRoot = root;
             plan.TargetLabel = layout.DataDir is not null ? "Data folder (FOMOD)" : "Game folder (FOMOD)";

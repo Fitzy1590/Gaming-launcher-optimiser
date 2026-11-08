@@ -19,6 +19,9 @@ public sealed partial class ModRow(InstalledMod mod, ModsViewModel owner) : Obse
     public string Meta => string.Join(" · ", new[] { Mod.Version, Mod.SourceLabel, Mod.Author is { Length: > 0 } a ? $"by {a}" : null, $"{Mod.Files.Count} files" }.Where(x => !string.IsNullOrEmpty(x)));
     public string Notes => string.Join(" ", new[] { Mod.Requires.Count > 0 ? $"Needs {string.Join(", ", Mod.Requires)}." : null, Mod.InstallNotes }.Where(x => x is not null));
     [ObservableProperty] private bool _hasIssue;
+    public bool HasUpdate => Mod.UpdateVersion is not null;
+    public string UpdateLabel => $"Update to {Mod.UpdateVersion}";
+    [RelayCommand] private Task UpdateAsync() => owner.UpdateModAsync(this);
 
     public bool Enabled
     {
@@ -107,7 +110,56 @@ public sealed partial class ModsViewModel : ObservableObject
         Hero = hero;
         Source = game.ModSetup.NexusDomain is not null && s.Nexus is not null ? ModSource.Nexus : game.ModSetup.ModIoGameId is not null ? ModSource.ModIo : ModSource.Thunderstore;
         Reload();
-        _ = LinkStoresAsync(quiet: true);
+        _ = StartupAsync();
+    }
+
+    private async Task StartupAsync()
+    {
+        await LinkStoresAsync(quiet: true);
+        if (Game.ModSetup.Mods.Count == 0) return;
+        try
+        {
+            var n = await _s.Mods.CheckUpdatesAsync(Game);
+            Reload();
+            if (n > 0 && !IsBusy) Status = $"{n} mod update(s) available.";
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException or IOException) { }
+    }
+
+    [RelayCommand]
+    private Task CheckModUpdatesAsync() => Busy("Checking for mod updates…", async () =>
+    {
+        var n = await _s.Mods.CheckUpdatesAsync(Game);
+        Reload();
+        Status = n == 0 ? "All mods are up to date (or their store doesn't say)." : $"{n} mod update(s) available.";
+    });
+
+    public Task UpdateModAsync(ModRow row)
+    {
+        var m = row.Mod;
+        var result = new ModSearchResult { Source = m.Source, Id = m.SourceId ?? "", Name = m.Name, Author = m.Author ?? "", PageUrl = m.PageUrl ?? "", Summary = m.Summary ?? "" };
+        switch (m.Source)
+        {
+            case ModSource.Nexus:
+                Tab = "Find";
+                return ShowNexusFilesAsync(result);
+            case ModSource.Thunderstore:
+                return Busy($"Updating {m.Name}…", async () =>
+                {
+                    var pkg = (await _s.Thunderstore.PackagesAsync(Game.ModSetup.ThunderstoreCommunity!)).FirstOrDefault(p => p.Id.Equals(m.SourceId, StringComparison.OrdinalIgnoreCase))
+                              ?? throw new StoreException("That package is no longer on Thunderstore.");
+                    await InstallThunderstoreAsync(pkg);
+                });
+            case ModSource.ModIo:
+                return Busy($"Updating {m.Name}…", async () =>
+                {
+                    var latest = _s.ModIo is { } io && Game.ModSetup.ModIoGameId is { } gid && long.TryParse(m.SourceId, out var id) ? await io.ModAsync(gid, id) : null;
+                    await InstallDirectAsync(latest ?? throw new StoreException("Couldn't read the mod from mod.io."));
+                });
+            default:
+                Status = "This mod was added from a file; download the new version and use Add from file.";
+                return Task.CompletedTask;
+        }
     }
 
     public string Title => $"{Game.Name} · Mods";
@@ -319,7 +371,16 @@ public sealed partial class ModsViewModel : ObservableObject
     /// <summary>Plan → confirm if the folder was a guess → install → re-check.</summary>
     public async Task InstallFileAsync(string path, InstalledMod meta, string? packageName = null, bool confirm = true)
     {
-        var plan = await Task.Run(() => _s.Mods.Plan(Game, path, packageName ?? meta.Name));
+        // FOMOD installers with real choices: let you pick (the author's picks are pre-ticked).
+        Dictionary<string, HashSet<string>>? choices = null;
+        if (confirm && await Task.Run(() => _s.Mods.FomodGroups(path)) is { } groups)
+        {
+            var dlg = new Views.FomodWindow(meta.Name, groups) { Owner = Application.Current.Windows.OfType<Window>().FirstOrDefault(w => w.IsActive) ?? Application.Current.MainWindow };
+            if (dlg.ShowDialog() != true) { Status = "Cancelled."; return; }
+            choices = dlg.Choices;
+        }
+        var wasEnabled = Game.ModSetup.Mods.FirstOrDefault(m => meta.SourceId is not null && m.Source == meta.Source && m.SourceId == meta.SourceId)?.Enabled ?? true;
+        var plan = await Task.Run(() => _s.Mods.Plan(Game, path, packageName ?? meta.Name, fomodChoices: choices));
         if (plan.Files.Count == 0) throw new StoreException("Nothing in that archive could be installed.");
         if (confirm && !plan.Confident)
         {
@@ -328,6 +389,7 @@ public sealed partial class ModsViewModel : ObservableObject
             if (answer != MessageBoxResult.Yes) { Status = "Cancelled."; return; }
         }
         var installed = await Task.Run(() => _s.Mods.Install(Game, path, plan, meta));
+        if (!wasEnabled) await Task.Run(() => _s.Mods.SetEnabled(Game, installed, false)); // an update keeps a mod off if it was off
         Reload();
         var issues = await Task.Run(() => _s.Mods.Check(Game));
         ShowIssues(issues);

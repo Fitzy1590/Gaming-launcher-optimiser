@@ -46,14 +46,23 @@ public sealed class ModService(AppServices s)
 
     // ------------------------------------------------------------------ install
 
-    public ModInstallPlan Plan(Game g, string source, string modName, string? overrideRoot = null)
+    /// <summary>The FOMOD installer's option groups, or null when the archive has none (or only fixed choices).</summary>
+    public List<FomodGroup>? FomodGroups(string source)
+    {
+        var entry = ModArchive.ListEntries(source).FirstOrDefault(e => e.EndsWith("fomod/ModuleConfig.xml", StringComparison.OrdinalIgnoreCase));
+        if (entry is null || ModArchive.ReadText(source, entry) is not { } xml) return null;
+        var groups = FomodInstaller.Describe(xml).Where(gr => gr.Type != "SelectAll" && gr.Options.Count > 1).ToList();
+        return groups.Count == 0 ? null : groups;
+    }
+
+    public ModInstallPlan Plan(Game g, string source, string modName, string? overrideRoot = null, IReadOnlyDictionary<string, HashSet<string>>? fomodChoices = null)
     {
         var root = GameRoot(g);
         var layout = Layout(g);
         var entries = ModArchive.ListEntries(source);
         var fomodEntry = entries.FirstOrDefault(e => e.EndsWith("fomod/ModuleConfig.xml", StringComparison.OrdinalIgnoreCase));
         var fomod = fomodEntry is null ? null : ModArchive.ReadText(source, fomodEntry);
-        return ModInstallPlanner.Plan(entries, layout, modName, rel => File.Exists(Path.Combine(root, rel)) || Directory.Exists(Path.Combine(root, rel)), fomod, overrideRoot);
+        return ModInstallPlanner.Plan(entries, layout, modName, rel => File.Exists(Path.Combine(root, rel)) || Directory.Exists(Path.Combine(root, rel)), fomod, overrideRoot, fomodChoices);
     }
 
     /// <summary>Installs (or updates, when the same store mod is already installed) and turns it on.</summary>
@@ -214,6 +223,47 @@ public sealed class ModService(AppServices s)
     {
         var hw = s.Hardware is { } h ? $"{h.CpuName} · {h.PrimaryGpu?.Name} · {h.RamGb:0} GB · {h.OsName} {h.OsBuild}" : "not scanned";
         return ModErrorReport.Build(g, Layout(g), GameVersion(g), hw, compat, trouble, logs);
+    }
+
+    // ------------------------------------------------------------------ mod updates
+
+    /// <summary>Asks each mod's store for its newest version. Returns how many have an update.</summary>
+    public async Task<int> CheckUpdatesAsync(Game g, CancellationToken ct = default)
+    {
+        var setup = g.ModSetup;
+        var count = 0;
+        foreach (var m in setup.Mods.Where(m => m.SourceId is not null))
+        {
+            string? latest = null;
+            try
+            {
+                switch (m.Source)
+                {
+                    case ModSource.Nexus when s.Nexus is { } nx && setup.NexusDomain is { } domain && long.TryParse(m.SourceId, out var id):
+                        latest = (await nx.ModAsync(domain, id, ct)).Version;
+                        break;
+                    case ModSource.Thunderstore when setup.ThunderstoreCommunity is { } community:
+                        latest = (await s.Thunderstore.PackagesAsync(community, ct)).FirstOrDefault(p => p.Id.Equals(m.SourceId, StringComparison.OrdinalIgnoreCase))?.Version;
+                        break;
+                    case ModSource.ModIo when s.ModIo is { } io && setup.ModIoGameId is { } gid && long.TryParse(m.SourceId, out var mid):
+                        latest = (await io.ModAsync(gid, mid, ct))?.Version;
+                        break;
+                }
+            }
+            catch (Exception e) when (e is StoreException or HttpRequestException or TaskCanceledException or System.Text.Json.JsonException) { continue; }
+            m.UpdateCheckedAt = DateTimeOffset.Now;
+            m.UpdateVersion = IsNewer(latest, m.Version) ? latest : null;
+            if (m.UpdateVersion is not null) count++;
+        }
+        s.SaveLibrary();
+        return count;
+    }
+
+    private static bool IsNewer(string? latest, string? installed)
+    {
+        if (string.IsNullOrWhiteSpace(latest)) return false;
+        if (FitzLauncher.Core.GameUpdates.GameUpdateLogic.Compare(latest, installed) is { } c) return c > 0;
+        return installed is not null && !latest.Trim().Equals(installed.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     // ------------------------------------------------------------------ downloads

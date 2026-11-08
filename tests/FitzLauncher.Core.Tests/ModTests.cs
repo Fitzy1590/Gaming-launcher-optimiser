@@ -584,3 +584,31 @@ public class LibrarySnapshotTests
         Assert.Equal(2, FitzLauncher.Core.Storage.LibrarySnapshots.List(paths).Count); // the before-restore one too
     }
 }
+
+public class FomodChoiceTests
+{
+    private const string Xml = """
+        <config>
+          <installSteps><installStep name="Main"><optionalFileGroups>
+            <group name="Res" type="SelectExactlyOne"><plugins>
+              <plugin name="1K"><description>Small</description><files><folder source="01 1K" destination="textures" /></files><typeDescriptor><type name="Optional"/></typeDescriptor></plugin>
+              <plugin name="2K"><files><folder source="02 2K" destination="textures" /></files><typeDescriptor><type name="Recommended"/></typeDescriptor></plugin>
+            </plugins></group>
+          </optionalFileGroups></installStep></installSteps>
+        </config>
+        """;
+
+    [Fact]
+    public void Describes_options_with_defaults_and_honours_choices()
+    {
+        var groups = FitzLauncher.Core.Mods.FomodInstaller.Describe(Xml);
+        var g = Assert.Single(groups);
+        Assert.True(g.SingleChoice);
+        Assert.True(g.Options.Single(o => o.Name == "2K").IsDefault);
+        Assert.Equal("Small", g.Options.Single(o => o.Name == "1K").Description);
+
+        var entries = new[] { "01 1K/a.dds", "02 2K/a.dds" };
+        var picked = FitzLauncher.Core.Mods.FomodInstaller.Resolve(Xml, entries, new Dictionary<string, HashSet<string>> { [g.Key] = ["1K"] });
+        Assert.Equal("01 1K/a.dds", Assert.Single(picked.Files).Source);
+    }
+}

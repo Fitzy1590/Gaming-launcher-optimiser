@@ -67,6 +67,7 @@
                 <Button Style="{StaticResource PlayButton}" Padding="24,8" FontSize="14" Command="{Binding ShowTabCommand}" CommandParameter="Find">Find mods</Button>
                 <Button Content="Add from file…" Margin="8,0,0,0" Command="{Binding AddFromFileCommand}" ToolTip="Install a .zip/.7z/.rar you downloaded yourself" />
                 <Button Content="Check" Margin="8,0,0,0" Command="{Binding CheckCommand}" />
+                <Button Content="Check for updates" Margin="8,0,0,0" Command="{Binding CheckModUpdatesCommand}" />
                 <Button Content="Open game folder" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding OpenModsFolderCommand}" />
                 <Button Content="Remove all" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding RemoveAllCommand}" Visibility="{Binding HasMods, Converter={StaticResource Vis}}" />
             </StackPanel>
@@ -96,6 +97,7 @@
                                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
                                             <Button Style="{StaticResource GhostButton}" Command="{Binding UpCommand}" ToolTip="Earlier (loses conflicts)"><TextBlock Style="{StaticResource Icon}" Text="&#xE70E;" FontSize="12" /></Button>
                                             <Button Style="{StaticResource GhostButton}" Command="{Binding DownCommand}" ToolTip="Later (wins conflicts)"><TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="12" /></Button>
+                                            <Button Style="{StaticResource PrimaryButton}" Content="{Binding UpdateLabel}" Command="{Binding UpdateCommand}" Margin="0,0,8,0" Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" />
                                             <Button Style="{StaticResource GhostButton}" Content="Page" Command="{Binding OpenPageCommand}" />
                                             <Button Style="{StaticResource GhostButton}" Content="Remove" Command="{Binding RemoveCommand}" />
                                         </StackPanel>

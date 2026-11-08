@@ -4,6 +4,13 @@ namespace FitzLauncher.Core.Mods;
 
 public sealed record FomodFile(string Source, string Dest);
 public sealed record FomodResult(List<FomodFile> Files, string Summary, List<string> Picked);
+public sealed record FomodOption(string Name, string Description, string Kind, bool IsDefault);
+/// <summary>A group of options; <see cref="Type"/> is SelectExactlyOne / SelectAtMostOne / SelectAtLeastOne / SelectAny / SelectAll.</summary>
+public sealed record FomodGroup(string Step, string Name, string Type, List<FomodOption> Options)
+{
+    public string Key => FomodInstaller.GroupKey(Step, Name);
+    public bool SingleChoice => Type is "SelectExactlyOne" or "SelectAtMostOne";
+}
 
 /// <summary>
 /// Resolves a FOMOD ModuleConfig.xml without asking: required files, then for each option group the
@@ -12,7 +19,13 @@ public sealed record FomodResult(List<FomodFile> Files, string Summary, List<str
 /// </summary>
 public static class FomodInstaller
 {
-    public static FomodResult Resolve(string xml, IReadOnlyList<string> entriesRelToFomodRoot)
+    public static string GroupKey(string step, string group) => $"{step}|{group}";
+
+    /// <summary>
+    /// Resolves the installer. <paramref name="choices"/> maps each group (<see cref="GroupKey"/>) to the option
+    /// names picked; groups not in it use the author's defaults.
+    /// </summary>
+    public static FomodResult Resolve(string xml, IReadOnlyList<string> entriesRelToFomodRoot, IReadOnlyDictionary<string, HashSet<string>>? choices = null)
     {
         // No DTDs or external entities from downloaded files.
         using var reader = System.Xml.XmlReader.Create(new StringReader(xml), new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Ignore, XmlResolver = null });
@@ -36,7 +49,10 @@ public static class FomodInstaller
                 var type = A(group, "type") ?? "SelectAny";
                 var plugins = Es(E(group, "plugins"), "plugin").Select(p => (el: p, name: A(p, "name") ?? "?", kind: PluginType(p))).ToList();
                 var usable = plugins.Where(p => p.kind != "NotUsable").ToList();
-                var chosen = type switch
+                var key = GroupKey(A(step, "name") ?? "", A(group, "name") ?? "");
+                var chosen = choices is not null && choices.TryGetValue(key, out var sel)
+                    ? plugins.Where(p => p.kind == "Required" || (p.kind != "NotUsable" && sel.Contains(p.name))).ToList()
+                    : type switch
                 {
                     "SelectAll" => plugins,
                     "SelectExactlyOne" => [usable.FirstOrDefault(p => p.kind == "Required") is { el: not null } r ? r
@@ -118,5 +134,40 @@ public static class FomodInstaller
         }
 
         int Priority(XElement f) => int.TryParse(A(f, "priority"), out var p) ? p : 0;
+    }
+
+    /// <summary>The installer's steps and options, with the author's defaults marked, for an option picker.</summary>
+    public static List<FomodGroup> Describe(string xml)
+    {
+        using var reader = System.Xml.XmlReader.Create(new StringReader(xml), new System.Xml.XmlReaderSettings { DtdProcessing = System.Xml.DtdProcessing.Ignore, XmlResolver = null });
+        var doc = XDocument.Load(reader);
+        XElement? E(XElement? p, string name) => p?.Elements().FirstOrDefault(e => e.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase));
+        IEnumerable<XElement> Es(XElement? p, string name) => p?.Elements().Where(e => e.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase)) ?? [];
+        string? A(XElement? e, string name) => e?.Attributes().FirstOrDefault(a => a.Name.LocalName.Equals(name, StringComparison.OrdinalIgnoreCase))?.Value;
+        string Kind(XElement p)
+        {
+            var desc = E(p, "typeDescriptor");
+            return A(E(desc, "type"), "name") ?? A(E(E(desc, "dependencyType"), "defaultType"), "name") ?? "Optional";
+        }
+
+        var groups = new List<FomodGroup>();
+        foreach (var step in Es(E(doc.Root, "installSteps"), "installStep"))
+            foreach (var group in Es(E(step, "optionalFileGroups"), "group"))
+            {
+                var type = A(group, "type") ?? "SelectAny";
+                var plugins = Es(E(group, "plugins"), "plugin").Select(p => (name: A(p, "name") ?? "?", desc: E(p, "description")?.Value.Trim() ?? "", kind: Kind(p))).ToList();
+                var usable = plugins.Where(p => p.kind != "NotUsable").ToList();
+                var defaults = type switch
+                {
+                    "SelectAll" => plugins.Select(p => p.name).ToHashSet(),
+                    "SelectExactlyOne" => new HashSet<string> { (usable.FirstOrDefault(p => p.kind == "Required").name ?? usable.FirstOrDefault(p => p.kind == "Recommended").name ?? usable.FirstOrDefault().name) ?? "" },
+                    "SelectAtMostOne" => usable.Where(p => p.kind is "Required" or "Recommended").Take(1).Select(p => p.name).ToHashSet(),
+                    "SelectAtLeastOne" => usable.Where(p => p.kind is "Required" or "Recommended").Select(p => p.name).DefaultIfEmpty(usable.FirstOrDefault().name ?? "").ToHashSet(),
+                    _ => usable.Where(p => p.kind is "Required" or "Recommended").Select(p => p.name).ToHashSet(),
+                };
+                groups.Add(new FomodGroup(A(step, "name") ?? "", A(group, "name") ?? "", type,
+                    plugins.Select(p => new FomodOption(p.name, p.desc, p.kind, defaults.Contains(p.name))).ToList()));
+            }
+        return groups;
     }
 }

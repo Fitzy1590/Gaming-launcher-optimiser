@@ -41,6 +41,9 @@ public sealed class ModIoClient(HttpClient http, string apiKey)
         return (j["data"]?.AsArray() ?? []).Select(m => Map(m!)).ToList();
     }
 
+    public async Task<ModSearchResult?> ModAsync(long gameId, long modId, CancellationToken ct = default) =>
+        Map(await GetAsync($"/games/{gameId}/mods/{modId}", ct));
+
     public async Task<List<string>> DependenciesAsync(long gameId, long modId, CancellationToken ct = default)
     {
         try

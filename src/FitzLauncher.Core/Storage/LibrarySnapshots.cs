@@ -55,7 +55,7 @@ public static class LibrarySnapshots
     public static void Restore(AppPaths p, SnapshotInfo snapshot)
     {
         Take(p, keep: 30, label: "-before-restore");
-        var allowed = Files(p).ToDictionary(Path.GetFileName, f => f, StringComparer.OrdinalIgnoreCase);
+        var allowed = Files(p).ToDictionary(f => Path.GetFileName(f), f => f, StringComparer.OrdinalIgnoreCase);
         using var zip = ZipFile.OpenRead(snapshot.Path);
         foreach (var e in zip.Entries)
             if (allowed.TryGetValue(e.Name, out var target)) e.ExtractToFile(target, overwrite: true);
