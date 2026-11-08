@@ -318,6 +318,77 @@ public sealed partial class SettingsViewModel : ObservableObject
             : $"Working. Current limits: {limits.Text}.";
     }
 
+    // ------------------------------------------------------------------ mods & look
+
+    [ObservableProperty] private string _nexusKeyInput = "";
+    [ObservableProperty] private string _modIoKeyInput = "";
+    [ObservableProperty] private string _modsStatus = "";
+    public bool HasNexusKey => _s.Settings.NexusApiKeyProtected is not null;
+    public bool HasModIoKey => _s.Settings.ModIoApiKeyProtected is not null;
+
+    [RelayCommand]
+    private async Task SaveNexusKeyAsync()
+    {
+        if (string.IsNullOrWhiteSpace(NexusKeyInput)) { _s.Settings.NexusApiKeyProtected = null; _s.SaveSettings(); ModsStatus = "Nexus key removed."; OnPropertyChanged(nameof(HasNexusKey)); return; }
+        var client = new FitzLauncher.App.Services.Mods.NexusClient(_s.StoreHttp, NexusKeyInput.Trim(), _s.Paths.Root);
+        ModsStatus = "Checking the key with Nexus…";
+        try
+        {
+            var user = await client.ValidateAsync();
+            _s.Settings.NexusApiKeyProtected = FitzLauncher.App.Services.Mods.Secrets.Protect(NexusKeyInput);
+            _s.SaveSettings();
+            NexusKeyInput = "";
+            ModsStatus = $"Connected to Nexus as {user.Name} ({(user.IsPremium ? "Premium: installs download directly" : "free account: installs go through the site's Mod Manager Download button")}).";
+        }
+        catch (Exception e) when (e is FitzLauncher.App.Services.Mods.StoreException or System.Net.Http.HttpRequestException or TaskCanceledException) { ModsStatus = e.Message; }
+        OnPropertyChanged(nameof(HasNexusKey));
+    }
+
+    [RelayCommand]
+    private void SaveModIoKey()
+    {
+        _s.Settings.ModIoApiKeyProtected = FitzLauncher.App.Services.Mods.Secrets.Protect(ModIoKeyInput);
+        _s.SaveSettings();
+        ModIoKeyInput = "";
+        ModsStatus = HasModIoKey ? "mod.io key saved." : "mod.io key removed.";
+        OnPropertyChanged(nameof(HasModIoKey));
+    }
+
+    [RelayCommand] private static void OpenNexusKeyPage() => OpenUri("https://www.nexusmods.com/settings/api-keys");
+    [RelayCommand] private static void OpenModIoKeyPage() => OpenUri("https://mod.io/me/access");
+
+    /// <summary>Nexus "Mod Manager Download" links open in the launcher (previous handler restored when off).</summary>
+    public bool NxmHandler
+    {
+        get => _s.Settings.NxmHandler;
+        set
+        {
+            try
+            {
+                if (value) _s.Settings.NxmPreviousCommand = FitzLauncher.App.Services.Mods.NxmHandler.Register() ?? _s.Settings.NxmPreviousCommand;
+                else FitzLauncher.App.Services.Mods.NxmHandler.Unregister(_s.Settings.NxmPreviousCommand);
+                _s.Settings.NxmHandler = value;
+                ModsStatus = value ? "Nexus links now open in the launcher." : "Nexus links handed back" + (_s.Settings.NxmPreviousCommand is null ? "." : " to your previous mod manager.");
+            }
+            catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException or IOException) { ModsStatus = $"Couldn't change the link handler: {e.Message}"; }
+            _s.SaveSettings();
+            OnPropertyChanged();
+        }
+    }
+
+    public bool MatchGameColours
+    {
+        get => _s.Settings.MatchGameColours;
+        set
+        {
+            _s.Settings.MatchGameColours = value;
+            FitzLauncher.App.Services.GameTheme.Enabled = value;
+            if (!value) FitzLauncher.App.Services.GameTheme.Apply(FitzLauncher.Core.Artwork.ArtPalette.Default);
+            _s.SaveSettings();
+            OnPropertyChanged();
+        }
+    }
+
     // ------------------------------------------------------------------ sleep
 
     [ObservableProperty] private string _idleTimeoutsText = "Reading Windows' sleep settings…";

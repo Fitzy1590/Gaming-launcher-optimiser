@@ -1,0 +1,243 @@
+using System.Diagnostics;
+using System.Net.Http;
+using FitzLauncher.Core.Models;
+using FitzLauncher.Core.Mods;
+using FitzLauncher.Core.Scanning;
+using FitzLauncher.Core.Trainers;
+
+namespace FitzLauncher.App.Services.Mods;
+
+/// <summary>
+/// Per-game mod management: plan → extract to the launcher's staging folder → copy into the game (originals
+/// backed up), turn on/off, reorder, remove, plus the compatibility check, troubleshooter and error report.
+/// Staging lives in %LOCALAPPDATA%\FitzLauncher\mods\{game}.
+/// </summary>
+public sealed class ModService(AppServices s)
+{
+    private readonly Lock _lock = new();
+
+    public string GameRoot(Game g) => GameScanner.ResolveInstallRoot(g);
+    private string Root(Game g) => Path.Combine(s.Paths.Root, "mods", g.Id.ToString("N"));
+    public ModDeployer Deployer(Game g) => new(GameRoot(g), Path.Combine(Root(g), "staged"), Path.Combine(Root(g), "originals"));
+    public GameModLayout Layout(Game g) => GameModLayout.Detect(GameRoot(g), g.ExePath);
+    public string DownloadsDir => Path.Combine(s.Paths.Root, "downloads");
+
+    /// <summary>Exe version, else the repack's version from its folder name.</summary>
+    public string? GameVersion(Game g)
+    {
+        var exe = g.LastScan?.RenderExePath ?? g.ExePath;
+        try
+        {
+            var vi = FileVersionInfo.GetVersionInfo(exe);
+            var v = vi.ProductVersion ?? vi.FileVersion;
+            if (!string.IsNullOrWhiteSpace(v) && v.Any(char.IsDigit) && v != "1.0.0.0") return v.Split(' ')[0];
+        }
+        catch (FileNotFoundException) { }
+        return FlingParser.VersionFromName(Path.GetFileName(GameRoot(g))) ?? FlingParser.VersionFromName(g.Name);
+    }
+
+    private static string? PluginsTxtPath(GameModLayout layout)
+    {
+        if (layout.PluginsFolderName is not { } folder) return null;
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var gog = Path.Combine(local, folder + " GOG");
+        return Path.Combine(Directory.Exists(gog) ? gog : Path.Combine(local, folder), "Plugins.txt");
+    }
+
+    // ------------------------------------------------------------------ install
+
+    public ModInstallPlan Plan(Game g, string source, string modName, string? overrideRoot = null)
+    {
+        var root = GameRoot(g);
+        var layout = Layout(g);
+        var entries = ModArchive.ListEntries(source);
+        var fomodEntry = entries.FirstOrDefault(e => e.EndsWith("fomod/ModuleConfig.xml", StringComparison.OrdinalIgnoreCase));
+        var fomod = fomodEntry is null ? null : ModArchive.ReadText(source, fomodEntry);
+        return ModInstallPlanner.Plan(entries, layout, modName, rel => File.Exists(Path.Combine(root, rel)) || Directory.Exists(Path.Combine(root, rel)), fomod, overrideRoot);
+    }
+
+    /// <summary>Installs (or updates, when the same store mod is already installed) and turns it on.</summary>
+    public InstalledMod Install(Game g, string source, ModInstallPlan plan, InstalledMod meta)
+    {
+        lock (_lock)
+        {
+            var mods = g.ModSetup.Mods;
+            var deployer = Deployer(g);
+            var existing = meta.SourceId is null ? null : mods.FirstOrDefault(m => m.Source == meta.Source && m.SourceId == meta.SourceId);
+            if (existing is not null)
+            {
+                deployer.Undeploy(existing, mods);
+                RemovePlugins(g, existing);
+                mods.Remove(existing);
+                TryDelete(deployer.StagingFor(existing));
+                meta.Priority = existing.Priority;
+            }
+            else meta.Priority = mods.Count == 0 ? 0 : mods.Max(m => m.Priority) + 1;
+
+            var staging = deployer.StagingFor(meta);
+            TryDelete(staging);
+            meta.Files = ModArchive.Extract(source, plan.Files, staging).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            meta.Requires = plan.Requires;
+            meta.GameVersionAtInstall = GameVersion(g);
+            meta.InstallNotes = string.Join(" ", new[] { $"Installed to: {plan.TargetLabel}." }.Concat(plan.Notes));
+            meta.Enabled = true;
+            mods.Add(meta);
+            var errors = deployer.Deploy(meta, mods);
+            if (PluginsTxtPath(Layout(g)) is { } p && plan.Plugins.Count > 0) PluginsTxt.Add(p, plan.Plugins, Layout(g).PluginsStarFormat);
+            if (errors.Count > 0) s.Log.Write($"[{g.Name}] mod {meta.Name}: {string.Join("; ", errors)}");
+            s.SaveLibrary();
+            return meta;
+        }
+    }
+
+    public void SetEnabled(Game g, InstalledMod mod, bool on)
+    {
+        lock (_lock)
+        {
+            if (mod.Enabled == on) return;
+            var d = Deployer(g);
+            var layout = Layout(g);
+            if (on)
+            {
+                mod.Enabled = true;
+                d.Deploy(mod, g.ModSetup.Mods);
+                if (PluginsTxtPath(layout) is { } p) PluginsTxt.Add(p, Plugins(mod, layout), layout.PluginsStarFormat);
+            }
+            else
+            {
+                d.Undeploy(mod, g.ModSetup.Mods);
+                mod.Enabled = false;
+                RemovePlugins(g, mod);
+            }
+            s.SaveLibrary();
+        }
+    }
+
+    /// <summary>Moves a mod later (+1, wins more conflicts) or earlier (-1) in the order.</summary>
+    public void Move(Game g, InstalledMod mod, int direction)
+    {
+        lock (_lock)
+        {
+            var ordered = g.ModSetup.Mods.OrderBy(m => m.Priority).ToList();
+            var i = ordered.IndexOf(mod);
+            var j = i + direction;
+            if (i < 0 || j < 0 || j >= ordered.Count) return;
+            var other = ordered[j];
+            var d = Deployer(g);
+            var all = g.ModSetup.Mods;
+            var overlap = mod.Enabled && other.Enabled && mod.Files.Intersect(other.Files, StringComparer.OrdinalIgnoreCase).Any();
+            if (overlap)
+            {
+                var (hi, lo) = mod.Priority > other.Priority ? (mod, other) : (other, mod);
+                d.Undeploy(hi, all); hi.Enabled = false;
+                d.Undeploy(lo, all); lo.Enabled = false;
+                (mod.Priority, other.Priority) = (other.Priority, mod.Priority);
+                var (first, second) = mod.Priority < other.Priority ? (mod, other) : (other, mod);
+                first.Enabled = true; d.Deploy(first, all);
+                second.Enabled = true; d.Deploy(second, all);
+            }
+            else (mod.Priority, other.Priority) = (other.Priority, mod.Priority);
+            s.SaveLibrary();
+        }
+    }
+
+    public void Remove(Game g, InstalledMod mod)
+    {
+        lock (_lock)
+        {
+            var d = Deployer(g);
+            d.Undeploy(mod, g.ModSetup.Mods);
+            RemovePlugins(g, mod);
+            g.ModSetup.Mods.Remove(mod);
+            TryDelete(d.StagingFor(mod));
+            s.SaveLibrary();
+        }
+    }
+
+    /// <summary>Takes every mod out, putting the game back to its original files.</summary>
+    public void RemoveAll(Game g)
+    {
+        foreach (var m in g.ModSetup.Mods.OrderByDescending(m => m.Priority).ToList()) Remove(g, m);
+    }
+
+    /// <summary>Turns mods on/off to match a set (used by Find the bad mod).</summary>
+    public void ApplyEnableSet(Game g, HashSet<Guid> enabled)
+    {
+        foreach (var m in g.ModSetup.Mods.OrderByDescending(m => m.Priority).Where(m => m.Enabled && !enabled.Contains(m.Id)).ToList()) SetEnabled(g, m, false);
+        foreach (var m in g.ModSetup.Mods.OrderBy(m => m.Priority).Where(m => !m.Enabled && enabled.Contains(m.Id)).ToList()) SetEnabled(g, m, true);
+    }
+
+    private static IEnumerable<string> Plugins(InstalledMod m, GameModLayout layout) =>
+        layout.DataDir is not { } data ? []
+            : m.Files.Where(f => (f.EndsWith(".esp", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".esm", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".esl", StringComparison.OrdinalIgnoreCase))
+                                  && string.Equals(Path.GetDirectoryName(f)?.Replace('\\', '/'), data, StringComparison.OrdinalIgnoreCase)).Select(f => Path.GetFileName(f));
+
+    private void RemovePlugins(Game g, InstalledMod m)
+    {
+        var layout = Layout(g);
+        if (PluginsTxtPath(layout) is { } p) PluginsTxt.Remove(p, Plugins(m, layout));
+    }
+
+    private static void TryDelete(string dir)
+    {
+        try { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    // ------------------------------------------------------------------ check & troubleshoot
+
+    public List<ModIssue> Check(Game g)
+    {
+        var root = GameRoot(g);
+        var d = Deployer(g);
+        var tweakFiles = g.AppliedChanges.Select(c => c.Action).OfType<FileReplaceAction>()
+            .Select(a => GameModLayout.Rel(root, a.TargetPath)).ToList();
+        var exe = g.LastScan?.RenderExePath ?? g.ExePath;
+        return ModCompatibility.Check(new ModCheckContext
+        {
+            Game = g, Layout = Layout(g), GameRoot = root, GameVersion = GameVersion(g), GameIs64Bit = PeImports.Is64Bit(exe),
+            StagedPath = (m, rel) => Path.Combine(d.StagingFor(m), rel.Replace('/', Path.DirectorySeparatorChar)), TweakFiles = tweakFiles,
+        });
+    }
+
+    public List<LogFile> Logs(Game g)
+    {
+        var since = (g.LastCrash?.When ?? g.LastPlayed ?? DateTimeOffset.Now.AddDays(-1)).UtcDateTime.AddHours(-3);
+        var docs = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        var localLow = Path.Combine(Path.GetDirectoryName(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData))!, "LocalLow");
+        return ModLogLocator.Find(GameRoot(g), Layout(g), since, docs, localLow);
+    }
+
+    public TroubleReport Troubleshoot(Game g, List<ModIssue> compat, List<LogFile> logs) => ModTroubleshooter.Analyze(g, Layout(g), logs, compat);
+
+    public string Report(Game g, List<ModIssue> compat, TroubleReport trouble, List<LogFile> logs)
+    {
+        var hw = s.Hardware is { } h ? $"{h.CpuName} · {h.PrimaryGpu?.Name} · {h.RamGb:0} GB · {h.OsName} {h.OsBuild}" : "not scanned";
+        return ModErrorReport.Build(g, Layout(g), GameVersion(g), hw, compat, trouble, logs);
+    }
+
+    // ------------------------------------------------------------------ downloads
+
+    public async Task<string> DownloadAsync(HttpClient http, string url, string fileName, IProgress<double>? progress, CancellationToken ct)
+    {
+        Directory.CreateDirectory(DownloadsDir);
+        var path = Path.Combine(DownloadsDir, ModInstallPlanner.SafeName(Path.GetFileName(fileName)));
+        using var res = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, ct);
+        res.EnsureSuccessStatusCode();
+        var total = res.Content.Headers.ContentLength ?? 0;
+        await using var src = await res.Content.ReadAsStreamAsync(ct);
+        await using (var dst = File.Create(path))
+        {
+            var buf = new byte[1 << 16];
+            long done = 0;
+            int n;
+            while ((n = await src.ReadAsync(buf, ct)) > 0)
+            {
+                await dst.WriteAsync(buf.AsMemory(0, n), ct);
+                done += n;
+                if (total > 0) progress?.Report(done / (double)total);
+            }
+        }
+        return path;
+    }
+}

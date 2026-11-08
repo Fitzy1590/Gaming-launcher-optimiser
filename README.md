@@ -166,6 +166,35 @@ click-through overlay that never steals focus, and plays a sound that also works
 - Not built yet: setting AMD driver features (Anti-Lag, Chill, RSR) automatically. It needs AMD's ADLX library,
   which can't be tested without the hardware; it will come as a separate update.
 
+### Mods
+Each game has a **Mods** window (also the Mods tab), styled around the game's art:
+- **Find mods** on **Nexus Mods** (your free API key; free accounts install through the site's *Mod Manager Download*
+  button, which the launcher can handle, Premium installs directly), **Thunderstore** (no account; dependencies such as
+  BepInExPack install automatically) and **mod.io** (free API key).
+- **Installs to the right place** for the game: Bethesda `Data` (plugins activated in Plugins.txt), Unreal `~mods`,
+  UE4SS mods, BepInEx plugins, MelonLoader, Cyberpunk archive/redscript/CET folders, ASI/proxy DLLs next to the exe, or
+  archives that already mirror the game's folders. FOMOD installers use the author's recommended options. Zip, 7z and rar.
+- **On/off, order and remove** per mod. Files go through a staging folder; anything a mod overwrites is backed up and put
+  back when it's turned off. *Remove all* returns the game to its original files.
+- **Compatibility checker:** missing mod loaders, script extender vs game version (e.g. SKSE built for another runtime),
+  game updated since install, 32/64-bit DLLs, missing Bethesda masters, missing dependencies, DLL clashes with ReShade,
+  DXVK or ASI loaders, IoStore pak mods, and which mod wins each overlap. Anti-cheat warning for online games.
+- **Troubleshooter:** explains the last crash's exit code, names the mod that owns the crashing DLL, reads SKSE/F4SE,
+  Crash Logger/Trainwreck, BepInEx, MelonLoader, UE4SS, CET and Unity logs, and ranks the suspects. **Find the bad mod**
+  halves the suspects each session; **Copy error report** makes a shareable report with your user name hidden.
+
+### Trainers
+**FLiNG trainers** per game: search flingtrainer.com from the game page, see which download matches your game version,
+download it into the launcher's trainers folder (or use one you downloaded), and it opens a set time after the game
+starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
+often flag trainers; the launcher never changes antivirus settings and tells you what happened.
+
+### Look
+The **Console** design (picked from mockups based on the awesome-design-md collection): top tabs, the selected game's art
+filling the library behind everything, cover tiles that grow with a ring when focused, pill buttons and a big display
+title. The **accent and background tint follow the selected game's cover art** (Settings → Look to turn off), with the
+accent kept readable (4.5:1 for the Play button text).
+
 ### How it works page
 A plain-language guide in the left pane (F1): what each feature does, a three-step quick start and shortcuts.
 

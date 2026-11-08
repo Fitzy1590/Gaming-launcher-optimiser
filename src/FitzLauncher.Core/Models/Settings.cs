@@ -45,6 +45,18 @@ public sealed class LauncherSettings
     /// <summary>DPAPI-protected GitHub token, only needed while the repository is private.</summary>
     public string? GitHubTokenProtected { get; set; }
 
+    // ---- mods
+    /// <summary>Nexus Mods personal API key, encrypted with Windows DPAPI for this user.</summary>
+    public string? NexusApiKeyProtected { get; set; }
+    public string? ModIoApiKeyProtected { get; set; }
+    /// <summary>Open Nexus "Mod Manager Download" (nxm://) links in the launcher.</summary>
+    public bool NxmHandler { get; set; }
+
+    /// <summary>Accent and background colours follow the selected game's cover art.</summary>
+    public bool MatchGameColours { get; set; } = true;
+    /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>
+    public string? NxmPreviousCommand { get; set; }
+
     // ---- power limits (APUs) through RyzenAdj
     public bool PowerControl { get; set; }
     public string? RyzenAdjPath { get; set; }

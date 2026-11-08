@@ -11,12 +11,16 @@ public partial class App : Application
     private static Mutex? _single;
     private static bool _ownsMutex;
     private AppServices? _services;
+    private readonly CancellationTokenSource _nxmStop = new();
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        var nxm = FitzLauncher.App.Services.Mods.NxmHandler.FromArgs(e.Args);
         _single = new Mutex(true, @"Local\FitzLauncher.SingleInstance", out _ownsMutex);
         if (!_ownsMutex)
         {
+            // Started by a Nexus "Mod Manager Download" link: hand it to the launcher that's already open.
+            if (nxm is not null) FitzLauncher.App.Services.Mods.NxmHandler.SendToRunning(nxm);
             Shutdown();
             return;
         }
@@ -68,6 +72,9 @@ public partial class App : Application
 
         var vm = new MainViewModel(_services);
         if (undervoltNote is not null) vm.ShowToast("The last game didn't close normally. " + undervoltNote);
+
+        // Nexus "Mod Manager Download" links: from this start-up, and from later clicks while running.
+        _ = FitzLauncher.App.Services.Mods.NxmHandler.ListenAsync(link => Dispatcher.BeginInvoke(() => _ = vm.HandleNxmAsync(link)), _nxmStop.Token);
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Show();
@@ -79,6 +86,7 @@ public partial class App : Application
         // Tell the user about games added to their saved game folders since last time.
         _ = vm.CheckLibraryFoldersAsync();
         _ = vm.CheckForUpdatesOnStartAsync();
+        if (nxm is not null) _ = vm.HandleNxmAsync(nxm);
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -90,6 +98,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        _nxmStop.Cancel();
         if (_services is not null)
         {
             // Never leave a game frozen or the sleep overrides in place when the launcher closes.

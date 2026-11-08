@@ -120,6 +120,7 @@ public sealed partial class GameDetailsViewModel
     private void LoadExtras()
     {
         LoadReport();
+        LoadTrainer();
         foreach (var o in StatusOptions) o.IsSelected = o.Value == Game.Status;
         foreach (var o in PinningOptions) o.IsSelected = o.Value == Game.CorePinning;
         var plan = CpuAffinityPlanner.Plan(_s.CpuTopology, Game.CorePinning);

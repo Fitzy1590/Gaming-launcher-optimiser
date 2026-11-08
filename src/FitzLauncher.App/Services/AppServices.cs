@@ -8,6 +8,7 @@ using FitzLauncher.Core.Scanning;
 using FitzLauncher.Core.Storage;
 using FitzLauncher.Core.Upscalers;
 using FitzLauncher.Windows;
+using FitzLauncher.App.Services.Mods;
 
 namespace FitzLauncher.App.Services;
 
@@ -125,6 +126,26 @@ public sealed class AppServices : IDisposable
 
     /// <summary>Backup destinations that are reachable now (USB plugged in, Drive folder present).</summary>
     public List<string> BackupTargets() => BackupDestinations.Resolve(Settings.Backups.Destinations);
+
+    // ---------------------------------------------------------------- mods & trainers
+    private ModService? _mods;
+    private TrainerService? _trainers;
+    private ThunderstoreClient? _thunderstore;
+    public ModService Mods => _mods ??= new ModService(this);
+    public TrainerService Trainers => _trainers ??= new TrainerService(this);
+    /// <summary>Longer timeout and a User-Agent for mod stores and downloads.</summary>
+    public HttpClient StoreHttp { get; } = CreateStoreHttp();
+    public ThunderstoreClient Thunderstore => _thunderstore ??= new ThunderstoreClient(StoreHttp, Paths.Root);
+    public string? NexusKey => Secrets.Unprotect(Settings.NexusApiKeyProtected);
+    public NexusClient? Nexus => NexusKey is { } k ? new NexusClient(StoreHttp, k, Paths.Root) : null;
+    public ModIoClient? ModIo => Secrets.Unprotect(Settings.ModIoApiKeyProtected) is { } k ? new ModIoClient(StoreHttp, k) : null;
+
+    private static HttpClient CreateStoreHttp()
+    {
+        var h = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        h.DefaultRequestHeaders.UserAgent.ParseAdd("FitzLauncher/" + UpdateService.CurrentVersion);
+        return h;
+    }
 
     public DxvkService Dxvk => new(Path.Combine(Paths.Root, "dxvk"));
 

@@ -29,6 +29,8 @@ public sealed class GameSession(
     public event Action<LiveStats>? Live;
     public event Action<TempAlert>? Alert;
     public event Action<BenchmarkResult>? BenchmarkCompleted;
+    /// <summary>Raised once the game process has started (used to start a trainer alongside it).</summary>
+    public event Action? Launched;
 
     /// <summary>One-launch options from the display plan (e.g. Unity's -screen-width).</summary>
     public string ExtraArguments { get; init; } = "";
@@ -171,11 +173,14 @@ public sealed class GameSession(
         Status?.Invoke("Resumed from sleep: power, undervolt and FPS cap re-applied");
     }
 
-    private void Note(string text)
+    private void Note(string text, int seconds = 4)
     {
         _note = text;
-        _noteUntil = DateTime.Now.AddSeconds(4);
+        _noteUntil = DateTime.Now.AddSeconds(seconds);
     }
+
+    /// <summary>A short line in the RTSS overlay (e.g. the trainer's hotkeys).</summary>
+    public void ShowNote(string text, int seconds) => Note(text, seconds);
 
     private EtwFpsTracker? _fps;
     private FrameTimeRecorder? _bench;
@@ -226,6 +231,7 @@ public sealed class GameSession(
             throw;
         }
         Status?.Invoke($"Started {game.Name}");
+        Launched?.Invoke();
 
         var tracker = new GameProcessTracker(pid, installDir);
         tracker.Refresh();

@@ -23,7 +23,7 @@
                 <Border Style="{StaticResource Card}" Width="200" Margin="0,0,12,0" ToolTip="Share of frames delivered at your FPS target, across this week's sessions">
                     <StackPanel>
                         <TextBlock Text="Frames on target" Style="{StaticResource MutedText}" />
-                        <TextBlock Text="{Binding WeekOnTarget}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Accent}" Margin="0,8,0,0" />
+                        <TextBlock Text="{Binding WeekOnTarget}" Style="{StaticResource Figure}" FontSize="24" Foreground="{DynamicResource Accent}" Margin="0,8,0,0" />
                     </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Card}" Width="200">

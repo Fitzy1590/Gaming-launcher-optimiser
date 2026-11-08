@@ -114,6 +114,41 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Look" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <CheckBox Content="Match colours to the selected game (accent and background come from its cover art)" IsChecked="{Binding MatchGameColours}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Mods" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Nexus Mods needs your free account's personal API key (Nexus → Site preferences → API keys). It's stored encrypted for your Windows user only. Free accounts install through the site's Mod Manager Download button; Premium accounts can install straight from the launcher. Thunderstore needs nothing."
+                               Style="{StaticResource Wrap}" Margin="0,0,0,8" />
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Save" Margin="8,0,0,0" Command="{Binding SaveNexusKeyCommand}" />
+                            <Button Content="Get key" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding OpenNexusKeyPageCommand}" />
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="Nexus API key" Width="110" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding NexusKeyInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="Paste the key and Save. Save with the box empty to remove it." />
+                    </DockPanel>
+                    <TextBlock Text="A Nexus key is saved." Style="{StaticResource MutedText}" Margin="110,0,0,8" Visibility="{Binding HasNexusKey, Converter={StaticResource Vis}}" />
+                    <CheckBox Content="Open Nexus &quot;Mod Manager Download&quot; links in Fitz Launcher (your previous mod manager gets them back if you turn this off)" IsChecked="{Binding NxmHandler}" Margin="0,0,0,12" />
+                    <DockPanel Margin="0,0,0,8">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                            <Button Content="Save" Margin="8,0,0,0" Command="{Binding SaveModIoKeyCommand}" />
+                            <Button Content="Get key" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding OpenModIoKeyPageCommand}" />
+                        </StackPanel>
+                        <TextBlock DockPanel.Dock="Left" Text="mod.io API key" Width="110" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding ModIoKeyInput, UpdateSourceTrigger=PropertyChanged}" />
+                    </DockPanel>
+                    <TextBlock Text="A mod.io key is saved." Style="{StaticResource MutedText}" Margin="110,0,0,8" Visibility="{Binding HasModIoKey, Converter={StaticResource Vis}}" />
+                    <TextBlock Text="{Binding ModsStatus}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Visibility="{Binding ModsStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Sleep and resume" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>

@@ -80,6 +80,10 @@ public sealed class Game
     /// <summary>Pause this game while the device sleeps (turn off for online games that drop the connection).</summary>
     public bool PauseOnSleep { get; set; } = true;
 
+    // ---- mods & trainer
+    public ModSetup ModSetup { get; set; } = new();
+    public TrainerConfig? Trainer { get; set; }
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

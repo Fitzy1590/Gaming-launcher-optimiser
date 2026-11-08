@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FitzLauncher.App.ViewModels"
         Title="Fitz Launcher: Big Picture" WindowStyle="None" WindowState="Maximized" ResizeMode="NoResize"
-        Background="{StaticResource Bg}" Foreground="{StaticResource Text}" FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
+        Background="{DynamicResource Bg}" Foreground="{StaticResource Text}" FontFamily="{StaticResource UiFont}" UseLayoutRounding="True">
     <Grid>
         <!-- Backdrop: selected game's hero art, darkened -->
         <Image Source="{Binding Details.Hero}" Stretch="UniformToFill" Opacity="0.35" />
@@ -52,7 +52,7 @@
                                     </Border>
                                     <ControlTemplate.Triggers>
                                         <Trigger Property="IsSelected" Value="True">
-                                            <Setter TargetName="ring" Property="BorderBrush" Value="{StaticResource Accent}" />
+                                            <Setter TargetName="ring" Property="BorderBrush" Value="{DynamicResource Accent}" />
                                         </Trigger>
                                     </ControlTemplate.Triggers>
                                 </ControlTemplate>
@@ -98,8 +98,8 @@
                                 </Border>
                                 <DataTemplate.Triggers>
                                     <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                        <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Accent}" />
-                                        <Setter TargetName="b" Property="Background" Value="{StaticResource AccentSoft}" />
+                                        <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                                        <Setter TargetName="b" Property="Background" Value="{DynamicResource AccentSoft}" />
                                     </DataTrigger>
                                 </DataTemplate.Triggers>
                             </DataTemplate>

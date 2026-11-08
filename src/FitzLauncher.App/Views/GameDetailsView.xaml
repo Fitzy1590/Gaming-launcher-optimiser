@@ -3,21 +3,15 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
-            <!-- Hero -->
-            <Grid Height="192">
+            <!-- Hero: the game's art, Console style -->
+            <Grid Height="280" ClipToBounds="True">
                 <Border Background="{StaticResource Surface2}" />
                 <Image Source="{Binding Hero}" Stretch="UniformToFill" VerticalAlignment="Center" />
-                <Border>
-                    <Border.Background>
-                        <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
-                            <GradientStop Color="#0019191B" Offset="0.2" />
-                            <GradientStop Color="#FF19191B" Offset="1" />
-                        </LinearGradientBrush>
-                    </Border.Background>
-                </Border>
-                <StackPanel VerticalAlignment="Bottom" Margin="24,0,24,8">
-                    <TextBlock Text="{Binding Name}" Style="{StaticResource H1}" />
-                    <TextBlock Text="{Binding Subtitle}" Style="{StaticResource MutedText}" />
+                <Border Background="{DynamicResource ArtScrim}" />
+                <Border Background="{DynamicResource ArtFade}" />
+                <StackPanel VerticalAlignment="Bottom" Margin="24,0,24,12">
+                    <TextBlock Text="{Binding Subtitle}" Foreground="{StaticResource Secondary}" FontSize="13" />
+                    <TextBlock Text="{Binding Name}" Style="{StaticResource Display}" FontSize="38" Margin="0,2,0,0" />
                 </StackPanel>
             </Grid>
 
@@ -25,6 +19,7 @@
                 <!-- Actions -->
                 <DockPanel>
                     <Button DockPanel.Dock="Left" Style="{StaticResource PlayButton}" Command="{Binding PlayCommand}" ToolTip="Starts the game with Game Mode, FPS tracking and temperature alerts (Enter)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="14" /><TextBlock Text="Play" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                    <Button DockPanel.Dock="Left" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Command="{Binding OpenModsCommand}" ToolTip="Find, install and troubleshoot mods for this game"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE74C;" FontSize="14" /><TextBlock Text="Mods" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                         <Button Content="Edit" Style="{StaticResource GhostButton}" Command="{Binding EditCommand}" />
                         <Button Content="Folder" Style="{StaticResource GhostButton}" Command="{Binding OpenFolderCommand}" />
@@ -319,6 +314,93 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Mods & trainer -->
+                <TextBlock Text="Mods" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Manage" Style="{StaticResource PrimaryButton}" Command="{Binding OpenModsCommand}" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding ModsSummary}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                    </DockPanel>
+                </Border>
+
+                <DockPanel Margin="0,24,0,8">
+                    <Button DockPanel.Dock="Right" Content="Open page" Style="{StaticResource GhostButton}" Command="{Binding OpenTrainerPageCommand}" />
+                    <TextBlock Text="Trainer" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <!-- No trainer yet / finding one -->
+                <Border Style="{StaticResource Card}" Visibility="{Binding HasTrainer, Converter={StaticResource NotVis}}">
+                    <StackPanel>
+                        <TextBlock Text="Free FLiNG trainers: the launcher finds the one for this game, checks it matches your version, and opens it with the game." Style="{StaticResource Wrap}" />
+                        <DockPanel Margin="0,12,0,0">
+                            <Button DockPanel.Dock="Right" Content="Find FLiNG trainer" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Command="{Binding FindTrainerCommand}" />
+                            <TextBox Text="{Binding TrainerQuery, UpdateSourceTrigger=PropertyChanged}" />
+                        </DockPanel>
+                        <Button Content="Use a downloaded trainer…" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding UseTrainerFileCommand}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Visibility="{Binding IsFindingTrainer, Converter={StaticResource Vis}}">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding TrainerResults}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Button Content="{Binding Title}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding PickCommand}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding TrainerPageTitle}" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,8,0,4" Visibility="{Binding TrainerPageTitle, Converter={StaticResource HasValue}}" />
+                        <ItemsControl ItemsSource="{Binding TrainerDownloads}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,8">
+                                        <Button DockPanel.Dock="Right" Content="Download" Command="{Binding DownloadCommand}" VerticalAlignment="Top" />
+                                        <StackPanel Margin="0,0,12,0">
+                                            <TextBlock Text="{Binding Label}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding Match}" Style="{StaticResource MutedText}" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Windows Security often flags trainers because they edit game memory. The launcher never changes your antivirus; if it blocks the file, you decide in Protection history." Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+                        <Button Content="Close" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding CancelFindTrainerCommand}" />
+                    </StackPanel>
+                </Border>
+                <!-- Trainer set up -->
+                <Border Style="{StaticResource Card}" Visibility="{Binding HasTrainer, Converter={StaticResource Vis}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Content="Update" Style="{StaticResource GhostButton}" Command="{Binding FindTrainerCommand}" />
+                                <Button Content="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveTrainerCommand}" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock Text="{Binding TrainerName}" FontWeight="SemiBold" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding TrainerMatchText}" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
+                            </StackPanel>
+                        </DockPanel>
+                        <CheckBox Content="Open it with the game" IsChecked="{Binding TrainerLaunchWithGame}" Margin="0,12,0,0" />
+                        <StackPanel Orientation="Horizontal" Margin="24,4,0,0" IsEnabled="{Binding TrainerLaunchWithGame}">
+                            <TextBlock Text="after" VerticalAlignment="Center" />
+                            <TextBox Text="{Binding TrainerDelay}" Width="48" Margin="8,0" />
+                            <TextBlock Text="seconds (once the game has loaded)" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <CheckBox Content="Close it when the game closes" IsChecked="{Binding TrainerCloseWithGame}" Margin="0,8,0,0" />
+                        <TextBlock Text="Your usual cheats (shown in the overlay when the trainer opens)" Style="{StaticResource MutedText}" Margin="0,12,0,4" />
+                        <ItemsControl ItemsSource="{Binding Cheats}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <CheckBox IsChecked="{Binding Favourite}" Margin="0,0,0,4">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Style="{StaticResource Keycap}"><TextBlock Text="{Binding Hotkey}" Style="{StaticResource Figure}" FontSize="12" /></Border>
+                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </CheckBox>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Report card -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,24" Visibility="{Binding HasCrash, Converter={StaticResource Vis}}" BorderBrush="{StaticResource Bad}">
                     <DockPanel>
@@ -335,7 +417,7 @@
                     <Border Style="{StaticResource Card}">
                         <DockPanel>
                             <StackPanel DockPanel.Dock="Left" Width="72" VerticalAlignment="Top">
-                                <TextBlock Text="{Binding ReportGrade}" Style="{StaticResource Figure}" FontSize="40" Foreground="{StaticResource Accent}" />
+                                <TextBlock Text="{Binding ReportGrade}" Style="{StaticResource Figure}" FontSize="40" Foreground="{DynamicResource Accent}" />
                                 <TextBlock Text="{Binding ReportScore}" Style="{StaticResource MutedText}" />
                             </StackPanel>
                             <StackPanel>
@@ -357,12 +439,12 @@
                     <Border Style="{StaticResource Card}" Margin="0,8,0,0">
                         <StackPanel>
                             <DockPanel Margin="0,0,0,8">
-                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Figure}" FontSize="12" Foreground="{StaticResource Accent}" Text="{Binding TargetLabel}" />
+                                <TextBlock DockPanel.Dock="Right" Style="{StaticResource Figure}" FontSize="12" Foreground="{DynamicResource Accent}" Text="{Binding TargetLabel}" />
                                 <TextBlock Text="Last session, FPS over time" Style="{StaticResource MutedText}" />
                             </DockPanel>
                             <!-- The one detailed graphic: FPS trace against the cap line -->
                             <Canvas Width="400" Height="96" HorizontalAlignment="Left" ClipToBounds="True">
-                                <Line X1="0" X2="400" Y1="{Binding TargetY}" Y2="{Binding TargetY}" Stroke="{StaticResource Accent}" StrokeThickness="1" StrokeDashArray="4 3"
+                                <Line X1="0" X2="400" Y1="{Binding TargetY}" Y2="{Binding TargetY}" Stroke="{DynamicResource Accent}" StrokeThickness="1" StrokeDashArray="4 3"
                                       Visibility="{Binding HasTargetLine, Converter={StaticResource Vis}}" />
                                 <Polyline Points="{Binding LastTimeline}" Stroke="{StaticResource Text}" StrokeThickness="1.5" StrokeLineJoin="Round" />
                             </Canvas>

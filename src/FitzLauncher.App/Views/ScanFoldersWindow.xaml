@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:FitzLauncher.App.ViewModels"
         Title="Scan game folders" Width="1000" Height="720" MinWidth="760" MinHeight="480"
-        WindowStartupLocation="CenterOwner" Background="{StaticResource Bg}" Foreground="{StaticResource Text}"
+        WindowStartupLocation="CenterOwner" Background="{DynamicResource Bg}" Foreground="{StaticResource Text}"
         FontFamily="{StaticResource UiFont}" ShowInTaskbar="False" UseLayoutRounding="True">
     <Grid Margin="24,20,24,16">
         <Grid.RowDefinitions>

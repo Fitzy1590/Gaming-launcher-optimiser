@@ -13,7 +13,7 @@ using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Home, Library, Storage, Hardware, Sessions, Settings, About }
+public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -29,6 +29,7 @@ public sealed partial class MainViewModel : ObservableObject
     public SettingsViewModel Settings { get; }
     public HomeViewModel Home { get; }
     public StorageViewModel Storage { get; }
+    public ModsOverviewViewModel ModsOverview { get; }
     public AppServices Services => _s;
 
     /// <summary>Raised when a temperature alert should be shown on top of the game.</summary>
@@ -113,6 +114,7 @@ public sealed partial class MainViewModel : ObservableObject
         Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
         Home = new HomeViewModel(services, this);
         Storage = new StorageViewModel(services, this);
+        ModsOverview = new ModsOverviewViewModel(services, OpenMods);
         if (Games.Count == 0) _page = Page.Library;
         Home.Reload();
         RefreshLibraryMeta();
@@ -159,7 +161,27 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnSelectedChanged(GameViewModel? value)
     {
         Details?.Deactivate();
-        Details = value is null ? null : new GameDetailsViewModel(_s, value, g => _ = PlayAsync(g), RemoveGame, EditGame, RefreshLibraryMeta);
+        Details = value is null ? null : new GameDetailsViewModel(_s, value, g => _ = PlayAsync(g), RemoveGame, EditGame, RefreshLibraryMeta) { OpenModsAction = OpenMods };
+        TintToGame(value);
+    }
+
+    private GameViewModel? _tintWaiting;
+
+    /// <summary>The UI takes its accent and background tint from the selected game's cover.</summary>
+    private void TintToGame(GameViewModel? game)
+    {
+        if (_tintWaiting is not null) _tintWaiting.PropertyChanged -= CoverLoaded;
+        _tintWaiting = null;
+        FitzLauncher.App.Services.GameTheme.Enabled = _s.Settings.MatchGameColours;
+        if (game is null) return;
+        if (game.Cover is null) { _tintWaiting = game; game.PropertyChanged += CoverLoaded; return; }
+        FitzLauncher.App.Services.GameTheme.Apply(game.Cover);
+    }
+
+    private void CoverLoaded(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(GameViewModel.Cover) || sender != Selected) return;
+        TintToGame(Selected);
     }
 
     partial void OnPageChanged(Page value)
@@ -167,6 +189,7 @@ public sealed partial class MainViewModel : ObservableObject
         _s.SaveSettings();
         if (value == Page.Sessions) Sessions.Reload();
         if (value == Page.Home) Home.Reload();
+        if (value == Page.Mods) ModsOverview.Reload();
         if (value == Page.Storage) _ = Storage.ReloadAsync();
         Hardware.SetVisible(value == Page.Hardware);
     }
@@ -360,6 +383,15 @@ public sealed partial class MainViewModel : ObservableObject
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
         session.Alert += a => Ui(() => TempAlertRaised?.Invoke(a));
+        // Trainer: started a little after the game, closed with it.
+        System.Diagnostics.Process? trainer = null;
+        var trainerCts = new CancellationTokenSource();
+        if (game.Trainer is { LaunchWithGame: true } t && File.Exists(t.ExePath))
+            session.Launched += () => _ = Task.Run(async () =>
+            {
+                trainer = await _s.Trainers.StartAsync(t, line => Ui(() => Activity = line), trainerCts.Token);
+                if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
+            });
         session.BenchmarkCompleted += b => Ui(() => ShowToast($"Benchmark ({b.Seconds}s): avg {b.AverageFps:0} FPS · 1% low {b.OnePercentLowFps:0} · 0.1% low {b.PointOnePercentLowFps:0}" + (b.TimeAtTarget is { } t ? $" · {t:P0} on target" : "")));
         SessionStarted?.Invoke();
 
@@ -389,6 +421,8 @@ public sealed partial class MainViewModel : ObservableObject
         }
         finally
         {
+            trainerCts.Cancel();
+            if (game.Trainer is { CloseWithGame: true }) FitzLauncher.App.Services.Mods.TrainerService.Stop(trainer);
             _session = null;
             IsPlaying = false;
             vm.IsRunning = false;
@@ -438,6 +472,63 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
     public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>Opens the Mods window for a game.</summary>
+    public void OpenMods(Game game)
+    {
+        var card = Games.FirstOrDefault(g => g.Game == game);
+        var hero = Details?.Game == game ? Details.Hero : card?.Cover;
+        var vm = new ModsViewModel(_s, game, hero);
+        var w = new Views.ModsWindow(vm) { Owner = Application.Current.MainWindow };
+        w.Closed += (_, _) => { Details?.Reload(); ModsOverview.Reload(); };
+        w.Show();
+    }
+
+    /// <summary>
+    /// A Nexus "Mod Manager Download" link: fetch the download link with the key in the link (works for free
+    /// accounts), download, and install into the game linked to that Nexus domain.
+    /// </summary>
+    public async Task HandleNxmAsync(string url)
+    {
+        if (FitzLauncher.App.Services.Mods.NxmLink.Parse(url) is not { } link) return;
+        if (_s.Nexus is not { } nx) { ShowToast("A Nexus download link arrived, but Nexus isn't connected. Add your API key in Settings → Mods."); return; }
+        var game = Selected?.Game.ModSetup.NexusDomain == link.Domain ? Selected.Game
+            : _s.Library.Games.FirstOrDefault(g => g.ModSetup.NexusDomain == link.Domain);
+        if (game is null)
+        {
+            try
+            {
+                var nexusGame = (await nx.GamesAsync()).FirstOrDefault(g => g.Domain == link.Domain);
+                game = nexusGame is null ? null : _s.Library.Games.FirstOrDefault(g => FitzLauncher.App.Services.Mods.NexusClient.Match([nexusGame], g.Name) is not null);
+                if (game is not null) game.ModSetup.NexusDomain = link.Domain;
+            }
+            catch (Exception e) when (e is FitzLauncher.App.Services.Mods.StoreException or System.Net.Http.HttpRequestException or TaskCanceledException) { }
+        }
+        if (game is null) { ShowToast($"Got a Nexus download for \"{link.Domain}\", but no game in your library is linked to it. Open the game's Mods window first."); return; }
+        if (IsPlaying) { ShowToast($"Finish playing before installing mods into {game.Name}."); return; }
+
+        ShowToast($"Downloading a mod for {game.Name} from Nexus…");
+        try
+        {
+            var mod = await nx.ModAsync(link.Domain, link.ModId);
+            var file = (await nx.FilesAsync(link.Domain, link.ModId)).FirstOrDefault(f => f.FileId == link.FileId.ToString());
+            var cdn = await nx.DownloadUrlAsync(link.Domain, link.ModId, link.FileId, link.Key, link.Expires);
+            var path = await _s.Mods.DownloadAsync(_s.StoreHttp, cdn, file?.FileName ?? $"{link.ModId}-{link.FileId}.zip", null, CancellationToken.None);
+            var vm = new ModsViewModel(_s, game, Details?.Game == game ? Details.Hero : null);
+            await vm.InstallFileAsync(path, new InstalledMod
+            {
+                Source = ModSource.Nexus, SourceId = link.ModId.ToString(), FileId = link.FileId.ToString(), Name = mod.Name,
+                Version = file?.Version ?? mod.Version, Author = mod.Author, PageUrl = mod.PageUrl, Summary = mod.Summary,
+            });
+            ShowToast($"{game.Name}: {vm.Status}");
+            Details?.Reload();
+        }
+        catch (Exception e) when (e is FitzLauncher.App.Services.Mods.StoreException or System.Net.Http.HttpRequestException or IOException or InvalidDataException or TaskCanceledException or SharpCompress.Common.SharpCompressException)
+        {
+            _s.Log.Write($"nxm install failed: {e}");
+            ShowToast($"Couldn't install that Nexus download: {e.Message}");
+        }
+    }
 
     /// <summary>
     /// Crash: remember it (module, undervolt state), back the undervolt off, explain what likely caused it.

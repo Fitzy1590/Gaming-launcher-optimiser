@@ -83,6 +83,20 @@
                     </StackPanel>
                 </ContentControl>
 
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE74C;">
+                    <StackPanel>
+                        <TextBlock Text="Installs and checks mods" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Open Mods on a game to search Nexus Mods, Thunderstore or mod.io. Mods go in the right folder for that game and can be switched off cleanly. Check spots missing loaders, wrong versions and clashes; Troubleshoot reads crash logs and can find the bad mod for you." />
+                    </StackPanel>
+                </ContentControl>
+
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7FC;">
+                    <StackPanel>
+                        <TextBlock Text="Opens your trainer with the game" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Find a free FLiNG trainer from the game page. The launcher checks it matches your game version, starts it a few seconds after the game, shows your usual cheat hotkeys in the overlay, and closes it with the game." />
+                    </StackPanel>
+                </ContentControl>
+
                 <ContentControl Style="{StaticResource Feature}" Tag="&#xE7BA;">
                     <StackPanel>
                         <TextBlock Text="Notices crashes and grades each game" Style="{StaticResource FeatureTitle}" />

@@ -25,6 +25,10 @@ Core parking off while playing, background CPU limiter, DXVK for DX9/DX11, Ryzen
 in-game quick menu (View + LB), sleep/resume safety, crash watcher + roll back, per-game report card.
 Deferred: automatic AMD driver features (needs an ADLX native binding tested on real hardware).
 
+## Built (v0.3.10), mods, trainers and Console look
+Mods window (Nexus/Thunderstore/mod.io, staging + backups, FOMOD, compatibility checker, troubleshooter, find the bad mod,
+error report), FLiNG trainers per game, Console design with colours taken from each game's art.
+
 ## Not building (your call)
 11 auto-import Steam/Epic, 13 pausing other launchers (you only use repacks), 17 HowLongToBeat dashboard, 18 Discord.
 
