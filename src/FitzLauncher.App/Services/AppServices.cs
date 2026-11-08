@@ -132,6 +132,9 @@ public sealed class AppServices : IDisposable
     private TrainerService? _trainers;
     private ThunderstoreClient? _thunderstore;
     public ModService Mods => _mods ??= new ModService(this);
+
+    /// <summary>Set after restoring a snapshot: the restart must not save over the restored files.</summary>
+    public static bool SkipSaveOnExit { get; set; }
     private GameUpdateService? _gameUpdates;
     public GameUpdateService GameUpdates => _gameUpdates ??= new GameUpdateService(this);
     public TrainerService Trainers => _trainers ??= new TrainerService(this);

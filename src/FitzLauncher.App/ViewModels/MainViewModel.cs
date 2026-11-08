@@ -179,7 +179,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (_tintWaiting is not null) _tintWaiting.PropertyChanged -= CoverLoaded;
         _tintWaiting = null;
-        FitzLauncher.App.Services.GameTheme.Enabled = _s.Settings.MatchGameColours;
+        FitzLauncher.App.Services.GameTheme.Enabled = _s.Settings.MatchGameColours && !SafeMode;
         if (game is null) return;
         if (game.Cover is null) { _tintWaiting = game; game.PropertyChanged += CoverLoaded; return; }
         FitzLauncher.App.Services.GameTheme.Apply(game.Cover);
@@ -376,12 +376,12 @@ public sealed partial class MainViewModel : ObservableObject
             Display = display?.Display,
             ExtraArguments = display?.LaunchArguments ?? "",
             EffectiveCap = sessionCap,
-            Cooling = coolingPlan.Mode == CoolingMode.Off ? null : coolingPlan,
+            Cooling = SafeMode || coolingPlan.Mode == CoolingMode.Off ? null : coolingPlan,
             RenderScale = display?.RenderScale ?? 100,
             LimiterMode = limiterMode,
             RyzenAdj = ryzenAdj ?? undervolt,
-            UndervoltOffset = undervolt is null ? null : _s.Settings.UndervoltCurrent,
-            Controller = game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
+            UndervoltOffset = undervolt is null || SafeMode ? null : _s.Settings.UndervoltCurrent,
+            Controller = SafeMode ? null : game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
             PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings) * coolingPlan.PowerScale)),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };
@@ -497,6 +497,17 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
     public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>Started with extras off after two start-up crashes in a row.</summary>
+    [ObservableProperty] private bool _safeMode;
+
+    [RelayCommand]
+    private void LeaveSafeMode()
+    {
+        CrashReporter.ClearSafeMode();
+        if (Environment.ProcessPath is { } exe) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+        Application.Current.Shutdown();
+    }
 
     /// <summary>First start and after each update: check the PC; show the results only when something needs doing.</summary>
     public async Task DeviceCheckOnStartAsync()

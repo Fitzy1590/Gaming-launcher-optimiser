@@ -16,6 +16,13 @@ public static class CrashReporter
     private static DateTime _lastShown;
     private static string Marker => Path.Combine(_paths!.Root, "running.marker");
     private static string LastCrash => Path.Combine(_paths!.Root, "last-crash.txt");
+    private static string StartupCrashes => Path.Combine(_paths!.Root, "startup-crashes.txt");
+
+    /// <summary>
+    /// Two crashes in a row while starting: start with the extras off (overlays, controller remapping, cooling,
+    /// undervolt, background checks) so the launcher opens and the cause can be found.
+    /// </summary>
+    public static bool SafeMode { get; private set; }
     public static string Version => UpdateService.CurrentVersion.ToString();
     public static string Os => $"Windows {Environment.OSVersion.Version} {(Environment.Is64BitOperatingSystem ? "64-bit" : "32-bit")}";
 
@@ -49,10 +56,33 @@ public static class CrashReporter
                              : [new FixLink("Download the latest version", ErrorExplainer.ReleasesUrl)]),
                     $"Fitz Launcher {Version} · {Os}\nPrevious session started {since.ToLocalTime():yyyy-MM-dd HH:mm} and didn't close normally.\nFaulting module: {module ?? "not recorded"}");
             }
-            File.WriteAllText(Marker, DateTimeOffset.Now.ToString("O"));
+            // "starting" until the window has been up for a while; a crash before that counts as a start-up crash.
+            var crashedStarting = File.Exists(Marker) && File.ReadAllText(Marker).StartsWith("starting", StringComparison.Ordinal);
+            var count = crashedStarting && int.TryParse(File.Exists(StartupCrashes) ? File.ReadAllText(StartupCrashes) : "0", out var n) ? n + 1 : 0;
+            File.WriteAllText(StartupCrashes, count.ToString());
+            SafeMode = count >= 2;
+            File.WriteAllText(Marker, "starting " + DateTimeOffset.Now.ToString("O"));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         return previous;
+    }
+
+    /// <summary>Call once the launcher has been running normally for a while: start-up succeeded.</summary>
+    public static void MarkStarted()
+    {
+        try
+        {
+            if (_paths is null) return;
+            File.WriteAllText(Marker, "running " + DateTimeOffset.Now.ToString("O"));
+            if (!SafeMode) File.WriteAllText(StartupCrashes, "0");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>Leave safe mode: forget the start-up crashes (takes effect on the next start).</summary>
+    public static void ClearSafeMode()
+    {
+        try { if (_paths is not null) File.WriteAllText(StartupCrashes, "0"); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
     }
 
     /// <summary>Clean exit: no crash to report next time.</summary>

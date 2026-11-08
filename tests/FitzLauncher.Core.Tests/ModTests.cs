@@ -563,3 +563,24 @@ public class CoolingAndCapTests
         Assert.Null(FitzLauncher.Core.Optimization.DeviceCaps.For(g, "onexplayer", handheld));
     }
 }
+
+public class LibrarySnapshotTests
+{
+    [Fact]
+    public void Takes_daily_snapshot_and_restores_it()
+    {
+        using var t = new TestDir();
+        var paths = new FitzLauncher.Core.Storage.AppPaths(t.Root);
+        File.WriteAllText(paths.Library, "v1");
+        File.WriteAllText(paths.Settings, "s1");
+        var snap = FitzLauncher.Core.Storage.LibrarySnapshots.TakeIfDue(paths);
+        Assert.NotNull(snap);
+        Assert.Null(FitzLauncher.Core.Storage.LibrarySnapshots.TakeIfDue(paths)); // once a day
+
+        File.WriteAllText(paths.Library, "v2 broken");
+        FitzLauncher.Core.Storage.LibrarySnapshots.Restore(paths, snap!);
+        Assert.Equal("v1", File.ReadAllText(paths.Library));
+        Assert.Equal("s1", File.ReadAllText(paths.Settings));
+        Assert.Equal(2, FitzLauncher.Core.Storage.LibrarySnapshots.List(paths).Count); // the before-restore one too
+    }
+}

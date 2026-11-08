@@ -217,6 +217,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         InitDestinations();
         _ = LoadIdleTimeoutsAsync();
         Controllers = new ControllersViewModel(s);
+        LoadSnapshots();
         _ = Controllers.RefreshAsync();
     }
 
@@ -319,6 +320,44 @@ public sealed partial class SettingsViewModel : ObservableObject
         PowerStatus = limits is null
             ? "RyzenAdj ran but couldn't read the limits. This CPU may not be supported by your RyzenAdj version yet."
             : $"Working. Current limits: {limits.Text}.";
+    }
+
+    // ------------------------------------------------------------------ snapshots
+
+    public ObservableCollection<SnapshotRow> Snapshots { get; } = [];
+    [ObservableProperty] private string _snapshotStatus = "";
+
+    public void LoadSnapshots()
+    {
+        Snapshots.Clear();
+        foreach (var sn in FitzLauncher.Core.Storage.LibrarySnapshots.List(_s.Paths).Take(14)) Snapshots.Add(new SnapshotRow(sn, RestoreSnapshot));
+    }
+
+    [RelayCommand]
+    private async Task TakeSnapshotAsync()
+    {
+        _s.SaveLibrary();
+        _s.SaveSettings();
+        var sn = await Task.Run(() => FitzLauncher.Core.Storage.LibrarySnapshots.Take(_s.Paths));
+        SnapshotStatus = sn is null ? "Nothing to snapshot yet." : "Snapshot taken.";
+        LoadSnapshots();
+    }
+
+    private void RestoreSnapshot(FitzLauncher.Core.Storage.SnapshotInfo sn)
+    {
+        if (MessageBox.Show($"Restore your library and settings from {sn.Label}?\n\nThe current state is snapshotted first, so this can be undone. The launcher restarts.",
+                "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            FitzLauncher.Core.Storage.LibrarySnapshots.Restore(_s.Paths, sn);
+            AppServices.SkipSaveOnExit = true;
+            if (Environment.ProcessPath is { } exe) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+            Application.Current.Shutdown();
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            SnapshotStatus = $"Couldn't restore: {e.Message}";
+        }
     }
 
     // ------------------------------------------------------------------ mods & look
@@ -597,4 +636,10 @@ public sealed class DestinationRow(BackupDestination d, bool available)
     public string Kind => d.Kind switch { BackupDestinationKind.GoogleDrive => "Google Drive", BackupDestinationKind.Usb => "USB drive", _ => "Folder" };
     public string State => available ? "connected" : d.Kind == BackupDestinationKind.Usb ? "not plugged in: catches up when connected" : "not available";
     public bool Available => available;
+}
+
+public sealed class SnapshotRow(FitzLauncher.Core.Storage.SnapshotInfo info, Action<FitzLauncher.Core.Storage.SnapshotInfo> restore)
+{
+    public string Label => info.Label + (info.Path.Contains("before-restore") ? " · before a restore" : "");
+    public CommunityToolkit.Mvvm.Input.IRelayCommand RestoreCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => restore(info));
 }

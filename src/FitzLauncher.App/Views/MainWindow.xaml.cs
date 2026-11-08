@@ -36,12 +36,12 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
         vm.TempAlertRaised += a => new TempAlertWindow(a, vm.Settings.S.TempAlertSound, vm.Settings.S.TempAlertOverlay).ShowNonActivating();
         // Controller navigation for every window (never while a game runs).
         _nav = new FitzLauncher.App.Services.GamepadNavigator(() => vm.Settings.S.GamepadNavigation && !vm.IsPlaying);
-        _nav.Start();
+        if (!vm.SafeMode) _nav.Start();
         Closed += (_, _) => _nav.Dispose();
         vm.SessionStarted += () => { _nav.Stop(); if (vm.Settings.S.MinimizeWhilePlaying) WindowState = WindowState.Minimized; };
         vm.SessionEnded += () =>
         {
-            _nav.Start();
+            if (!vm.SafeMode) _nav.Start();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
         };

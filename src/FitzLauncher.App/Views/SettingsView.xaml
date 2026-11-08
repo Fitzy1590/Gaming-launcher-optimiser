@@ -151,6 +151,28 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Library snapshots" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Content="Take snapshot now" Command="{Binding TakeSnapshotCommand}" />
+                        <TextBlock Text="A copy of your library, settings, mods list, trainer and controller setups and play history is saved every day (last 14 kept). Restore any day if something goes wrong."
+                                   Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    </DockPanel>
+                    <TextBlock Text="{Binding SnapshotStatus}" Style="{StaticResource MutedText}" Margin="0,8,0,0" Visibility="{Binding SnapshotStatus, Converter={StaticResource HasValue}}" />
+                    <ItemsControl ItemsSource="{Binding Snapshots}" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,2">
+                                    <Button DockPanel.Dock="Right" Content="Restore" Style="{StaticResource GhostButton}" Command="{Binding RestoreCommand}" />
+                                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Look" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>

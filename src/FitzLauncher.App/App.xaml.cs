@@ -90,12 +90,12 @@ public partial class App : Application
             }
         }
 
-        var vm = new MainViewModel(_services);
+        var vm = new MainViewModel(_services) { SafeMode = CrashReporter.SafeMode };
         if (undervoltNote is not null) vm.ShowToast("The last game didn't close normally. " + undervoltNote);
         if (previousCrash is { } pc) Dispatcher.BeginInvoke(() => CrashReporter.Show(pc.error, pc.report, fatal: false), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
         // Nexus "Mod Manager Download" links: from this start-up, and from later clicks while running.
-        _ = FitzLauncher.App.Services.Mods.NxmHandler.ListenAsync(link => Dispatcher.BeginInvoke(() => _ = vm.HandleNxmAsync(link)), _nxmStop.Token);
+        if (!CrashReporter.SafeMode) _ = FitzLauncher.App.Services.Mods.NxmHandler.ListenAsync(link => Dispatcher.BeginInvoke(() => _ = vm.HandleNxmAsync(link)), _nxmStop.Token);
         var window = new MainWindow(vm);
         MainWindow = window;
         window.Show();
@@ -103,6 +103,19 @@ public partial class App : Application
         if (e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase)) window.WindowState = WindowState.Minimized;
 
         // First run: scan the hardware so tweaks can be tailored. Cached afterwards.
+        // Start-up counts as successful once the window has been up for 20 seconds.
+        _ = Task.Delay(TimeSpan.FromSeconds(20)).ContinueWith(_ => CrashReporter.MarkStarted(), TaskScheduler.Default);
+        // Daily snapshot of the library and settings (kept 14 days).
+        _ = Task.Run(() =>
+        {
+            try { FitzLauncher.Core.Storage.LibrarySnapshots.TakeIfDue(_services.Paths); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException) { _services.Log.Write("Snapshot failed: " + ex.Message); }
+        });
+        if (CrashReporter.SafeMode)
+        {
+            FitzLauncher.App.Services.GameTheme.Enabled = false;
+            return; // skip the hardware scan, update checks and other start-up work
+        }
         _ = vm.Hardware.EnsureScannedAsync();
         // Tell the user about games added to their saved game folders since last time.
         _ = vm.CheckLibraryFoldersAsync();
@@ -135,8 +148,11 @@ public partial class App : Application
             FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(_services.Paths);
             FitzLauncher.Windows.PowerRequestOverride.Clear(_services.Paths);
             if (_services.GameMode.IsActive) _services.GameMode.Restore();
-            _services.SaveSettings();
-            _services.SaveLibrary();
+            if (!AppServices.SkipSaveOnExit)
+            {
+                _services.SaveSettings();
+                _services.SaveLibrary();
+            }
             _services.Dispose();
         }
         CrashReporter.Stop();
