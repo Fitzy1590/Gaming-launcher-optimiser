@@ -189,6 +189,26 @@ download it into the launcher's trainers folder (or use one you downloaded), and
 starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
 often flag trainers; the launcher never changes antivirus settings and tells you what happened.
 
+### Insights and AMD features
+- **Stutter detective**: after each session, every stutter is matched to what the PC was doing at that moment (shader
+  compiling, a background app's CPU spike, memory nearly full, overheating, CPU maxed out, or uneven frame pacing). The
+  game page shows the main cause, the fix and the worst moments.
+- **A/B test**: compare two cooling modes, two FPS caps, or anything you change yourself. Each run records a benchmark
+  automatically after a warm-up; the verdict weighs smoothness, heat, FPS and stutters, and **Keep the winner** applies it.
+- **AMD features per game** (AMD GPUs): Anti-Lag, Radeon Chill (with an FPS range), Radeon Super Resolution, Fluid Motion
+  Frames, Image Sharpening and Radeon Boost, each Leave / On / Off. Applied through AMD's ADLX library when the game
+  starts and put back afterwards (and at the next start after a crash). "What's supported?" asks the driver.
+- **Big Picture options** (Start): cooling, FPS cap for this screen, controller settings, trainer, mods, game update and
+  stutter report, all with the controller.
+
+### Mods extras, snapshots and safe mode
+- **FOMOD option picker** for mods with install choices (recommended options pre-ticked).
+- **Mod update alerts**: the Mods window checks Nexus, Thunderstore and mod.io; "Update to vX" keeps the mod's order and
+  its off state.
+- **Library snapshots**: a daily copy of your library, settings, mod/trainer/controller setups and history (14 kept),
+  restorable from Settings.
+- **Safe mode**: two crashes in a row while starting opens the launcher with extras off, with one button to turn them back on.
+
 ### Device check and crash reports
 - **Device check** on first start and after every update (and Settings → Run device check): Windows version, 64-bit,
   admin rights, data folder space, XInput, Visual C++ runtimes (one-click install from Microsoft), legacy DirectX

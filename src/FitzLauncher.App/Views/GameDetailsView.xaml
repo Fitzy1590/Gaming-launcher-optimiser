@@ -588,6 +588,49 @@
                     </StackPanel>
                 </Border>
 
+                <!-- AMD Software features -->
+                <StackPanel Visibility="{Binding IsAmdGpu, Converter={StaticResource Vis}}">
+                    <DockPanel Margin="0,24,0,8">
+                        <Button DockPanel.Dock="Right" Content="What's supported?" Style="{StaticResource GhostButton}" Command="{Binding CheckAmdSupportCommand}" />
+                        <TextBlock Text="AMD features" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Border Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="Switched on or off while this game runs, then put back as they were. 'Leave' keeps your AMD Software setting." Style="{StaticResource Wrap}" Margin="0,0,0,8" />
+                            <TextBlock Text="{Binding AmdSupportText}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,0,0,8" Visibility="{Binding AmdSupportText, Converter={StaticResource HasValue}}" />
+                            <ItemsControl ItemsSource="{Binding AmdRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <DockPanel Margin="0,0,0,8">
+                                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="{Binding Name}" Content="Leave" IsChecked="{Binding IsLeave}" />
+                                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="{Binding Name}" Content="On" IsChecked="{Binding IsOn}" />
+                                                <RadioButton Style="{StaticResource ChipToggle}" GroupName="{Binding Name}" Content="Off" IsChecked="{Binding IsOff}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,12,0">
+                                                <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" />
+                                                <TextBlock Text="{Binding Hint}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <TextBlock Text="Chill between" VerticalAlignment="Center" />
+                                <TextBox Text="{Binding AmdChillMin}" Width="52" Margin="8,0" />
+                                <TextBlock Text="and" VerticalAlignment="Center" />
+                                <TextBox Text="{Binding AmdChillMax}" Width="52" Margin="8,0" />
+                                <TextBlock Text="FPS" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <DockPanel Margin="0,8,0,0">
+                                <TextBlock DockPanel.Dock="Left" Text="Sharpening" Width="100" VerticalAlignment="Center" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding AmdSharpening, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                                <Slider Minimum="10" Maximum="100" Value="{Binding AmdSharpening}" />
+                            </DockPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Controller -->
                 <TextBlock Text="Controller" Style="{StaticResource H2}" />
                 <Border Style="{StaticResource Card}">

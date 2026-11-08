@@ -382,6 +382,7 @@ public sealed partial class MainViewModel : ObservableObject
             EffectiveCap = sessionCap,
             AutoBenchmark = abTest is null ? null : (abTest.WarmupSeconds, abTest.Seconds),
             Cooling = SafeMode || coolingPlan.Mode == CoolingMode.Off ? null : coolingPlan,
+            Amd = SafeMode || _s.Hardware?.PrimaryGpu?.Vendor != GpuVendor.Amd ? null : game.Amd,
             RenderScale = display?.RenderScale ?? 100,
             LimiterMode = limiterMode,
             RyzenAdj = ryzenAdj ?? undervolt,

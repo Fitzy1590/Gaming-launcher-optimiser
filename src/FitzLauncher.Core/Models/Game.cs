@@ -99,6 +99,9 @@ public sealed class Game
     /// <summary>A/B benchmark in progress or finished (null = none).</summary>
     public FitzLauncher.Core.Optimization.AbTest? AbTest { get; set; }
 
+    /// <summary>AMD Software features for this game (Anti-Lag, Chill, RSR, AFMF, sharpening, Boost).</summary>
+    public AmdProfile Amd { get; set; } = new();
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

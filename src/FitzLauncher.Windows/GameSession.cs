@@ -54,6 +54,9 @@ public sealed class GameSession(
     /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
     public int? LimiterMode { get; init; }
 
+    /// <summary>AMD Software features for this session (restored afterwards).</summary>
+    public AmdProfile? Amd { get; init; }
+
     /// <summary>Cooling mode for this session (CPU boost, earlier thermal guard, guard trims power).</summary>
     public CoolingPlan? Cooling { get; init; }
 
@@ -245,6 +248,15 @@ public sealed class GameSession(
         var cooling = Cooling is { BoostMode: { } boost } ? new CoolingController(paths) : null;
         if (cooling is not null && cooling.ApplyBoost(Cooling!.BoostMode!.Value))
             Status?.Invoke(Cooling.BoostMode == 0 ? "Cooling: CPU boost off" : "Cooling: CPU boost set to efficient");
+
+        // AMD features (Anti-Lag, Chill, RSR, AFMF…): global driver settings, applied now and restored afterwards.
+        var amdApplied = false;
+        if (Amd is { Any: true } amdProfile)
+        {
+            var line = await Task.Run(() => AmdFeatures.ApplyForSession(paths, amdProfile), ct);
+            amdApplied = line?.StartsWith("AMD: ", StringComparison.Ordinal) == true;
+            if (line is not null) Status?.Invoke(line);
+        }
 
         // Controller tuning starts before the game, so the game only ever sees the tuned virtual pad.
         using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line)) : null;
@@ -482,6 +494,7 @@ public sealed class GameSession(
         }
         if (powerSet) RyzenAdj!.Restore();
         cooling?.Restore();
+        if (amdApplied) await Task.Run(() => AmdFeatures.RestoreAfterSession(paths));
         // Clear the undervolt; the crash marker stays only if we never get here (freeze / power loss).
         if (UndervoltApplied) RyzenAdj!.ClearUndervolt();
         if (useGameMode)
