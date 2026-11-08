@@ -207,6 +207,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly AppServices _s;
     public LauncherSettings S => _s.Settings;
+    public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
     public int[] Targets => LauncherSettings.FpsTargets;
 
@@ -215,6 +216,8 @@ public sealed partial class SettingsViewModel : ObservableObject
         _s = s;
         InitDestinations();
         _ = LoadIdleTimeoutsAsync();
+        Controllers = new ControllersViewModel(s);
+        _ = Controllers.RefreshAsync();
     }
 
     public string ServicesText { get => Lines(G.Services); set { G.Services = Split(value); Save(); } }

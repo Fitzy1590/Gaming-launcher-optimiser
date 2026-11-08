@@ -3,7 +3,7 @@ using System.Windows.Threading;
 
 namespace FitzLauncher.App.Services;
 
-public enum PadButton { Up, Down, Left, Right, A, B, X, Y, LeftShoulder, RightShoulder, Start, Back }
+public enum PadButton { Up, Down, Left, Right, A, B, X, Y, LeftShoulder, RightShoulder, Start, Back, ScrollUp, ScrollDown }
 
 /// <summary>
 /// Xbox-style controller input via XInput (works with Xbox pads; PlayStation pads through Steam
@@ -62,6 +62,8 @@ public sealed class GamepadPoller : IDisposable
             if (state.Pad.LX > dead) down.Add(PadButton.Right);
             if (state.Pad.LY > dead) down.Add(PadButton.Up);
             if (state.Pad.LY < -dead) down.Add(PadButton.Down);
+            if (state.Pad.RY > dead) down.Add(PadButton.ScrollUp);
+            if (state.Pad.RY < -dead) down.Add(PadButton.ScrollDown);
         }
 
         var now = DateTime.UtcNow;
@@ -72,7 +74,7 @@ public sealed class GamepadPoller : IDisposable
                 Pressed?.Invoke(b);
                 _held[b] = now.AddMilliseconds(380); // first repeat delay
             }
-            else if (now >= next && b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right)
+            else if (now >= next && b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right or PadButton.ScrollUp or PadButton.ScrollDown)
             {
                 Pressed?.Invoke(b);
                 _held[b] = now.AddMilliseconds(110);

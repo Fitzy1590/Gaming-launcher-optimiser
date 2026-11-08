@@ -1,7 +1,8 @@
 <UserControl x:Class="FitzLauncher.App.Views.SettingsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
+             xmlns:views="clr-namespace:FitzLauncher.App.Views">
     <!-- Settings are plain objects; every toggle/edit saves via the Save command or when you leave the page. -->
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32,24,32,40" MaxWidth="760" HorizontalAlignment="Left">
@@ -146,6 +147,31 @@
                     </DockPanel>
                     <TextBlock Text="A mod.io key is saved." Style="{StaticResource MutedText}" Margin="110,0,0,8" Visibility="{Binding HasModIoKey, Converter={StaticResource Vis}}" />
                     <TextBlock Text="{Binding ModsStatus}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Visibility="{Binding ModsStatus, Converter={StaticResource HasValue}}" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Controllers" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}" DataContext="{Binding Controllers}">
+                <StackPanel>
+                    <CheckBox Content="Use a controller in the launcher's menus (D-pad or stick to move, A select, B back, LB/RB pages, Start play, X mods, Y search)" IsChecked="{Binding GamepadNavigation}" />
+                    <DockPanel Margin="0,12,0,4">
+                        <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" />
+                        <TextBlock Text="Connected" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding Connected}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate><TextBlock Text="{Binding}" Margin="0,0,0,2" /></DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding DriverText}" Style="{StaticResource Wrap}" Margin="0,12,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding DriversReady, Converter={StaticResource NotVis}}">
+                        <Button Content="Get ViGEmBus" Command="{Binding GetViGEmCommand}" />
+                        <Button Content="Get HidHide" Margin="8,0,0,0" Command="{Binding GetHidHideCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="Only Xbox-style (XInput) controllers can be tuned, which includes handheld built-in controls. PlayStation and Switch pads work through Steam Input or DS4Windows."
+                               Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+                    <CheckBox Content="Default controller settings for games without their own" IsChecked="{Binding Default.Enabled}" Margin="0,12,0,0" />
+                    <views:ControllerProfileEditor DataContext="{Binding Default}" Margin="0,8,0,0" Visibility="{Binding Enabled, Converter={StaticResource Vis}, FallbackValue=Collapsed}" />
                 </StackPanel>
             </Border>
 

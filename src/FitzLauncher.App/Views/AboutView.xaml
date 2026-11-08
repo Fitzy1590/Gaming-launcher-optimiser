@@ -83,6 +83,13 @@
                     </StackPanel>
                 </ContentControl>
 
+                <ContentControl Style="{StaticResource Feature}" Tag="&#xE7FC;">
+                    <StackPanel>
+                        <TextBlock Text="Works with a controller" Style="{StaticResource FeatureTitle}" />
+                        <TextBlock Style="{StaticResource Wrap}" Text="Move with the D-pad, A to select, B to go back, LB/RB to change page, Start to play. Each game can have its own stick deadzones, response curve and rumble strength, applied while it runs." />
+                    </StackPanel>
+                </ContentControl>
+
                 <ContentControl Style="{StaticResource Feature}" Tag="&#xE74C;">
                     <StackPanel>
                         <TextBlock Text="Installs and checks mods" Style="{StaticResource FeatureTitle}" />

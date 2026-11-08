@@ -358,3 +358,51 @@ public class ArtPaletteTests
         Assert.True(FitzLauncher.Core.Artwork.Rgb.Contrast(c.Accent, new(0x04, 0x12, 0x1C)) >= 4.5);
     }
 }
+
+public class ControllerMathTests
+{
+    private static readonly FitzLauncher.Core.Models.StickSettings Def = new() { InnerDeadzone = 10, OuterDeadzone = 5 };
+
+    [Fact]
+    public void Inside_deadzone_is_zero_and_edge_reaches_full()
+    {
+        Assert.Equal((0, 0), FitzLauncher.Core.Input.ControllerMath.Stick(2000, 1000, Def));
+        var (x, _) = FitzLauncher.Core.Input.ControllerMath.Stick(32767 * 96 / 100, 0, Def);
+        Assert.Equal(32767, x);
+    }
+
+    [Fact]
+    public void Direction_is_kept_and_invert_flips_y()
+    {
+        var s = new FitzLauncher.Core.Models.StickSettings { InnerDeadzone = 0, OuterDeadzone = 0, InvertY = true };
+        var (x, y) = FitzLauncher.Core.Input.ControllerMath.Stick(10000, 10000, s);
+        Assert.Equal(x, -y);
+        Assert.True(x > 0);
+    }
+
+    [Fact]
+    public void Anti_deadzone_lifts_small_movements()
+    {
+        var s = new FitzLauncher.Core.Models.StickSettings { InnerDeadzone = 10, OuterDeadzone = 0, AntiDeadzone = 20 };
+        var (x, _) = FitzLauncher.Core.Input.ControllerMath.Stick(32767 * 11 / 100, 0, s);
+        Assert.True(x >= 32767 * 0.2, $"{x}");
+    }
+
+    [Fact]
+    public void Precise_curve_is_lower_than_linear_mid_travel()
+    {
+        var lin = FitzLauncher.Core.Input.ControllerMath.Stick(16000, 0, new() { InnerDeadzone = 0, OuterDeadzone = 0 });
+        var pre = FitzLauncher.Core.Input.ControllerMath.Stick(16000, 0, new() { InnerDeadzone = 0, OuterDeadzone = 0, Curve = FitzLauncher.Core.Models.StickCurve.Precise });
+        Assert.True(pre.x < lin.x);
+    }
+
+    [Fact]
+    public void Triggers_rumble_and_swap()
+    {
+        Assert.Equal(0, FitzLauncher.Core.Input.ControllerMath.Trigger(8, 5, 100));
+        Assert.Equal(255, FitzLauncher.Core.Input.ControllerMath.Trigger(130, 0, 50));
+        Assert.Equal(0, FitzLauncher.Core.Input.ControllerMath.Rumble(200, 0));
+        Assert.Equal(65535, FitzLauncher.Core.Input.ControllerMath.Rumble(255, 150));
+        Assert.Equal(FitzLauncher.Core.Input.ControllerMath.B, FitzLauncher.Core.Input.ControllerMath.Buttons(FitzLauncher.Core.Input.ControllerMath.A, swapFace: true));
+    }
+}

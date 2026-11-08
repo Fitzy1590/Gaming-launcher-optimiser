@@ -189,6 +189,20 @@ download it into the launcher's trainers folder (or use one you downloaded), and
 starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
 often flag trainers; the launcher never changes antivirus settings and tells you what happened.
 
+### Controllers
+- **Menus with a controller** everywhere (library, game pages, Settings, Mods window, confirmation boxes): D-pad or left
+  stick moves, **A** selects (on a game tile it plays), **B** goes back or closes, **LB/RB** switch pages or tabs, right
+  stick scrolls, **Start** plays the selected game, **X** opens its mods, **Y** searches, **View** opens Big Picture.
+  Text boxes open the touch keyboard. Turn off in Settings → Controllers.
+- **Per-game controller settings:** stick deadzone, outer deadzone, anti-deadzone, response curve (linear, smooth,
+  precise, aggressive), sensitivity and invert per stick; trigger deadzone and hair trigger; rumble strength (0–200%,
+  with a test button); A/B X/Y swap. A live preview shows the stick as it is and as the game will get it. Set a default
+  in Settings → Controllers and override it per game.
+- These settings work through a virtual controller while the game runs, so they need two free drivers by Nefarius:
+  **ViGEmBus** (virtual controller) and **HidHide** (hides the real controller from the game). The launcher detects them,
+  hides only the devices it hid, and unhides them afterwards or at the next start after a crash. Xbox-style (XInput)
+  controllers only, including handheld built-in controls.
+
 ### Look
 The **Console** design (picked from mockups based on the awesome-design-md collection): top tabs, the selected game's art
 filling the library behind everything, cover tiles that grow with a ring when focused, pill buttons and a big display

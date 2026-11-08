@@ -1,0 +1,120 @@
+<UserControl x:Class="FitzLauncher.App.Views.ControllerProfileEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Loaded="OnLoaded" Unloaded="OnUnloaded" IsVisibleChanged="OnVisibleChanged">
+    <!-- Edits a ControllerProfileViewModel: sticks, triggers, rumble, layout -->
+    <StackPanel>
+        <TextBlock Text="{Binding PreviewText}" Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+        <UniformGrid Columns="2">
+            <Border Style="{StaticResource Card}" Margin="0,0,8,8">
+                <StackPanel>
+                    <TextBlock Text="Left stick" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8" />
+                    <!-- Live preview: dot = physical stick, ring = what the game gets -->
+                    <Canvas Width="120" Height="120" HorizontalAlignment="Left" Margin="0,0,0,12">
+                        <Ellipse Width="120" Height="120" Stroke="{StaticResource StrongBorder}" StrokeThickness="1" />
+                        <Ellipse Width="16" Height="16" Stroke="{DynamicResource Accent}" StrokeThickness="2" Canvas.Left="{Binding LeftOutX}" Canvas.Top="{Binding LeftOutY}" />
+                        <Ellipse Width="12" Height="12" Fill="{StaticResource Text}" Canvas.Left="{Binding LeftRawX}" Canvas.Top="{Binding LeftRawY}" />
+                    </Canvas>
+                <DockPanel Margin="0,0,0,4" ToolTip="Stops drift: movement inside this is ignored">
+                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftInner, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="40" Value="{Binding LeftInner}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4" ToolTip="Full output before the edge of the stick">
+                    <TextBlock DockPanel.Dock="Left" Text="Outer deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftOuter, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="30" Value="{Binding LeftOuter}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4" ToolTip="Counter the game's own deadzone so small movements register">
+                    <TextBlock DockPanel.Dock="Left" Text="Anti-deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftAnti, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="40" Value="{Binding LeftAnti}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="Sensitivity" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftSensitivity, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="50" Maximum="150" Value="{Binding LeftSensitivity}" />
+                </DockPanel>
+                    <WrapPanel Margin="0,4,0,0">
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Linear" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Linear}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Smooth" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Smooth}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Precise" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Precise}" ToolTip="Finer control near the centre (aiming)" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Aggressive" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Aggressive}" ToolTip="Faster response from small movements" />
+                    </WrapPanel>
+                    <CheckBox Content="Invert up/down" IsChecked="{Binding LeftInvert}" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,8,8">
+                <StackPanel>
+                    <TextBlock Text="Right stick" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8" />
+                    <!-- Live preview: dot = physical stick, ring = what the game gets -->
+                    <Canvas Width="120" Height="120" HorizontalAlignment="Left" Margin="0,0,0,12">
+                        <Ellipse Width="120" Height="120" Stroke="{StaticResource StrongBorder}" StrokeThickness="1" />
+                        <Ellipse Width="16" Height="16" Stroke="{DynamicResource Accent}" StrokeThickness="2" Canvas.Left="{Binding RightOutX}" Canvas.Top="{Binding RightOutY}" />
+                        <Ellipse Width="12" Height="12" Fill="{StaticResource Text}" Canvas.Left="{Binding RightRawX}" Canvas.Top="{Binding RightRawY}" />
+                    </Canvas>
+                <DockPanel Margin="0,0,0,4" ToolTip="Stops drift: movement inside this is ignored">
+                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightInner, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="40" Value="{Binding RightInner}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4" ToolTip="Full output before the edge of the stick">
+                    <TextBlock DockPanel.Dock="Left" Text="Outer deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightOuter, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="30" Value="{Binding RightOuter}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4" ToolTip="Counter the game's own deadzone so small movements register">
+                    <TextBlock DockPanel.Dock="Left" Text="Anti-deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightAnti, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="40" Value="{Binding RightAnti}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4">
+                    <TextBlock DockPanel.Dock="Left" Text="Sensitivity" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightSensitivity, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="50" Maximum="150" Value="{Binding RightSensitivity}" />
+                </DockPanel>
+                    <WrapPanel Margin="0,4,0,0">
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Linear" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Linear}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Smooth" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Smooth}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Precise" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Precise}" ToolTip="Finer control near the centre (aiming)" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Aggressive" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Aggressive}" ToolTip="Faster response from small movements" />
+                    </WrapPanel>
+                    <CheckBox Content="Invert up/down" IsChecked="{Binding RightInvert}" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="Triggers" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8" />
+                <DockPanel Margin="0,0,0,4" ToolTip="Light presses below this are ignored">
+                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding TriggerDeadzone, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="40" Value="{Binding TriggerDeadzone}" />
+                </DockPanel>
+                <DockPanel Margin="0,0,0,4" ToolTip="Lower = hair trigger: full output from a partial press">
+                    <TextBlock DockPanel.Dock="Left" Text="Full press at" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding TriggerMax, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="50" Maximum="100" Value="{Binding TriggerMax}" />
+                </DockPanel>
+                <DockPanel Margin="0,4,0,0">
+                    <TextBlock DockPanel.Dock="Left" Text="Live" Width="120" Style="{StaticResource MutedText}" />
+                    <ProgressBar Value="{Binding LeftTriggerOut, Mode=OneWay}" Maximum="100" Height="4" Width="120" Margin="0,0,12,0" />
+                    <ProgressBar Value="{Binding RightTriggerOut, Mode=OneWay}" Maximum="100" Height="4" Width="120" HorizontalAlignment="Left" />
+                </DockPanel>
+            </StackPanel>
+        </Border>
+        <Border Style="{StaticResource Card}">
+            <StackPanel>
+                <TextBlock Text="Vibration and buttons" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8" />
+                <DockPanel Margin="0,0,0,4">
+                    <Button DockPanel.Dock="Right" Content="Test" Margin="8,0,0,0" Command="{Binding TestRumbleCommand}" />
+                    <TextBlock DockPanel.Dock="Left" Text="Rumble strength" Width="120" VerticalAlignment="Center" />
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding Vibration, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
+                    <Slider Minimum="0" Maximum="200" Value="{Binding Vibration}" TickFrequency="5" LargeChange="10" ToolTip="0 = off. Above 100% boosts weak rumble." />
+                </DockPanel>
+                <CheckBox Content="Swap A/B and X/Y (Nintendo layout)" IsChecked="{Binding SwapFace}" Margin="0,4,0,0" />
+                <Button Content="Reset to defaults" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding ResetCommand}" />
+            </StackPanel>
+        </Border>
+    </StackPanel>
+</UserControl>

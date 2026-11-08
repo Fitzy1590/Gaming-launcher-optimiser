@@ -369,6 +369,7 @@ public sealed partial class MainViewModel : ObservableObject
             LimiterMode = limiterMode,
             RyzenAdj = ryzenAdj ?? undervolt,
             UndervoltOffset = undervolt is null ? null : _s.Settings.UndervoltCurrent,
+            Controller = game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
             PowerWatts = ryzenAdj is null ? null : PowerTuner.WattsFor(game, _s.Settings),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };

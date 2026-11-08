@@ -190,4 +190,28 @@ public sealed partial class GameDetailsViewModel
     }
 
     [RelayCommand] private void CancelFindTrainer() => IsFindingTrainer = false;
+
+    // ------------------------------------------------------------------ controller
+
+    private ControllerProfileViewModel? _controllerVm;
+    public ControllerProfileViewModel? ControllerVm => Game.Controller is { } c ? _controllerVm ??= new ControllerProfileViewModel(c, _s.SaveLibrary) : null;
+
+    /// <summary>Own controller settings for this game (starts as a copy of the default profile).</summary>
+    public bool UseCustomController
+    {
+        get => Game.Controller?.Enabled == true;
+        set
+        {
+            if (value && Game.Controller is null) Game.Controller = _s.Settings.DefaultController.Clone();
+            if (Game.Controller is { } c) c.Enabled = value;
+            _s.SaveLibrary();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ControllerVm));
+            OnPropertyChanged(nameof(ControllerText));
+        }
+    }
+
+    public string ControllerText => UseCustomController
+        ? "These settings apply while this game runs, through a virtual controller (needs ViGEmBus and HidHide: see Settings → Controllers)."
+        : _s.Settings.DefaultController.Enabled ? "Using your default controller settings (Settings → Controllers)." : "The game gets your controller exactly as it is.";
 }

@@ -84,6 +84,9 @@ public sealed class Game
     public ModSetup ModSetup { get; set; } = new();
     public TrainerConfig? Trainer { get; set; }
 
+    /// <summary>Per-game controller tuning (deadzones, curves, vibration); null = use the default profile.</summary>
+    public ControllerProfile? Controller { get; set; }
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

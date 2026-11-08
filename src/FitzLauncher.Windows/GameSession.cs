@@ -46,6 +46,9 @@ public sealed class GameSession(
     /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
     public int? LimiterMode { get; init; }
 
+    /// <summary>Controller tuning for this session (virtual controller via ViGEmBus + HidHide), or null.</summary>
+    public ControllerProfile? Controller { get; init; }
+
     /// <summary>Curve Optimizer all-core offset for this session (negative = undervolt), via RyzenAdj.</summary>
     public int? UndervoltOffset { get; init; }
     /// <summary>When the controller was last touched (for the adaptive idle cap).</summary>
@@ -217,6 +220,10 @@ public sealed class GameSession(
             Status?.Invoke("Game Mode: preparing…");
             foreach (var line in await Task.Run(() => gameMode.ActivatePreLaunch(settings.GameMode, tuning, settings.CoreParkingOff), ct)) Status?.Invoke(line);
         }
+
+        // Controller tuning starts before the game, so the game only ever sees the tuned virtual pad.
+        using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line)) : null;
+        remapper?.Start();
 
         var start = DateTimeOffset.Now;
         int pid;

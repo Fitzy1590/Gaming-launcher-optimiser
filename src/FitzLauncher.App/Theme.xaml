@@ -135,7 +135,8 @@
                             </Setter>
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Secondary}" />
+                            <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="b" Property="BorderThickness" Value="2" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter TargetName="b" Property="Opacity" Value="0.4" />
@@ -264,6 +265,8 @@
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Text}" />
+                            <Setter TargetName="line" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="line" Property="Opacity" Value="0.6" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter Property="Foreground" Value="{StaticResource Text}" />
@@ -294,7 +297,8 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource Secondary}" />
+                            <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="b" Property="BorderThickness" Value="2" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -303,6 +307,70 @@
     </Style>
 
     <!-- Switches: off-white when on (the accent is saved for Play and the FPS target) -->
+    <!-- Sliders: rail, accent fill, round thumb (D-pad left/right adjusts when focused) -->
+    <Style x:Key="SliderFill" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Height="4" CornerRadius="2" Background="{DynamicResource Accent}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="SliderBlank" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="Slider">
+        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="IsMoveToPointEnabled" Value="True" />
+        <Setter Property="IsSnapToTickEnabled" Value="True" />
+        <Setter Property="TickFrequency" Value="1" />
+        <Setter Property="SmallChange" Value="1" />
+        <Setter Property="LargeChange" Value="5" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Slider">
+                    <Grid VerticalAlignment="Center" Background="Transparent">
+                        <Border Height="4" CornerRadius="2" Background="{StaticResource Surface2}" />
+                        <Track x:Name="PART_Track">
+                            <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource SliderFill}" /></Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource SliderBlank}" /></Track.IncreaseRepeatButton>
+                            <Track.Thumb>
+                                <Thumb x:Name="thumb" Width="18" Height="18" BorderBrush="{StaticResource Bg}" BorderThickness="2">
+                                    <Thumb.Template>
+                                        <ControlTemplate TargetType="Thumb">
+                                            <Ellipse Fill="{StaticResource Text}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding BorderThickness}" />
+                                        </ControlTemplate>
+                                    </Thumb.Template>
+                                </Thumb>
+                            </Track.Thumb>
+                        </Track>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="thumb" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="thumb" Property="BorderThickness" Value="3" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <Style TargetType="CheckBox">
         <Setter Property="Foreground" Value="{StaticResource Text}" />
         <Setter Property="FontFamily" Value="{StaticResource UiFont}" />

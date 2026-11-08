@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
+using Page = FitzLauncher.App.ViewModels.Page;
 using System.Windows.Input;
 using System.Windows.Interop;
 using CommunityToolkit.Mvvm.Input;
@@ -8,9 +10,10 @@ using Microsoft.Win32;
 
 namespace FitzLauncher.App.Views;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAware
 {
     private readonly MainViewModel _vm;
+    private readonly FitzLauncher.App.Services.GamepadNavigator _nav;
 
     public MainWindow(MainViewModel vm)
     {
@@ -31,9 +34,14 @@ public partial class MainWindow : Window
         vm.Confirm = text => MessageBox.Show(this, text, "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         vm.EditGameDialog = game => new EditGameWindow(game) { Owner = this }.ShowDialog() == true;
         vm.TempAlertRaised += a => new TempAlertWindow(a, vm.Settings.S.TempAlertSound, vm.Settings.S.TempAlertOverlay).ShowNonActivating();
-        vm.SessionStarted += () => { if (vm.Settings.S.MinimizeWhilePlaying) WindowState = WindowState.Minimized; };
+        // Controller navigation for every window (never while a game runs).
+        _nav = new FitzLauncher.App.Services.GamepadNavigator(() => vm.Settings.S.GamepadNavigation && !vm.IsPlaying);
+        _nav.Start();
+        Closed += (_, _) => _nav.Dispose();
+        vm.SessionStarted += () => { _nav.Stop(); if (vm.Settings.S.MinimizeWhilePlaying) WindowState = WindowState.Minimized; };
         vm.SessionEnded += () =>
         {
+            _nav.Start();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
         };
@@ -108,6 +116,53 @@ public partial class MainWindow : Window
     {
         if (e.Data.GetData(DataFormats.FileDrop) is string[] paths) await _vm.AddPathsAsync(paths);
     }
+
+    private static readonly Page[] PageOrder = [Page.Home, Page.Library, Page.Mods, Page.Storage, Page.Hardware, Page.Sessions, Page.Settings, Page.About];
+
+    /// <summary>Console-style buttons: LB/RB pages, Start plays, X mods, Y search, View Big Picture, B back.</summary>
+    public bool OnGamepad(FitzLauncher.App.Services.PadButton b)
+    {
+        switch (b)
+        {
+            case FitzLauncher.App.Services.PadButton.LeftShoulder or FitzLauncher.App.Services.PadButton.RightShoulder:
+                var i = Array.IndexOf(PageOrder, _vm.Page);
+                _vm.Page = PageOrder[(i + (b == FitzLauncher.App.Services.PadButton.RightShoulder ? 1 : PageOrder.Length - 1)) % PageOrder.Length];
+                FocusPage();
+                return true;
+            case FitzLauncher.App.Services.PadButton.Start when _vm.Selected is { } g:
+                _ = _vm.PlayAsync(g);
+                return true;
+            case FitzLauncher.App.Services.PadButton.X when _vm.Selected is { } g:
+                _vm.OpenMods(g.Game);
+                return true;
+            case FitzLauncher.App.Services.PadButton.Y:
+                FocusSearchCommand.Execute(null);
+                return true;
+            case FitzLauncher.App.Services.PadButton.Back:
+                _vm.BigPictureCommand.Execute(null);
+                return true;
+            case FitzLauncher.App.Services.PadButton.B:
+                if (FitzLauncher.App.Services.GamepadNavigator.Send(this, Key.Escape)) return true;
+                if (_vm.Page != Page.Library) { _vm.Page = Page.Library; FocusPage(); }
+                else GameList.Focus();
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /// <summary>After a page change, put the focus on the page so the D-pad works straight away.</summary>
+    private void FocusPage() => Dispatcher.BeginInvoke(() =>
+    {
+        if (_vm.Page == Page.Library)
+        {
+            var item = GameList.SelectedItem ?? (GameList.Items.Count > 0 ? GameList.Items[0] : null);
+            if (item is not null && GameList.ItemContainerGenerator.ContainerFromItem(item) is ListBoxItem lbi) { lbi.Focus(); return; }
+            GameList.Focus();
+            return;
+        }
+        MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
+    }, System.Windows.Threading.DispatcherPriority.Loaded);
 
     private void GameList_KeyDown(object sender, KeyEventArgs e)
     {

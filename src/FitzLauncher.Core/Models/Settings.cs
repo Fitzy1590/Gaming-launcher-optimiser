@@ -56,6 +56,12 @@ public sealed class LauncherSettings
 
     /// <summary>Accent and background colours follow the selected game's cover art.</summary>
     public bool MatchGameColours { get; set; } = true;
+
+    // ---- controllers
+    /// <summary>Drive the launcher's menus with a controller (D-pad/stick, A select, B back, LB/RB tabs).</summary>
+    public bool GamepadNavigation { get; set; } = true;
+    /// <summary>Controller tuning used for games without their own profile (off until enabled).</summary>
+    public ControllerProfile DefaultController { get; set; } = new();
     /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>
     public string? NxmPreviousCommand { get; set; }
 

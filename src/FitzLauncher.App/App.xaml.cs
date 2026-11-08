@@ -42,6 +42,7 @@ public partial class App : Application
             foreach (var line in services.GameMode.RecoverIfNeeded()) services.Log.Write("Recovered Game Mode: " + line);
             if (FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(services.Paths)) services.Log.Write("Unpaused a game left paused for sleep");
             FitzLauncher.Windows.PowerRequestOverride.Clear(services.Paths);
+            FitzLauncher.Windows.ControllerRemapper.RecoverIfNeeded(services.Paths);
             if (FitzLauncher.Windows.RyzenAdjClient.Find(services.Settings.RyzenAdjPath) is { } adj)
                 new FitzLauncher.Windows.RyzenAdjClient(adj, services.Paths).RecoverIfNeeded();
         });
