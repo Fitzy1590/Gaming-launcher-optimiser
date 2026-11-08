@@ -87,6 +87,9 @@ public sealed class Game
     /// <summary>Per-game controller tuning (deadzones, curves, vibration); null = use the default profile.</summary>
     public ControllerProfile? Controller { get; set; }
 
+    /// <summary>Official-version update check and the updates applied through the launcher.</summary>
+    public GameUpdateInfo Updates { get; set; } = new();
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

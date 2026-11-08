@@ -377,6 +377,7 @@
                     </DockPanel>
                     <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
                     <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,8,0,0" />
+                    <CheckBox Content="Check my games for official updates once a day (Steam/GOG versions; on the first launch of the day)" IsChecked="{Binding S.GameUpdateCheckDaily}" Margin="0,8,0,0" />
                     <CheckBox Content="Install it automatically (the launcher restarts itself; never while a game is running)" IsChecked="{Binding S.AutoInstallUpdates}" Margin="24,4,0,0"
                               IsEnabled="{Binding S.AutoCheckUpdates}" />
                     <DockPanel Margin="0,12,0,0">

@@ -62,6 +62,11 @@ public sealed class LauncherSettings
     public bool GamepadNavigation { get; set; } = true;
     /// <summary>Controller tuning used for games without their own profile (off until enabled).</summary>
     public ControllerProfile DefaultController { get; set; } = new();
+
+    // ---- game updates
+    /// <summary>Check official sources for game updates on the first launch of each day.</summary>
+    public bool GameUpdateCheckDaily { get; set; } = true;
+    public DateTimeOffset? LastGameUpdateCheck { get; set; }
     /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>
     public string? NxmPreviousCommand { get; set; }
 

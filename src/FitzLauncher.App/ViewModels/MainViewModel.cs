@@ -168,7 +168,7 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnSelectedChanged(GameViewModel? value)
     {
         Details?.Deactivate();
-        Details = value is null ? null : new GameDetailsViewModel(_s, value, g => _ = PlayAsync(g), RemoveGame, EditGame, RefreshLibraryMeta) { OpenModsAction = OpenMods };
+        Details = value is null ? null : new GameDetailsViewModel(_s, value, g => _ = PlayAsync(g), RemoveGame, EditGame, RefreshLibraryMeta) { OpenModsAction = OpenMods, IsPlayingCheck = () => IsPlaying };
         TintToGame(value);
     }
 
@@ -480,6 +480,34 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
     public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>First launch of the day: check official sources for game updates (in the background).</summary>
+    public async Task CheckGameUpdatesDailyAsync()
+    {
+        if (!_s.Settings.GameUpdateCheckDaily || _s.Settings.LastGameUpdateCheck?.LocalDateTime.Date == DateTime.Today) return;
+        await Task.Delay(TimeSpan.FromSeconds(20)); // after the launcher's own update check and start-up work
+        await CheckGameUpdatesAsync(manual: false);
+    }
+
+    [RelayCommand]
+    private Task CheckGameUpdates() => CheckGameUpdatesAsync(manual: true);
+
+    public async Task CheckGameUpdatesAsync(bool manual)
+    {
+        if (manual) ShowToast("Checking official versions for your games…");
+        try
+        {
+            var found = await _s.GameUpdates.CheckAllAsync(_s.Library.Games.ToList());
+            foreach (var g in Games) g.Refresh();
+            Details?.Reload();
+            if (found.Count > 0) ShowToast($"Game updates available: {string.Join(", ", found.Take(4).Select(g => g.Name))}{(found.Count > 4 ? $" and {found.Count - 4} more" : "")}. Open a game to see the details.");
+            else if (manual) ShowToast("No game updates found (games without a Steam or GOG match can't be checked).");
+        }
+        catch (Exception e) when (e is System.Net.Http.HttpRequestException or TaskCanceledException)
+        {
+            if (manual) ShowToast($"Couldn't check game updates: {e.Message}");
+        }
+    }
 
     /// <summary>Opens the Mods window for a game.</summary>
     public void OpenMods(Game game)

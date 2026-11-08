@@ -42,6 +42,7 @@ public sealed partial class GameViewModel : ObservableObject
     }
 
     /// <summary>Re-raise everything derived from the Game model after it changes.</summary>
+    public bool HasUpdate => Game.Updates.State is FitzLauncher.Core.Models.UpdateState.Available or FitzLauncher.Core.Models.UpdateState.ProbablyAvailable;
     public string Grade => Game.ReportGrade ?? "";
     public bool HasGrade => Game.ReportGrade is not null;
 

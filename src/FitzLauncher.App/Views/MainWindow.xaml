@@ -129,6 +129,7 @@
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                         <Button Click="AddGame_Click" ToolTip="Add a game exe or shortcut (Ctrl+N), or drag and drop exes or folders onto the window"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE710;" FontSize="14" /><TextBlock Text="Add game" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                         <Button Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Click="ScanFolders_Click" ToolTip="Pick your games folders, review everything found, and add only what you tick"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE8B7;" FontSize="14" /><TextBlock Text="Scan game folders" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
+                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding CheckGameUpdatesCommand}" ToolTip="Compare your games with their latest official versions (Steam/GOG)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE895;" FontSize="14" /><TextBlock Text="Game updates" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                         <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding BigPictureCommand}" ToolTip="Fullscreen controller mode (F11)"><StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE7FC;" FontSize="14" /><TextBlock Text="Big Picture" Margin="8,0,0,0" VerticalAlignment="Center" /></StackPanel></Button>
                     </StackPanel>
                     <Grid Width="320" HorizontalAlignment="Left">
@@ -284,6 +285,10 @@
                                 </Border>
                                 <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="14" Foreground="{StaticResource Text}" Margin="0,32,8,0" HorizontalAlignment="Right" VerticalAlignment="Top"
                                            Visibility="{Binding IsFavourite, Converter={StaticResource Vis}}" />
+                                <Border Background="{DynamicResource Accent}" CornerRadius="10" Padding="8,2" Margin="8,56,8,8" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                        Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" ToolTip="A newer official version is out">
+                                    <TextBlock Text="Update" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource OnAccent}" />
+                                </Border>
                                 <Border Background="{DynamicResource Accent}" CornerRadius="6" Padding="8,2" Margin="8,32,8,8" HorizontalAlignment="Left" VerticalAlignment="Top"
                                         Visibility="{Binding IsRunning, Converter={StaticResource Vis}}">
                                     <TextBlock Text="Playing" FontSize="12" FontWeight="Medium" Foreground="{StaticResource OnAccent}" />

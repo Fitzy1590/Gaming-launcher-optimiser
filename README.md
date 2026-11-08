@@ -189,6 +189,20 @@ download it into the launcher's trainers folder (or use one you downloaded), and
 starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
 often flag trainers; the launcher never changes antivirus settings and tells you what happened.
 
+### Game updates
+- **Official version check** once a day on the first launch (Settings → Updates), plus **Game updates** in the library
+  toolbar and **Check** on each game page. It compares your installed version (from the repack folder's "v1.2.3", the exe,
+  or the version you type) with official sources only: Steam patch notes and public build date for games matched to a
+  Steam app id, and GOG's published builds. Games with a newer version get an **Update** badge.
+- **Install update from file**: pick an update you already have (installer .exe, or a .zip/.7z/.rar of game files).
+  Saves are backed up first; archives back up exactly the files they replace, installers get a full copy of the game
+  (free space is checked first). The update is verified, and anything that fails is rolled back automatically.
+- **History and restore**: each update keeps its backup; **Restore previous** puts the old version back without
+  touching saves stored inside the game folder.
+- **When it can't update safely** (unreadable file, unclear layout, not enough space, installer error), you get an
+  alert and a step-by-step guide on the game page with links to the official patch notes, store page and support.
+- The launcher doesn't search for or download games or updates from repack or download sites.
+
 ### Controllers
 - **Menus with a controller** everywhere (library, game pages, Settings, Mods window, confirmation boxes): D-pad or left
   stick moves, **A** selects (on a game tile it plays), **B** goes back or closes, **LB/RB** switch pages or tabs, right

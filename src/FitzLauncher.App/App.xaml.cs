@@ -87,6 +87,7 @@ public partial class App : Application
         // Tell the user about games added to their saved game folders since last time.
         _ = vm.CheckLibraryFoldersAsync();
         _ = vm.CheckForUpdatesOnStartAsync();
+        _ = vm.CheckGameUpdatesDailyAsync();
         if (nxm is not null) _ = vm.HandleNxmAsync(nxm);
     }
 

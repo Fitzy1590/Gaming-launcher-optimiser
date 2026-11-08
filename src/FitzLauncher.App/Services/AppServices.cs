@@ -132,6 +132,8 @@ public sealed class AppServices : IDisposable
     private TrainerService? _trainers;
     private ThunderstoreClient? _thunderstore;
     public ModService Mods => _mods ??= new ModService(this);
+    private GameUpdateService? _gameUpdates;
+    public GameUpdateService GameUpdates => _gameUpdates ??= new GameUpdateService(this);
     public TrainerService Trainers => _trainers ??= new TrainerService(this);
     /// <summary>Longer timeout and a User-Agent for mod stores and downloads.</summary>
     public HttpClient StoreHttp { get; } = CreateStoreHttp();

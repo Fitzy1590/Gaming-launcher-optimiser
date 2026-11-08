@@ -406,3 +406,97 @@ public class ControllerMathTests
         Assert.Equal(FitzLauncher.Core.Input.ControllerMath.B, FitzLauncher.Core.Input.ControllerMath.Buttons(FitzLauncher.Core.Input.ControllerMath.A, swapFace: true));
     }
 }
+
+public class GameUpdateTests
+{
+    [Theory]
+    [InlineData("1.10", "1.9", 1)]
+    [InlineData("v1.2.0", "1.2", 0)]
+    [InlineData("1.0.3", "1.0.12", -1)]
+    public void Compares_versions_numerically(string a, string b, int expected) =>
+        Assert.Equal(expected, Math.Sign(FitzLauncher.Core.GameUpdates.GameUpdateLogic.Compare(a, b)!.Value));
+
+    [Theory]
+    [InlineData("Patch 1.6.2 is now live", "1.6.2")]
+    [InlineData("Hotfix v1.04 notes", "1.04")]
+    [InlineData("Update 2.1: new region", "2.1")]
+    [InlineData("Version 3.0.1a released", "3.0.1a")]
+    [InlineData("Winter sale starts 12.12", null)]
+    public void Reads_version_from_patch_titles(string title, string? expected) =>
+        Assert.Equal(expected, FitzLauncher.Core.GameUpdates.GameUpdateLogic.VersionFromTitle(title));
+
+    [Fact]
+    public void Decides_by_version_then_by_date()
+    {
+        Assert.Equal(FitzLauncher.Core.Models.UpdateState.Available, FitzLauncher.Core.GameUpdates.GameUpdateLogic.Decide("1.2", "1.3", null, null).state);
+        Assert.Equal(FitzLauncher.Core.Models.UpdateState.UpToDate, FitzLauncher.Core.GameUpdates.GameUpdateLogic.Decide("1.3", "1.3", null, null).state);
+        var now = DateTimeOffset.Now;
+        Assert.Equal(FitzLauncher.Core.Models.UpdateState.ProbablyAvailable, FitzLauncher.Core.GameUpdates.GameUpdateLogic.Decide(null, null, now, now.AddDays(-30)).state);
+        Assert.Equal(FitzLauncher.Core.Models.UpdateState.CantCheck, FitzLauncher.Core.GameUpdates.GameUpdateLogic.Decide(null, null, null, null).state);
+    }
+
+    [Fact]
+    public void Plans_archive_by_matching_existing_files_and_rolls_back()
+    {
+        using var t = new TestDir();
+        var game = t.Dir("game");
+        t.File("game/Game.exe", "old exe");
+        t.File("game/Data/a.pak", "old pak");
+        var zip = t.Path_("patch.zip");
+        using (var z = System.IO.Compression.ZipFile.Open(zip, System.IO.Compression.ZipArchiveMode.Create))
+        {
+            using (var w = new StreamWriter(z.CreateEntry("Game v1.3 Update/Game.exe").Open())) w.Write("new exe");
+            using (var w = new StreamWriter(z.CreateEntry("Game v1.3 Update/Data/b.pak").Open())) w.Write("new pak");
+        }
+        var entries = FitzLauncher.Core.Mods.ModArchive.ListEntries(zip);
+        var plan = FitzLauncher.Core.GameUpdates.GameUpdater.Plan(zip, entries, rel => File.Exists(Path.Combine(game, rel.Replace('/', Path.DirectorySeparatorChar))));
+        Assert.Equal(FitzLauncher.Core.GameUpdates.UpdatePackageKind.Files, plan.Kind);
+        Assert.Equal(1, plan.MatchedExisting);
+        Assert.Contains(plan.Files, f => f.Dest == "Game.exe");
+
+        var u = new FitzLauncher.Core.GameUpdates.GameUpdater(game, t.Path_("backup"));
+        u.BackupFor(plan);
+        u.ApplyFiles(zip, plan);
+        Assert.Empty(u.Verify(plan));
+        Assert.Equal("new exe", File.ReadAllText(Path.Combine(game, "Game.exe")));
+
+        Assert.Empty(u.Rollback());
+        Assert.Equal("old exe", File.ReadAllText(Path.Combine(game, "Game.exe")));
+        Assert.False(File.Exists(Path.Combine(game, "Data", "b.pak")));
+        Assert.True(File.Exists(Path.Combine(game, "Data", "a.pak")));
+    }
+
+    [Fact]
+    public void Installer_in_archive_is_detected()
+    {
+        var plan = FitzLauncher.Core.GameUpdates.GameUpdater.Plan("u.zip", ["Update/setup.exe", "Update/setup-1.bin"], _ => false);
+        Assert.Equal(FitzLauncher.Core.GameUpdates.UpdatePackageKind.InstallerInArchive, plan.Kind);
+        Assert.Equal("Update/setup.exe", plan.InstallerEntry);
+    }
+}
+
+public class GameUpdateRollbackTests
+{
+    [Fact]
+    public void Full_restore_keeps_saves_inside_the_game_folder()
+    {
+        using var t = new TestDir();
+        var game = t.Dir("game");
+        t.File("game/Game.exe", "v1");
+        t.File("game/saves/slot1.sav", "old progress");
+        var u = new FitzLauncher.Core.GameUpdates.GameUpdater(game, t.Path_("backup"));
+        u.FullBackup();
+
+        // The update changed the exe and added a file; the player saved afterwards.
+        File.WriteAllText(Path.Combine(game, "Game.exe"), "v2");
+        File.WriteAllText(Path.Combine(game, "new.dll"), "x");
+        File.WriteAllText(Path.Combine(game, "saves", "slot1.sav"), "new progress");
+        File.WriteAllText(Path.Combine(game, "saves", "slot2.sav"), "brand new save");
+
+        Assert.Empty(u.Rollback(rel => rel.StartsWith("saves/")));
+        Assert.Equal("v1", File.ReadAllText(Path.Combine(game, "Game.exe")));
+        Assert.False(File.Exists(Path.Combine(game, "new.dll")));
+        Assert.Equal("new progress", File.ReadAllText(Path.Combine(game, "saves", "slot1.sav")));
+        Assert.True(File.Exists(Path.Combine(game, "saves", "slot2.sav")));
+    }
+}

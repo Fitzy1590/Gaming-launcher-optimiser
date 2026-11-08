@@ -315,6 +315,72 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Game updates -->
+                <DockPanel Margin="0,24,0,8">
+                    <Button DockPanel.Dock="Right" Content="Check" Style="{StaticResource GhostButton}" Command="{Binding CheckGameUpdateCommand}" />
+                    <TextBlock Text="Game updates" Style="{StaticResource H2}" Margin="0" VerticalAlignment="Center" />
+                </DockPanel>
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8" Fill="{DynamicResource Accent}" Margin="0,0,8,0" VerticalAlignment="Center" Visibility="{Binding UpdateIsAvailable, Converter={StaticResource Vis}}" />
+                            <TextBlock Text="{Binding UpdateStatus}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                        </StackPanel>
+                        <TextBlock Text="{Binding UpdateDetail}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                        <TextBlock Text="{Binding LatestText}" Style="{StaticResource MutedText}" Margin="0,4,0,0" Visibility="{Binding LatestText, Converter={StaticResource HasValue}}" />
+                        <DockPanel Margin="0,12,0,0">
+                            <TextBlock DockPanel.Dock="Left" Text="Installed version" VerticalAlignment="Center" Width="120" />
+                            <Button DockPanel.Dock="Right" Content="Save" Margin="8,0,0,0" Command="{Binding SaveInstalledVersionCommand}" />
+                            <TextBox Text="{Binding InstalledVersionInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="Read from the repack folder name or the exe. Correct it here if it's wrong." />
+                        </DockPanel>
+                        <WrapPanel Margin="0,12,0,0">
+                            <Button Content="Install update from file…" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8" Command="{Binding InstallGameUpdateCommand}"
+                                    ToolTip="An update you already have: installer .exe or an archive of game files. Saves and files are backed up first and restored if anything fails." />
+                            <Button Content="Patch notes" Margin="0,0,8,8" Command="{Binding OpenPatchNotesCommand}" Visibility="{Binding HasPatchNotes, Converter={StaticResource Vis}}" />
+                            <Button Content="Store page" Margin="0,0,8,8" Command="{Binding OpenStorePageCommand}" Visibility="{Binding HasStorePage, Converter={StaticResource Vis}}" />
+                            <Button Content="How to update by hand" Style="{StaticResource GhostButton}" Margin="0,0,8,8" Command="{Binding ShowUpdateGuideCommand}" />
+                        </WrapPanel>
+                        <ItemsControl ItemsSource="{Binding UpdateHistory}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,8,0,0">
+                                        <Button DockPanel.Dock="Right" Content="Restore previous" Style="{StaticResource GhostButton}" Command="{Binding RestoreCommand}" VerticalAlignment="Top"
+                                                Visibility="{Binding CanRestore, Converter={StaticResource Vis}}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" Foreground="{StaticResource Text}" FontSize="13" />
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+                <!-- Manual update guide (shown when the launcher can't do it safely) -->
+                <Border Style="{StaticResource Card}" BorderBrush="{StaticResource Warn}" Visibility="{Binding HasGuide, Converter={StaticResource Vis}}">
+                    <StackPanel>
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding CloseGuideCommand}" ToolTip="Close"><TextBlock Style="{StaticResource Icon}" Text="&#xE711;" FontSize="12" /></Button>
+                            <TextBlock Text="{Binding GuideTitle}" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <TextBlock Text="{Binding GuideReason}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}" Margin="0,4,0,8" />
+                        <ItemsControl ItemsSource="{Binding GuideSteps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,0,0,4" /></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <WrapPanel Margin="0,8,0,0">
+                            <Button Content="Open game folder" Margin="0,0,8,8" Command="{Binding OpenFolderCommand}" />
+                            <ItemsControl ItemsSource="{Binding GuideLinks}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate><Button Content="{Binding Label}" Margin="0,0,8,8" Command="{Binding OpenCommand}" /></DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- Mods & trainer -->
                 <TextBlock Text="Mods" Style="{StaticResource H2}" />
                 <Border Style="{StaticResource Card}">
