@@ -351,6 +351,13 @@
                     </DockPanel>
                     <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
                     <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,8,0,0" />
+                    <CheckBox Content="Install it automatically (the launcher restarts itself; never while a game is running)" IsChecked="{Binding S.AutoInstallUpdates}" Margin="24,4,0,0"
+                              IsEnabled="{Binding S.AutoCheckUpdates}" />
+                    <DockPanel Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Right" Content="Reinstall latest version" Command="{Binding ReinstallLatestCommand}" />
+                        <TextBlock Text="Force update: downloads the latest release and reinstalls it, even if you already have it. Use it if files are damaged or antivirus removed one."
+                                   Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    </DockPanel>
                     <TextBlock Text="Private repository? Paste a GitHub token with read access to it (fine-grained token → Contents: Read-only). It's stored encrypted with your Windows account. Not needed if the repository is public."
                                Style="{StaticResource Wrap}" Margin="0,8,0,8" />
                     <DockPanel>

@@ -68,7 +68,14 @@ public sealed partial class MainViewModel : ObservableObject
         if (!_s.Settings.AutoCheckUpdates) return;
         await Task.Delay(TimeSpan.FromSeconds(3)); // let the library paint first
         var r = await _s.Updates.CheckAsync();
-        if (r.Available) ShowUpdate(r.Release!);
+        if (!r.Available) return;
+        ShowUpdate(r.Release!);
+        // Auto-install: never mid-game (the update restarts the launcher); the banner stays as a fallback.
+        if (_s.Settings.AutoInstallUpdates && !IsPlaying && !IsUpdating)
+        {
+            ShowToast($"Updating to {r.Release!.Version}. The launcher will restart in a moment.");
+            await InstallUpdateAsync();
+        }
     }
 
     public void ShowUpdate(FitzLauncher.Core.Updates.ReleaseInfo release)

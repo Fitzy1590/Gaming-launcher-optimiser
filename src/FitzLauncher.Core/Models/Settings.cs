@@ -42,6 +42,8 @@ public sealed class LauncherSettings
     /// <summary>For engines without a render-scale setting, allow a lower output resolution to reach the target.</summary>
     public bool AllowLowerOutputResolution { get; set; }
     public bool AutoCheckUpdates { get; set; } = true;
+    /// <summary>Install a new version found at start-up without asking (skipped while a game runs).</summary>
+    public bool AutoInstallUpdates { get; set; } = true;
     /// <summary>DPAPI-protected GitHub token, only needed while the repository is private.</summary>
     public string? GitHubTokenProtected { get; set; }
 

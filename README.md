@@ -221,8 +221,10 @@ A single clean RTSS line, `102 FPS · GPU 77°C · CPU 78°C`, with a short note
 active. Choose Off / FPS + temps / Detailed in Settings.
 
 ### Updates
-The launcher checks Releases at start-up (optional) and has **Check for updates** in Settings. **Install and restart**
-downloads the new build, swaps the files and reopens. Your library, settings and backups are kept. While the
+The launcher checks Releases at start-up and, by default, **installs a new version automatically** and restarts (never
+while a game is running; turn it off in Settings → Updates to get a banner instead). Settings also has **Check for
+updates** and **Reinstall latest version**, a force update that reinstalls the current release to repair damaged or
+removed files. Updates swap the program files only: your library, settings and backups are kept. While the
 repository is private, add a read-only GitHub token in Settings → Updates (it's stored encrypted).
 
 ### Hardware scan

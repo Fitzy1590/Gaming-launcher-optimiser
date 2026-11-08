@@ -486,6 +486,20 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (r.Available) ShowUpdate?.Invoke(r.Release!);
     }
 
+    /// <summary>Downloads and reinstalls the latest release even if it's the version you have (repairs missing or damaged files).</summary>
+    [RelayCommand]
+    private async Task ReinstallLatestAsync()
+    {
+        if (MessageBox.Show("Download the latest release and reinstall it over this copy? The launcher restarts; your library, settings and backups are kept.",
+                "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        UpdateStatus = "Finding the latest release…";
+        var r = await _s.Updates.CheckAsync();
+        if (r.Release is null) { UpdateStatus = r.Message; return; }
+        UpdateStatus = $"Reinstalling {r.Release.Version}…";
+        ShowUpdate?.Invoke(r.Release);
+        if (InstallUpdate is not null) await InstallUpdate();
+    }
+
     [RelayCommand]
     private async Task InstallUpdateNowAsync()
     {
