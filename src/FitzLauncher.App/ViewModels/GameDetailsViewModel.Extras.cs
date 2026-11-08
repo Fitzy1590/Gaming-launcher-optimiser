@@ -227,6 +227,44 @@ public sealed partial class GameDetailsViewModel
 
     public bool ThermalGuardOn { get => Game.ThermalGuard; set { Game.ThermalGuard = value; _s.SaveLibrary(); } }
     public bool PauseOnSleepOn { get => Game.PauseOnSleep; set { Game.PauseOnSleep = value; _s.SaveLibrary(); } }
+    public bool SmoothOn { get => Game.Stabilise ?? _s.Settings.StabiliseByDefault; set { Game.Stabilise = value; _s.SaveLibrary(); } }
+
+    // ------------------------------------------------------------------ in-game overlay
+
+    /// <summary>"Default" (global layout), "Custom" (this game's own) or "Off".</summary>
+    public string OverlayMode
+    {
+        get => Game.Overlay is null ? "Default" : Game.Overlay.Enabled ? "Custom" : "Off";
+        set
+        {
+            switch (value)
+            {
+                case "Default": Game.Overlay = null; break;
+                case "Custom":
+                    if (Game.Overlay is null || !Game.Overlay.Enabled) { Game.Overlay = _s.Settings.EffectiveOverlay.Clone(); Game.Overlay.Enabled = true; }
+                    break;
+                case "Off":
+                    Game.Overlay ??= _s.Settings.EffectiveOverlay.Clone();
+                    Game.Overlay.Enabled = false;
+                    break;
+            }
+            _gameOverlayEditor = null;
+            _s.SaveLibrary();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(GameOverlayEditor));
+            OnPropertyChanged(nameof(OverlayText));
+        }
+    }
+
+    private OverlayEditorViewModel? _gameOverlayEditor;
+    public OverlayEditorViewModel? GameOverlayEditor => Game.Overlay is { } o ? _gameOverlayEditor ??= new OverlayEditorViewModel(o, _s.SaveLibrary) : null;
+
+    public string OverlayText => OverlayMode switch
+    {
+        "Off" => "No launcher overlay in this game (Afterburner's own, if any, still shows).",
+        "Custom" => "This game's own layout.",
+        _ => _s.Settings.EffectiveOverlay.Enabled ? "Using your default layout from Settings → RTSS & MSI Afterburner." : "Your default is off (Settings → RTSS & MSI Afterburner).",
+    };
 
     public bool AutoTuneOn
     {

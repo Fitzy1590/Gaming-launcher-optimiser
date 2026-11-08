@@ -207,6 +207,11 @@ public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly AppServices _s;
     public LauncherSettings S => _s.Settings;
+
+    private OverlayEditorViewModel? _overlayEditor;
+    /// <summary>The default in-game overlay layout.</summary>
+    public OverlayEditorViewModel OverlayEditor => _overlayEditor ??= new OverlayEditorViewModel(_s.Settings.EffectiveOverlay, _s.SaveSettings);
+    public bool StabiliseByDefault { get => _s.Settings.StabiliseByDefault; set { _s.Settings.StabiliseByDefault = value; _s.SaveSettings(); OnPropertyChanged(); } }
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
     public int[] Targets => LauncherSettings.FpsTargets;

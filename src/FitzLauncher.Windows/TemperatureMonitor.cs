@@ -3,7 +3,11 @@ using LibreHardwareMonitor.Hardware;
 namespace FitzLauncher.Windows;
 
 public readonly record struct SensorReading(
-    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName);
+    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName, double? CpuPowerW = null)
+{
+    /// <summary>Best "how much power is the chip drawing" figure: CPU package (the whole APU on handhelds), else GPU.</summary>
+    public double? Watts => CpuPowerW ?? GpuPowerW;
+}
 
 /// <summary>
 /// CPU/GPU sensors with no double polling:
@@ -30,6 +34,7 @@ public sealed class TemperatureMonitor : IDisposable
             var ab = PreferAfterburner() ? AfterburnerReader.TryRead() : null;
             double? cpuT = ab?.CpuTempC, gpuT = ab?.GpuTempC, hot = ab?.GpuHotspotC, cpuL = ab?.CpuLoad, gpuL = ab?.GpuLoad, power = ab?.GpuPowerW;
             string? cpuName = null, gpuName = null;
+            double? cpuPower = null;
 
             if (gpuT is null)
             {
@@ -39,14 +44,14 @@ public sealed class TemperatureMonitor : IDisposable
             if (cpuT is null)
             {
                 var c = ReadLhm(ref _cpu, ref _cpuFailed, gpu: false);
-                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName;
+                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW;
             }
 
             CpuTemperatureAvailable = cpuT is > 0;
             Source = ab is null ? "LibreHardwareMonitor"
                    : ab.Value.CpuTempC is null ? "MSI Afterburner (GPU) + LibreHardwareMonitor (CPU)"
                    : "MSI Afterburner";
-            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName);
+            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName, cpuPower);
         }
     }
 
@@ -61,7 +66,7 @@ public sealed class TemperatureMonitor : IDisposable
             computer = c;
         }
 
-        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null;
+        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null, cpuPower = null;
         string? cpuName = null, gpuName = null;
         foreach (var hw in computer.Hardware)
         {
@@ -75,6 +80,7 @@ public sealed class TemperatureMonitor : IDisposable
                             Sensor(hw, SensorType.Temperature, "Tctl") ??
                             Max(hw, SensorType.Temperature);
                 cpuLoad ??= Sensor(hw, SensorType.Load, "CPU Total");
+                cpuPower ??= Sensor(hw, SensorType.Power, "Package") ?? Sensor(hw, SensorType.Power, "CPU Package");
             }
             else if (hw.HardwareType.ToString().StartsWith("Gpu", StringComparison.Ordinal))
             {
@@ -88,7 +94,7 @@ public sealed class TemperatureMonitor : IDisposable
                 gpuPower = Sensor(hw, SensorType.Power, "GPU Package") ?? Sensor(hw, SensorType.Power, "GPU Power");
             }
         }
-        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName);
+        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName, cpuPower);
     }
 
     private static double? Sensor(IHardware hw, SensorType type, string name)

@@ -51,6 +51,10 @@ public sealed class Game
     // ---- performance automation
     public CorePinning CorePinning { get; set; } = CorePinning.Auto;
     public bool ThermalGuard { get; set; } = true;
+    /// <summary>Smoothness mode: hold the highest steady FPS the game can sustain (null: the global default).</summary>
+    public bool? Stabilise { get; set; }
+    /// <summary>This game's own overlay layout (null: the global one).</summary>
+    public OverlaySettings? Overlay { get; set; }
     public AutoTuneState AutoTune { get; set; } = new();
 
     // ---- display

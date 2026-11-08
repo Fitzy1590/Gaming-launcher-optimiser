@@ -211,9 +211,21 @@
                 </ItemsControl>
                 <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
                 <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,8,0,0" />
+                <CheckBox Content="Smoothness mode: settle the cap where this game holds steady FPS, climb back when there's headroom" IsChecked="{Binding SmoothOn}" Margin="0,8,0,0"
+                          ToolTip="An even frame rate feels smoother than a higher one that keeps dipping. Never goes above your cap." />
                 <CheckBox Content="Pause this game while the device sleeps (turn off for online games)" IsChecked="{Binding PauseOnSleepOn}" Margin="0,8,0,0" />
 
                 <TextBlock Text="{Binding LimiterText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" Visibility="{Binding LimiterText, Converter={StaticResource HasValue}}" />
+
+                <!-- In-game overlay -->
+                <TextBlock Text="In-game overlay" Style="{StaticResource H2}" Margin="0,24,0,8" />
+                <WrapPanel>
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameoverlay" Content="My default" IsChecked="{Binding OverlayMode, Converter={StaticResource Eq}, ConverterParameter=Default}" />
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameoverlay" Content="Custom for this game" IsChecked="{Binding OverlayMode, Converter={StaticResource Eq}, ConverterParameter=Custom}" />
+                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameoverlay" Content="Off in this game" IsChecked="{Binding OverlayMode, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                </WrapPanel>
+                <views:OverlayEditor DataContext="{Binding GameOverlayEditor}" Margin="0,8,0,0" Visibility="{Binding DataContext.OverlayMode, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource PageVis}, ConverterParameter=Custom}" />
+                <TextBlock Text="{Binding OverlayText}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
 
                 <!-- Power (APUs) -->
                 <StackPanel Visibility="{Binding ShowPower, Converter={StaticResource Vis}}">

@@ -329,8 +329,12 @@ public sealed class GameSession(
         }
         if (settings.ThermalGuard.Enabled && game.ThermalGuard && rtss is null && game.FpsTarget is not null)
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
-        var overlayStyle = settings.RtssOverlay ? settings.Overlay : OverlayStyle.Off;
-        var overlay = overlayStyle != OverlayStyle.Off && rtss is not null;
+        var overlayLayout = game.Overlay ?? settings.EffectiveOverlay;
+        var overlay = overlayLayout.Enabled && rtss is not null;
+        // Smoothness mode: hold the highest FPS the game sustains, at or under the cap.
+        var stabiliser = (game.Stabilise ?? settings.StabiliseByDefault) && rtss is not null && Cap is > 0 and { } stabCap ? new FpsStabiliser(stabCap) : null;
+        var stabiliserUsed = false;
+        if (stabiliser is not null) Status?.Invoke("Smoothness mode on: the cap settles where the game holds steady");
 
         // ---------------------------------------------------------------- CPU pinning
         var affinity = CpuAffinityPlanner.Plan(cpuTopology, game.CorePinning);
@@ -424,7 +428,7 @@ public sealed class GameSession(
 
                 ThermalGovernor? currentGuard;
                 lock (_capLock) currentGuard = _guard;
-                if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
+                if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } guardCap && Math.Min(guardCap, stabiliser?.Current ?? guardCap) is var newCap && rtss!.SetFramerateLimit(renderExe, newCap))
                 {
                     Status?.Invoke(currentGuard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
                     // Cooler modes also trim the APU's power while hot, and give it back once cool.
@@ -437,9 +441,22 @@ public sealed class GameSession(
                             }
                 }
 
+                // Smoothness mode: follow what the game can hold (the thermal guard and idle cap win while active).
+                if (stabiliser is not null)
+                {
+                    if (Cap is > 0 and { } ceiling && ceiling != stabiliser.Ceiling) stabiliser.SetCeiling(ceiling); // quick switch changed it
+                    if (_sleep.IsPaused || BenchmarkSecondsLeft() is not null) stabiliser.Reset();
+                    else if (currentGuard is not { IsThrottling: true } && idleGov is not { Idle: true }
+                             && stabiliser.Update(fps.CurrentFps, DateTime.UtcNow, r.GpuLoad) is { } steady && rtss!.SetFramerateLimit(renderExe, steady))
+                    {
+                        stabiliserUsed = true;
+                        Note(steady < stabiliser.Ceiling ? $"Steady at {steady} FPS" : $"Back to {steady} FPS");
+                    }
+                }
+
                 // Adaptive cap: no input for a while (menus, maps, cutscenes) → lower cap; any input → back.
                 // The thermal guard wins while it's cooling things down.
-                if (idleGov is not null && currentGuard is not { IsThrottling: true } && (currentGuard?.CurrentCap ?? Cap) is { } normalCap)
+                if (idleGov is not null && currentGuard is not { IsThrottling: true } && (currentGuard?.CurrentCap ?? Cap) is { } guardOrCap && Math.Min(guardOrCap, stabiliser?.Current ?? guardOrCap) is var normalCap)
                 {
                     var keys = InputIdle.SinceLastKeyboardOrMouse();
                     var pad = LastControllerInput is { } lci ? DateTime.UtcNow - lci() : TimeSpan.MaxValue;
@@ -466,9 +483,11 @@ public sealed class GameSession(
                 var recorder = fps.PrimaryRecorder;
                 var p99 = recorder?.FrameTimePercentile(99) ?? 0;
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
-                    DateTimeOffset.Now - start, currentGuard?.CurrentCap ?? Cap, currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
+                    DateTimeOffset.Now - start, MinCap(currentGuard?.CurrentCap ?? Cap, stabiliser?.Current), currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
                     DateTime.Now < _noteUntil ? _note : null);
-                if (overlay) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayLine(live, overlayStyle));
+                if (overlay) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
+                    new OverlayValues(live.Fps, live.OnePercentLow, r.Watts, r.CpuTempC, r.GpuTempC, r.GpuLoad, live.Cap, live.ThermalThrottling,
+                        stabiliser?.Lowered == true, live.BenchmarkSecondsLeft, live.Note, DateTime.Now)));
                 Live?.Invoke(live);
             }
         }
@@ -486,7 +505,7 @@ public sealed class GameSession(
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
         limiter?.RestoreAll();
-        if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null || idleCapUsed)
+        if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null || idleCapUsed || stabiliserUsed)
         {
             // Put back what should stay: an in-game choice, the optimised cap, or no cap if none was set.
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
@@ -598,24 +617,5 @@ public sealed class GameSession(
         return string.Join("  ·  ", parts);
     }
 
-    /// <summary>
-    /// Our RTSS line. Default: just current FPS and temperatures. Extra info only appears while it matters
-    /// (thermal guard lowering the cap, a benchmark recording).
-    /// </summary>
-    internal static string OverlayLine(LiveStats l, OverlayStyle style)
-    {
-        var parts = new List<string>();
-        if (l.Fps > 0) parts.Add($"{l.Fps:0} FPS");
-        if (l.GpuTempC is { } g) parts.Add($"GPU {g:0}°C");
-        if (l.CpuTempC is { } c) parts.Add($"CPU {c:0}°C");
-        if (style == OverlayStyle.Detailed)
-        {
-            if (l.Cap is { } cap) parts.Add($"cap {cap}");
-            if (l.OnePercentLow > 0) parts.Add($"1% low {l.OnePercentLow:0}");
-        }
-        if (l.ThermalThrottling && l.Cap is { } tc) parts.Add($"cooling: cap {tc}");
-        if (l.Note is { } note) parts.Add(note);
-        if (l.BenchmarkSecondsLeft is { } b) parts.Add($"benchmark {b}s");
-        return string.Join("  ·  ", parts);
-    }
+    private static int? MinCap(int? a, int? b) => a is { } x && b is { } y ? Math.Min(x, y) : a ?? b;
 }

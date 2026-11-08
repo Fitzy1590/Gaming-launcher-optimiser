@@ -2,7 +2,7 @@ namespace FitzLauncher.Core.Models;
 
 public sealed class LauncherSettings
 {
-    public static readonly int[] FpsTargets = [90, 100, 110, 117];
+    public static readonly int[] FpsTargets = [90, 100, 110, 117, 141];
 
     public int DefaultFpsTarget { get; set; } = 117;
 
@@ -30,6 +30,11 @@ public sealed class LauncherSettings
     public bool RtssOverlay { get; set; } = true;
     /// <summary>The launcher's line in the RTSS on-screen display (its own slot; Afterburner's lines are untouched).</summary>
     public OverlayStyle Overlay { get; set; } = OverlayStyle.FpsAndTemps;
+    /// <summary>Overlay layout and items for games without their own (null: built from the old style setting).</summary>
+    public OverlaySettings? OverlayLayout { get; set; }
+    public OverlaySettings EffectiveOverlay => OverlayLayout ??= OverlaySettings.FromLegacy(RtssOverlay, Overlay);
+    /// <summary>Smoothness mode (FPS stabiliser) for games that haven't chosen.</summary>
+    public bool StabiliseByDefault { get; set; }
     /// <summary>Use MSI Afterburner's sensor readings when it's running, so two tools don't poll the same sensors.</summary>
     public bool PreferAfterburnerSensors { get; set; } = true;
     public bool AutoTuneNewGames { get; set; } = true;
