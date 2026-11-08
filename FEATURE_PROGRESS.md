@@ -1,51 +1,42 @@
 # Feature progress
 
-Checkpoint for work across sessions. Update it when a feature changes state. Status values: **done** (shipped), **wip** (in progress), **todo** (not started), **issue** (shipped but reported broken).
+Checkpoint across sessions. Base checks `B` apply to every item:
+- **B1** `dotnet build FitzLauncher.slnx` → 0 errors
+- **B2** `dotnet test tests/FitzLauncher.Core.Tests` → 0 failed
+- **B3** CI `build.yml` green on `main`, release `v0.3.N` published
 
-## Launcher and game detection (`Core/Scanning`, `Core/Runtimes`)
-| Module | Status | Notes |
-|---|---|---|
-| Library folder scan (`LibraryFolderScanner`, `ExeCandidateFinder`, `GameNameCleaner`) | done | Repack folder layouts, picks the main exe, cleans names |
-| Game scan (`GameScanner`, `BinaryFeatureScanner`, `PeImports`) | done | Engine, APIs, upscalers, anti-cheat |
-| Runtime/redist detection (`RedistService`) | done | |
-| Game updates from official sources (`Core/GameUpdates`) | done | Official sources only, no repack sites |
-| Mods: Nexus/Thunderstore/mod.io, FOMOD, update alerts | done | |
-| Upscaler DLL updater + OptiScaler (`Core/Upscalers`) | done | Daily swap, anti-cheat games skipped |
+UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 
-## Process and performance optimisation (`Core/Optimization`, `Windows`)
-| Module | Status | Notes |
-|---|---|---|
-| Game Mode: priority, background limiter (`GameModeController`, `CpuHogDetector`) | done | Restored on exit |
-| CPU pinning (`CpuAffinityPlanner`) | done | |
-| FPS caps via RTSS, per-screen caps, quick switch, 141 target | done | |
-| Thermal guard, idle cap, cooling modes | done | |
-| APU power limit + undervolt (RyzenAdj) | done | |
-| Smoothness mode (`FpsStabiliser`) | issue | User reports games *feel* less smooth with it on |
-| Per-game overlay layouts + watts (`OverlayFormatter`) | done | |
-| Low-power sleep (`LowPowerSleep`) | done | Not yet confirmed on device |
-| Optimise applies the best known session settings (resolution/render scale) as a baseline | todo | Requested |
-| In-game graphics settings and resolution suggestions to reach the target FPS | todo | Requested |
-| Handheld wattage advisor: learn watts per target, apply at launch/optimise, restore after | todo | Requested; partly exists (per-game power learning) |
+## 1. Implemented
 
-## Controllers (`Windows/Controllers`, `PlayStationPads`, `ConsoleBridge`, App `GamepadNavigator`)
-| Module | Status | Notes |
-|---|---|---|
-| Menu navigation (XInput + Sony HID) | done | Spatial focus moves |
-| Per-game profiles (ViGEm + HidHide) | issue | DualShock stops working when on; deadzone sliders still not editable |
-| PS button → OneXConsole + pad mirroring | done | Not yet confirmed on device |
+### Game/launcher detection (`Core/Scanning`, `Core/GameUpdates`, `Core/Upscalers`)
+- [x] Library folder scan + exe pick + name clean (`LibraryFolderScanner`, `ExeCandidateFinder`, `GameNameCleaner`). Verify: B1, B2, `--filter ScanningTests`
+- [x] Engine/API/upscaler/anti-cheat scan (`GameScanner`, `BinaryFeatureScanner`, `PeImports`). Verify: B2, `--filter ScanningTests`
+- [x] Official-source game update checks. Verify: B2, `--filter Batch4Tests`
+- [x] Upscaler DLL updater + OptiScaler (anti-cheat games skipped). Verify: B1; on Windows, the game page lists the DLL versions after a swap
 
-## UI views (`App/Views`)
-| View | Status | Notes |
-|---|---|---|
-| MainWindow (tabs, full screen) | done | |
-| Home, Library/GameDetails, Mods, Storage, Hardware, Sessions, Settings, About | done | |
-| BigPictureWindow | done | |
-| ControllerProfileEditor | issue | See controllers |
-| OverlayEditor | done | |
-| Theme tokens (`Theme.xaml`) | done | Scrollbars and sliders reworked |
+### Process priority / performance (`Windows/GameModeController`, `SessionHelpers`, `Core/Optimization`)
+- [x] Game priority raise + background hog throttle to Idle, restored on exit (`CpuHogDetector`, `BackgroundLimiter`). Verify: B2, `--filter OptimizationTests`; on Windows, Task Manager shows the hog back at its original priority after the session
+- [x] CPU affinity planning (`CpuAffinityPlanner`). Verify: B2, `--filter OptimizationTests`
+- [x] RTSS caps, per-screen clamp, quick switch, 141 target. Verify: B2, `--filter OverlayAndStabiliserTests.Includes141Target`
+- [x] Thermal guard, idle cap, cooling modes, RyzenAdj power/undervolt with restore files. Verify: B1, B2; after a session, `ryzenadj --info` matches the values from before the session
+- [x] Overlay layouts + watts (`OverlayFormatter`). Verify: `--filter OverlayAndStabiliserTests`
+- [x] Low-power sleep (`LowPowerSleep`). Verify: B1; on Windows, screen off → `powercfg /getactivescheme` overlay = efficiency, then restored on wake
 
-## Next up
-1. Fix the controller profile (DualShock + HidHide, slider editing).
-2. Investigate smoothness mode feel (RTSS limit changes, limiter mode), and pull it if it can't be fixed.
-3. Optimise applies the session baseline, plus graphics/resolution suggestions.
-4. Handheld wattage advisor with auto-apply and revert.
+### Views (`App/Views`, WPF)
+- [x] MainWindow (tabs, borderless full screen Alt+Enter), Home, GameDetails, Mods, Storage, Hardware, Sessions, Settings, About, BigPicture, OverlayEditor. Verify: B1 (XAML compiles); `dotnet run --project src/FitzLauncher.App` on Windows opens with no binding errors in the debug output
+- [x] Controller navigation (XInput + DualShock/DualSense HID). Verify: `--filter PlayStationTests`; on Windows, the D-pad moves focus on the Settings page
+
+## 2. Active work
+- [ ] **Smoothness mode (`FpsStabiliser`)**: reported as feeling worse at the same FPS. Suspect: live RTSS limit rewrites / reloads disturbing frame pacing. Verify: B2; frametime p99 with it on is no worse than with it off (A/B benchmark on the same game)
+- [ ] **Controller profiles (ViGEm + HidHide)**: DualShock dead when on; deadzone sliders not applying. Verify: B1; on Windows, a slider drag changes `Library.json` → `Controller.LeftStick.InnerDeadzone`, and the pad works in a game with the profile on
+- [ ] **Optimise = session baseline**: apply the best session's resolution/render scale when its FPS was ≥ 95 % of the cap. Verify: new Core test `--filter SessionBaseline*`, B2
+- [ ] **Graphics/resolution advisor** to reach a stable target. Verify: new Core tests, B2
+- [ ] **Handheld wattage advisor**: learn W per target, apply at launch/Optimise, restore after. Verify: new Core tests; on Windows, `ryzenadj --info` before = after the session
+
+## 3. Backlog
+- [ ] Fluent layout contracts per `.claude/rules/windows-ui.md` (4 px spacing grid, 32 px minimum touch targets, `AutomationProperties.Name` on icon buttons). Verify: B1; `grep -rn 'Background="#' src/FitzLauncher.App/Views` → only preview mock-ups; Accessibility Insights FastPass shows 0 failures
+- [ ] Process elevation controls: run the app as `asInvoker` with an elevated helper for RyzenAdj/powercfg/HidHide, and launch games un-elevated by default. Verify: B1; `app.manifest` level = `asInvoker`; power, cooling and controller features still work (session log has no "needs admin" lines)
+- [ ] Dark/light theme tokens: `Theme.Light.xaml` with the same keys, a switch in Settings, follows the Windows app theme. Verify: B1; a script diffs the `x:Key` sets of both dictionaries → identical; toggling the theme needs no restart
+- [ ] Settings persistence hardening: atomic write (temp + replace), schema version, migration tests. Verify: new `--filter SettingsPersistence*` (round-trip, a corrupt file falls back to the last snapshot), B2
+- [ ] Debounce all slider-bound saves (Settings page binds POCO `S.*` directly). Verify: B1; dragging a slider writes `settings.json` ≤ 1× per 400 ms (watch with ProcMon)
