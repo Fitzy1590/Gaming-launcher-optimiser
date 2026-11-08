@@ -351,6 +351,17 @@ public sealed partial class MainViewModel : ObservableObject
         await BackupSavesAsync(game, "before playing");
 
         var display = await Task.Run(() => PrepareDisplay(game));
+        // FPS cap remembered for this PC and screen, then the cooling mode on top.
+        var screen = display?.Display ?? await Task.Run(CurrentScreen);
+        var coolingPlan = CoolingPlan.For(game.Cooling ?? _s.Settings.DefaultCooling);
+        int? sessionCap = display?.EffectiveCap;
+        if (DeviceCaps.For(game, Environment.MachineName, screen) is { } saved)
+        {
+            sessionCap = saved > 0 && screen is { MaxRefreshHz: > 0 } sc ? Math.Min(saved, sc.MaxRefreshHz - 3) : saved;
+            if (sessionCap == game.FpsTarget) sessionCap = null;
+        }
+        if (coolingPlan.CapSteps > 0 && (sessionCap ?? game.FpsTarget) is { } baseCap and > 0)
+            sessionCap = CoolingPlan.StepDown(baseCap, coolingPlan.CapSteps);
         var limiterMode = await Task.Run(() => PrepareLimiterMode(game));
         var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto ? _s.RyzenAdj : null;
         // Undervolt ladder: first undervolted session starts one step in.
@@ -364,13 +375,14 @@ public sealed partial class MainViewModel : ObservableObject
         {
             Display = display?.Display,
             ExtraArguments = display?.LaunchArguments ?? "",
-            EffectiveCap = display?.EffectiveCap,
+            EffectiveCap = sessionCap,
+            Cooling = coolingPlan.Mode == CoolingMode.Off ? null : coolingPlan,
             RenderScale = display?.RenderScale ?? 100,
             LimiterMode = limiterMode,
             RyzenAdj = ryzenAdj ?? undervolt,
             UndervoltOffset = undervolt is null ? null : _s.Settings.UndervoltCurrent,
             Controller = game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
-            PowerWatts = ryzenAdj is null ? null : PowerTuner.WattsFor(game, _s.Settings),
+            PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings) * coolingPlan.PowerScale)),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
         };
         using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;
@@ -412,8 +424,13 @@ public sealed partial class MainViewModel : ObservableObject
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
-                PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary), crashNote };
-            if (session.FinalTarget is { } kept && kept != game.FpsTarget) notes.Add(await Task.Run(() => KeepTarget(game, kept)));
+                coolingPlan.PowerScale < 1 ? null : PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary), crashNote };
+            if (session.FinalTarget is { } kept && game.CapPerDevice && screen is not null)
+            {
+                DeviceCaps.Save(game, Environment.MachineName, screen, kept);
+                notes.Add($"Saved {kept} FPS for {game.Name} on this screen ({screen.Label}).");
+            }
+            else if (session.FinalTarget is { } kept2 && kept2 != game.FpsTarget) notes.Add(await Task.Run(() => KeepTarget(game, kept2)));
             tune = string.Join(" ", notes.Where(n => !string.IsNullOrEmpty(n)));
             if (tune.Length == 0) tune = null;
             await RefreshAchievementsAsync(game);
@@ -480,6 +497,27 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Quick switch from the game page / Big Picture / Ctrl+Alt+Up/Down while playing.</summary>
     public void QuickStep(int direction) => _session?.ChangeTarget(direction);
+
+    /// <summary>First start and after each update: check the PC; show the results only when something needs doing.</summary>
+    public async Task DeviceCheckOnStartAsync()
+    {
+        if (_s.Settings.DeviceCheckedVersion == UpdateService.CurrentVersion.ToString()) return;
+        await Task.Delay(TimeSpan.FromSeconds(2));
+        var vm = new DeviceCheckViewModel(_s);
+        await vm.RunAsync();
+        if (vm.NeedsAttention) ShowDeviceCheck(vm);
+    }
+
+    [RelayCommand]
+    private void RunDeviceCheck()
+    {
+        var vm = new DeviceCheckViewModel(_s);
+        _ = vm.RunAsync();
+        ShowDeviceCheck(vm);
+    }
+
+    private static void ShowDeviceCheck(DeviceCheckViewModel vm) =>
+        new Views.DeviceCheckWindow(vm) { Owner = Application.Current.MainWindow }.Show();
 
     /// <summary>First launch of the day: check official sources for game updates (in the background).</summary>
     public async Task CheckGameUpdatesDailyAsync()
@@ -607,6 +645,17 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <summary>Keeps a target picked in-game: it becomes the game's target and its frame cap is re-applied.</summary>
+    /// <summary>The screen games will open on (primary display).</summary>
+    public static DisplayInfo? CurrentScreen()
+    {
+        try
+        {
+            var displays = HardwareScanner.CurrentDisplays();
+            return displays.FirstOrDefault(d => d.IsPrimary) ?? displays.FirstOrDefault();
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { return null; }
+    }
+
     private string KeepTarget(Game game, int target)
     {
         game.FpsTarget = target;

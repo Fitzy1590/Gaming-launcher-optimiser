@@ -74,6 +74,21 @@ public static partial class PowerPlans
         return GetCoreParkingMin().ac == ac;
     }
 
+    /// <summary>"Processor performance boost mode" of the active plan (plugged in, on battery).</summary>
+    public static (int? ac, int? dc) GetBoostMode()
+    {
+        var output = Run("/q SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE");
+        return (Index(AcIndex(), output), Index(DcIndex(), output));
+    }
+
+    public static bool SetBoostMode(int ac, int dc)
+    {
+        Run($"/setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE {ac}");
+        Run($"/setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PERFBOOSTMODE {dc}");
+        Run("/setactive SCHEME_CURRENT");
+        return GetBoostMode().ac == ac;
+    }
+
     /// <summary>Windows' own idle timers in minutes (0 = never): screen off and sleep, plugged in and on battery.</summary>
     public static (int? screenAc, int? screenDc, int? sleepAc, int? sleepDc) GetIdleTimeouts()
     {

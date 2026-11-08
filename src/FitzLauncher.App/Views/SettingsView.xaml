@@ -21,6 +21,11 @@
                     </DockPanel>
                     <TextBlock Text="{Binding UpdateStatus}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding UpdateStatus, Converter={StaticResource HasValue}}" />
                     <CheckBox Content="Check for a new version when the launcher starts" IsChecked="{Binding S.AutoCheckUpdates}" Margin="0,8,0,0" />
+                    <DockPanel Margin="0,12,0,0">
+                        <Button DockPanel.Dock="Right" Content="Run device check" Command="{Binding DataContext.RunDeviceCheckCommand, RelativeSource={RelativeSource AncestorType=Window}}" />
+                        <TextBlock Text="Device check: Windows version, admin rights, Visual C++ and DirectX runtimes, .NET Framework, controller support and optional tools, with fix links."
+                                   Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    </DockPanel>
                     <CheckBox Content="Check my games for official updates once a day (Steam/GOG versions; on the first launch of the day)" IsChecked="{Binding S.GameUpdateCheckDaily}" Margin="0,8,0,0" />
                     <CheckBox Content="Install it automatically (the launcher restarts itself; never while a game is running)" IsChecked="{Binding S.AutoInstallUpdates}" Margin="24,4,0,0"
                               IsEnabled="{Binding S.AutoCheckUpdates}" />
@@ -263,6 +268,24 @@
                     <CheckBox Content="Compare RTSS limiter modes per game (async vs front-edge sync) and keep the smoother one" IsChecked="{Binding S.AutoLimiterMode}" />
                     <TextBlock Text="The new target shows briefly in the overlay and is kept for that game. The limiter comparison needs an RTSS version that stores the mode in its profiles; otherwise it stays off."
                                Style="{StaticResource Wrap}" Margin="0,8,0,0" />
+                </StackPanel>
+            </Border>
+
+            <TextBlock Text="Cooling" Style="{StaticResource H2}" />
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Default cooling mode for games (each game can choose its own on its page)" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="defcool" Content="Off" IsChecked="{Binding S.DefaultCooling, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="defcool" Content="Balanced" IsChecked="{Binding S.DefaultCooling, Converter={StaticResource Eq}, ConverterParameter=Balanced}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="defcool" Content="Cool" IsChecked="{Binding S.DefaultCooling, Converter={StaticResource Eq}, ConverterParameter=Cool}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="defcool" Content="Coolest" IsChecked="{Binding S.DefaultCooling, Converter={StaticResource Eq}, ConverterParameter=Coolest}" />
+                    </WrapPanel>
+                    <TextBlock Style="{StaticResource Wrap}" Margin="0,8,0,0"
+                               Text="Balanced: CPU boost set to efficient (cooler, almost no FPS change). Cool: CPU boost off and power −10%, and the thermal guard acts earlier and trims power. Coolest: also power −20% and the FPS cap one step lower. Settings are restored when the game closes." />
+                    <TextBlock Text="Other ways to keep it cool" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,12,0,4" />
+                    <TextBlock Style="{StaticResource Wrap}"
+                               Text="• Lower FPS cap or power limit: the biggest single difference to heat and fan noise.&#x0a;• Keep vents clear: not on a bed, sofa or lap; a stand or the case kickstand helps airflow a lot.&#x0a;• A clip-on cooler or a small desk fan behind a handheld can take 5–10°C off.&#x0a;• Clean dust from vents every few months; heat at low load is the sign it's needed.&#x0a;• Set a more aggressive fan curve in the device's own app (OneXConsole on OneXPlayer) for long sessions.&#x0a;• A cooler room helps: every degree of room temperature shows up in the chip.&#x0a;• Charging while playing adds heat; play on battery or let it charge first for long sessions." />
                 </StackPanel>
             </Border>
 

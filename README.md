@@ -189,6 +189,23 @@ download it into the launcher's trainers folder (or use one you downloaded), and
 starts and closes with it. Tick your usual cheats and their hotkeys show in the overlay when it opens. Antivirus apps
 often flag trainers; the launcher never changes antivirus settings and tells you what happened.
 
+### Device check and crash reports
+- **Device check** on first start and after every update (and Settings → Run device check): Windows version, 64-bit,
+  admin rights, data folder space, XInput, Visual C++ runtimes (one-click install from Microsoft), legacy DirectX
+  runtime, .NET Framework 4.8, plus the optional tools features use (RTSS, RyzenAdj, ViGEmBus/HidHide), each with a
+  fix link. The launcher is self-contained, so it never needs a separate .NET install.
+- **Plain-English errors**: any error, at start-up or later, shows what happened, what to do and fix buttons (download the
+  latest version, install the Visual C++ runtime, check Windows Security, free space, update graphics drivers), with the
+  technical report, Copy report and Report the problem (a GitHub issue with your user name hidden). Crashes that close the
+  launcher are reported at the next start, with the module Windows blamed.
+
+### FPS cap per screen and cooling
+- **FPS cap per PC and screen**: remember a different cap for the handheld screen, your monitor or TV, and for each PC
+  (useful with library sync). Changing the target in-game saves it for the current screen.
+- **Cooling modes** (per game, default in Settings): Balanced (CPU boost efficient), Cool (boost off, power −10%, earlier
+  thermal guard that also trims power), Coolest (also power −20% and one FPS step lower). Everything is restored when the
+  game closes, or at the next start after a crash. Settings → Cooling also lists practical ways to keep a device cool.
+
 ### Game updates
 - **Official version check** once a day on the first launch (Settings → Updates), plus **Game updates** in the library
   toolbar and **Check** on each game page. It compares your installed version (from the repack folder's "v1.2.3", the exe,

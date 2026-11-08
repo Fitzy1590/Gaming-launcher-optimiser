@@ -67,6 +67,12 @@ public sealed class LauncherSettings
     /// <summary>Check official sources for game updates on the first launch of each day.</summary>
     public bool GameUpdateCheckDaily { get; set; } = true;
     public DateTimeOffset? LastGameUpdateCheck { get; set; }
+
+    /// <summary>Launcher version the device check last ran for (it runs again after each update).</summary>
+    public string? DeviceCheckedVersion { get; set; }
+
+    /// <summary>Cooling mode for games without their own.</summary>
+    public FitzLauncher.Core.Optimization.CoolingMode DefaultCooling { get; set; } = FitzLauncher.Core.Optimization.CoolingMode.Off;
     /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>
     public string? NxmPreviousCommand { get; set; }
 

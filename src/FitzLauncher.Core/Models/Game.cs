@@ -90,6 +90,12 @@ public sealed class Game
     /// <summary>Official-version update check and the updates applied through the launcher.</summary>
     public GameUpdateInfo Updates { get; set; } = new();
 
+    /// <summary>Remember a separate FPS cap for each PC and screen this game is played on.</summary>
+    public bool CapPerDevice { get; set; }
+    public Dictionary<string, FitzLauncher.Core.Optimization.DeviceCap> DeviceCaps { get; set; } = [];
+    /// <summary>Cooling mode for this game; null = the default in Settings.</summary>
+    public FitzLauncher.Core.Optimization.CoolingMode? Cooling { get; set; }
+
     /// <summary>Last computed report-card grade (A–F), shown on the library card.</summary>
     public string? ReportGrade { get; set; }
 

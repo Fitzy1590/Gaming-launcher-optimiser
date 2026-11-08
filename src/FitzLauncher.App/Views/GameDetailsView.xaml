@@ -468,6 +468,50 @@
                     </StackPanel>
                 </Border>
 
+                <!-- FPS cap per PC and screen -->
+                <TextBlock Text="FPS cap per screen" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox Content="Remember a separate FPS cap for each PC and screen (handheld, monitor, TV)" IsChecked="{Binding CapPerDevice}" />
+                        <TextBlock Text="{Binding CurrentScreenText}" Style="{StaticResource MutedText}" Margin="0,8,0,8" />
+                        <ItemsControl ItemsSource="{Binding DeviceCapChoices}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="devcap" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding PickCommand}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Changing the target in-game (View + D-pad) saves it for this screen. Saved:" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,4" />
+                        <ItemsControl ItemsSource="{Binding SavedDeviceCaps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,2">
+                                        <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveCommand}" />
+                                        <TextBlock Text="{Binding Text}" VerticalAlignment="Center" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
+                <!-- Cooling -->
+                <TextBlock Text="Cooling" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <ItemsControl ItemsSource="{Binding CoolingChoices}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <RadioButton Style="{StaticResource ChipToggle}" GroupName="cooling" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding PickCommand}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="{Binding CoolingText}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Controller -->
                 <TextBlock Text="Controller" Style="{StaticResource H2}" />
                 <Border Style="{StaticResource Card}">

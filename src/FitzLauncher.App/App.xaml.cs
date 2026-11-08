@@ -26,14 +26,32 @@ public partial class App : Application
         }
 
         base.OnStartup(e);
-        _services = new AppServices();
+
+        // Crash reporting is set up before anything else can fail.
+        var crashPaths = FitzLauncher.Core.Storage.AppPaths.Default();
+        try { crashPaths.EnsureCreated(); } catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        var previousCrash = CrashReporter.Start(crashPaths);
         DispatcherUnhandledException += OnUnhandled;
-        var crashPaths = _services.Paths;
-        AppDomain.CurrentDomain.UnhandledException += (_, _) =>
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
         {
             // Last chance: don't leave a sleeping game frozen if the launcher itself dies.
             try { FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(crashPaths); } catch (Exception) { }
+            if (args.ExceptionObject is Exception ex) CrashReporter.Fatal(ex, "unhandled error (background)");
         };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            _services?.Log.Write("Background task error: " + args.Exception);
+            args.SetObserved(); // logged; never let a stray background task close the launcher
+        };
+
+        try { _services = new AppServices(); }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            CrashReporter.Show(FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(ex),
+                FitzLauncher.Core.Diagnostics.ErrorExplainer.Report(ex, CrashReporter.Version, CrashReporter.Os, "start-up (loading library and settings)"), fatal: true);
+            Shutdown();
+            return;
+        }
 
         // Undo a Game Mode / power limit left active by a crash or power cut, before anything else.
         var services = _services;
@@ -43,6 +61,7 @@ public partial class App : Application
             if (FitzLauncher.Windows.GameFreezer.RecoverIfNeeded(services.Paths)) services.Log.Write("Unpaused a game left paused for sleep");
             FitzLauncher.Windows.PowerRequestOverride.Clear(services.Paths);
             FitzLauncher.Windows.ControllerRemapper.RecoverIfNeeded(services.Paths);
+            FitzLauncher.Windows.CoolingController.RecoverIfNeeded(services.Paths);
             if (FitzLauncher.Windows.RyzenAdjClient.Find(services.Settings.RyzenAdjPath) is { } adj)
                 new FitzLauncher.Windows.RyzenAdjClient(adj, services.Paths).RecoverIfNeeded();
         });
@@ -73,6 +92,7 @@ public partial class App : Application
 
         var vm = new MainViewModel(_services);
         if (undervoltNote is not null) vm.ShowToast("The last game didn't close normally. " + undervoltNote);
+        if (previousCrash is { } pc) Dispatcher.BeginInvoke(() => CrashReporter.Show(pc.error, pc.report, fatal: false), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
 
         // Nexus "Mod Manager Download" links: from this start-up, and from later clicks while running.
         _ = FitzLauncher.App.Services.Mods.NxmHandler.ListenAsync(link => Dispatcher.BeginInvoke(() => _ = vm.HandleNxmAsync(link)), _nxmStop.Token);
@@ -88,14 +108,22 @@ public partial class App : Application
         _ = vm.CheckLibraryFoldersAsync();
         _ = vm.CheckForUpdatesOnStartAsync();
         _ = vm.CheckGameUpdatesDailyAsync();
+        _ = vm.DeviceCheckOnStartAsync();
         if (nxm is not null) _ = vm.HandleNxmAsync(nxm);
     }
 
     private void OnUnhandled(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
-        _services?.Log.Write("Unhandled: " + e.Exception);
-        if (MainWindow?.DataContext is MainViewModel vm) vm.ShowToast("Something went wrong: " + e.Exception.Message);
         e.Handled = true;
+        if (MainWindow is not { IsLoaded: true })
+        {
+            // Failed while starting: explain, then close instead of hanging without a window.
+            CrashReporter.Show(FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(e.Exception),
+                FitzLauncher.Core.Diagnostics.ErrorExplainer.Report(e.Exception, CrashReporter.Version, CrashReporter.Os, "start-up"), fatal: true);
+            Shutdown();
+            return;
+        }
+        CrashReporter.ShowRecoverable(e.Exception, "while using the launcher", line => _services?.Log.Write("Unhandled: " + line));
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -111,6 +139,7 @@ public partial class App : Application
             _services.SaveLibrary();
             _services.Dispose();
         }
+        CrashReporter.Stop();
         if (_ownsMutex) _single?.ReleaseMutex();
         base.OnExit(e);
     }

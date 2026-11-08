@@ -500,3 +500,66 @@ public class GameUpdateRollbackTests
         Assert.True(File.Exists(Path.Combine(game, "saves", "slot2.sav")));
     }
 }
+
+public class ErrorExplainerTests
+{
+    [Fact]
+    public void Explains_common_failures_in_plain_english_with_fixes()
+    {
+        var dll = FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(new DllNotFoundException("xinput1_4.dll"));
+        Assert.Equal("A system component is missing", dll.Title);
+        Assert.Contains(dll.Fixes, f => f.Url.Contains("vc_redist"));
+
+        var full = FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(new IOException("disk full", unchecked((int)0x80070070)));
+        Assert.Equal("The disk is full", full.Title);
+
+        var wrapped = FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(new AggregateException(new MissingMethodException("x")));
+        Assert.Equal("Launcher files don't match", wrapped.Title);
+
+        var unknown = FitzLauncher.Core.Diagnostics.ErrorExplainer.Explain(new InvalidOperationException("boom"));
+        Assert.Contains(unknown.Fixes, f => f.Url.Contains("releases"));
+    }
+
+    [Fact]
+    public void Report_hides_user_name_and_issue_link_is_bounded()
+    {
+        Exception ex;
+        try { throw new InvalidOperationException(@"C:\Users\Fitz\AppData\x"); } catch (Exception e) { ex = e; }
+        var report = FitzLauncher.Core.Diagnostics.ErrorExplainer.Report(ex, "0.3.15", "Windows 11", "test");
+        Assert.DoesNotContain("Fitz\\AppData", report);
+        Assert.Contains("<user>", report);
+        var url = FitzLauncher.Core.Diagnostics.ErrorExplainer.IssueUrl("Something went wrong", new string('x', 5000));
+        Assert.True(url.Length < 6000);
+    }
+}
+
+public class CoolingAndCapTests
+{
+    [Fact]
+    public void Cooling_modes_get_progressively_cooler()
+    {
+        var off = FitzLauncher.Core.Optimization.CoolingPlan.For(FitzLauncher.Core.Optimization.CoolingMode.Off);
+        var coolest = FitzLauncher.Core.Optimization.CoolingPlan.For(FitzLauncher.Core.Optimization.CoolingMode.Coolest);
+        Assert.Null(off.BoostMode);
+        Assert.Equal(0, coolest.BoostMode);
+        Assert.True(coolest.PowerScale < 1);
+        Assert.Equal(100, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(110, 1));
+        Assert.Equal(60, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(90, 1));
+        Assert.Equal(60, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(60, 2));
+    }
+
+    [Fact]
+    public void Caps_are_remembered_per_pc_and_screen()
+    {
+        var g = new FitzLauncher.Core.Models.Game { CapPerDevice = true };
+        var handheld = new FitzLauncher.Core.Models.DisplayInfo { Width = 1920, Height = 1200, MaxRefreshHz = 120 };
+        var monitor = new FitzLauncher.Core.Models.DisplayInfo { Width = 3440, Height = 1440, MaxRefreshHz = 144 };
+        FitzLauncher.Core.Optimization.DeviceCaps.Save(g, "onexplayer", handheld, 90);
+        FitzLauncher.Core.Optimization.DeviceCaps.Save(g, "onexplayer", monitor, 0);
+        Assert.Equal(90, FitzLauncher.Core.Optimization.DeviceCaps.For(g, "ONEXPLAYER", handheld));
+        Assert.Equal(0, FitzLauncher.Core.Optimization.DeviceCaps.For(g, "onexplayer", monitor));
+        Assert.Null(FitzLauncher.Core.Optimization.DeviceCaps.For(g, "desktop", handheld));
+        g.CapPerDevice = false;
+        Assert.Null(FitzLauncher.Core.Optimization.DeviceCaps.For(g, "onexplayer", handheld));
+    }
+}

@@ -46,6 +46,18 @@ public sealed class GameSession(
     /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
     public int? LimiterMode { get; init; }
 
+    /// <summary>Cooling mode for this session (CPU boost, earlier thermal guard, guard trims power).</summary>
+    public CoolingPlan? Cooling { get; init; }
+
+    private ThermalGuardOptions GuardOptions => Cooling is { GuardExtraMarginC: > 0 } c
+        ? new ThermalGuardOptions
+        {
+            Enabled = settings.ThermalGuard.Enabled, MarginC = settings.ThermalGuard.MarginC + c.GuardExtraMarginC,
+            StepDownAfterSeconds = settings.ThermalGuard.StepDownAfterSeconds, MinimumCap = settings.ThermalGuard.MinimumCap,
+            RecoverMarginC = settings.ThermalGuard.RecoverMarginC + c.GuardExtraMarginC, RecoverAfterSeconds = settings.ThermalGuard.RecoverAfterSeconds,
+        }
+        : settings.ThermalGuard;
+
     /// <summary>Controller tuning for this session (virtual controller via ViGEmBus + HidHide), or null.</summary>
     public ControllerProfile? Controller { get; init; }
 
@@ -91,7 +103,7 @@ public sealed class GameSession(
             if (next == current) { Note($"Target {current}"); return; }
             if (!_rtss.SetFramerateLimit(_renderExe, next)) { Note("Couldn't change the cap"); return; }
             _quickCap = next;
-            if (_guard is not null) _guard = new ThermalGovernor(next, settings.ThermalGuard, settings.CpuTempAlertC, settings.GpuTempAlertC);
+            if (_guard is not null) _guard = new ThermalGovernor(next, GuardOptions, settings.CpuTempAlertC, settings.GpuTempAlertC);
             Note($"Target {next}");
             Status?.Invoke($"FPS target changed to {next} in-game");
         }
@@ -221,6 +233,11 @@ public sealed class GameSession(
             foreach (var line in await Task.Run(() => gameMode.ActivatePreLaunch(settings.GameMode, tuning, settings.CoreParkingOff), ct)) Status?.Invoke(line);
         }
 
+        // Cooling: CPU boost mode for the session (restored afterwards, or at the next start after a crash).
+        var cooling = Cooling is { BoostMode: { } boost } ? new CoolingController(paths) : null;
+        if (cooling is not null && cooling.ApplyBoost(Cooling!.BoostMode!.Value))
+            Status?.Invoke(Cooling.BoostMode == 0 ? "Cooling: CPU boost off" : "Cooling: CPU boost set to efficient");
+
         // Controller tuning starts before the game, so the game only ever sees the tuned virtual pad.
         using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line)) : null;
         remapper?.Start();
@@ -262,9 +279,9 @@ public sealed class GameSession(
         rtss?.ReloadProfile(renderExe);
         // On a screen slower than the target (e.g. a 60 Hz TV), cap just under its refresh for this session.
         var capChanged = rtss is not null && EffectiveCap is { } ec && ec != game.FpsTarget && rtss.SetFramerateLimit(renderExe, ec);
-        if (capChanged) Status?.Invoke($"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
-        var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap && rtss is not null
-            ? new ThermalGovernor(cap, settings.ThermalGuard, settings.CpuTempAlertC, settings.GpuTempAlertC)
+        if (capChanged) Status?.Invoke(EffectiveCap == 0 ? "No FPS cap on this screen" : $"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
+        var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap and > 0 && rtss is not null
+            ? new ThermalGovernor(cap, GuardOptions, settings.CpuTempAlertC, settings.GpuTempAlertC)
             : null;
         lock (_capLock)
         {
@@ -382,7 +399,17 @@ public sealed class GameSession(
                 ThermalGovernor? currentGuard;
                 lock (_capLock) currentGuard = _guard;
                 if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
+                {
                     Status?.Invoke(currentGuard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
+                    // Cooler modes also trim the APU's power while hot, and give it back once cool.
+                    if (Cooling is { GuardLowersPower: true } && powerSet)
+                        lock (_capLock)
+                            if (_livePower is { } lpw)
+                            {
+                                var nextW = currentGuard.IsThrottling ? Math.Max(10, lpw - 5) : Math.Min(PowerWatts!.Value, lpw + 5);
+                                if (nextW != lpw && RyzenAdj!.Apply(nextW, PowerMaxWatts)) _livePower = nextW;
+                            }
+                }
 
                 // Adaptive cap: no input for a while (menus, maps, cutscenes) → lower cap; any input → back.
                 // The thermal guard wins while it's cooling things down.
@@ -435,6 +462,7 @@ public sealed class GameSession(
             rtss!.SetFramerateLimit(renderExe, _quickCap ?? (hadCap && game.FpsTarget is { } original ? original : 0));
         }
         if (powerSet) RyzenAdj!.Restore();
+        cooling?.Restore();
         // Clear the undervolt; the crash marker stays only if we never get here (freeze / power loss).
         if (UndervoltApplied) RyzenAdj!.ClearUndervolt();
         if (useGameMode)
