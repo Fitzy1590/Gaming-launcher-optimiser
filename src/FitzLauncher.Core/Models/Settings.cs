@@ -35,6 +35,8 @@ public sealed class LauncherSettings
     public OverlaySettings EffectiveOverlay => OverlayLayout ??= OverlaySettings.FromLegacy(RtssOverlay, Overlay);
     /// <summary>Smoothness mode (FPS stabiliser) for games that haven't chosen.</summary>
     public bool StabiliseByDefault { get; set; }
+    /// <summary>The screen runs FreeSync/G-Sync/VRR in games; smoothness mode may then use any cap, not just refresh divisors.</summary>
+    public bool VariableRefresh { get; set; }
     /// <summary>Use MSI Afterburner's sensor readings when it's running, so two tools don't poll the same sensors.</summary>
     public bool PreferAfterburnerSensors { get; set; } = true;
     public bool AutoTuneNewGames { get; set; } = true;

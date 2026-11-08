@@ -96,3 +96,19 @@ public static class PlayStationReport
         _ => 0,
     };
 }
+
+/// <summary>Combines two controllers into one (built-in controls + a DualShock): buttons OR'd, each stick and trigger from whichever is pushed further.</summary>
+public static class PadMerge
+{
+    public static PadSnapshot Combine(PadSnapshot? a, PadSnapshot? b)
+    {
+        if (a is not { } x) return b ?? default;
+        if (b is not { } y) return x;
+        var (lx, ly) = Further(x.LX, x.LY, y.LX, y.LY);
+        var (rx, ry) = Further(x.RX, x.RY, y.RX, y.RY);
+        return new PadSnapshot((ushort)(x.Buttons | y.Buttons), lx, ly, rx, ry, Math.Max(x.LT, y.LT), Math.Max(x.RT, y.RT));
+    }
+
+    private static (short, short) Further(short ax, short ay, short bx, short by) =>
+        (long)ax * ax + (long)ay * ay >= (long)bx * bx + (long)by * by ? (ax, ay) : (bx, by);
+}

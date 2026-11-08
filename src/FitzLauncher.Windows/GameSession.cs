@@ -335,7 +335,7 @@ public sealed class GameSession(
         var overlayLayout = game.Overlay ?? settings.EffectiveOverlay;
         var overlay = overlayLayout.Enabled && rtss is not null;
         // Smoothness mode: hold the highest FPS the game sustains, at or under the cap.
-        var stabiliser = (game.Stabilise ?? settings.StabiliseByDefault) && rtss is not null && Cap is > 0 and { } stabCap ? new FpsStabiliser(stabCap) : null;
+        var stabiliser = (game.Stabilise ?? settings.StabiliseByDefault) && rtss is not null && Cap is > 0 and { } stabCap ? new FpsStabiliser(stabCap, refreshHz: Display?.CurrentRefreshHz ?? 0, vrr: settings.VariableRefresh) : null;
         var stabiliserUsed = false;
         if (stabiliser is not null) Status?.Invoke("Smoothness mode on: the cap settles where the game holds steady");
 

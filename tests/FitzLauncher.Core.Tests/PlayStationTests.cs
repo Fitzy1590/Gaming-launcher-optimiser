@@ -85,3 +85,29 @@ public class PlayStationTests
         Assert.Equal(PlayStationModel.DualSense, PlayStationReport.ModelFor(0x054C, 0x0CE6));
     }
 }
+
+public class PadMergeTests
+{
+    [Fact]
+    public void MergesButtonsAndTakesTheFurtherStick()
+    {
+        var builtIn = new PadSnapshot(PadSnapshot.A, 100, 0, 0, 0, 10, 0);
+        var ds4 = new PadSnapshot(PadSnapshot.B, -20000, 5000, 0, 9000, 0, 200);
+        var m = PadMerge.Combine(builtIn, ds4);
+        Assert.True(m.Has(PadSnapshot.A) && m.Has(PadSnapshot.B));
+        Assert.Equal(-20000, m.LX);
+        Assert.Equal(5000, m.LY);
+        Assert.Equal(9000, m.RY);
+        Assert.Equal(10, m.LT);
+        Assert.Equal(200, m.RT);
+    }
+
+    [Fact]
+    public void EitherMissingPassesTheOtherThrough()
+    {
+        var p = new PadSnapshot(PadSnapshot.X, 1, 2, 3, 4, 5, 6);
+        Assert.Equal(p, PadMerge.Combine(null, p));
+        Assert.Equal(p, PadMerge.Combine(p, null));
+        Assert.Equal(default, PadMerge.Combine(null, null));
+    }
+}

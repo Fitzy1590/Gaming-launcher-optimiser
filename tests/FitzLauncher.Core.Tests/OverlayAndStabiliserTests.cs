@@ -86,6 +86,32 @@ public class OverlayAndStabiliserTests
     }
 
     [Fact]
+    public void FixedRefreshOnlyUsesEvenPacingCaps()
+    {
+        Assert.Equal([60, 40, 30], FpsStabiliser.Divisors(120));
+        var s = new FpsStabiliser(117, TimeSpan.FromSeconds(12), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(30), refreshHz: 120, vrr: false);
+        var t = new DateTime(2026, 1, 1);
+        int? change = null;
+        for (var i = 0; i < 10 && change is null; i++) change = s.Update(95, t = t.AddSeconds(2));
+        Assert.Equal(60, change); // not 90/100, which judder on 120 Hz
+        change = null;
+        for (var i = 0; i < 30 && change is null; i++) change = s.Update(60, t = t.AddSeconds(2), 45);
+        Assert.Equal(117, change); // back to the cap, no in-between rungs
+    }
+
+    [Fact]
+    public void NoStepUpWhenTheGpuCouldNotReachTheNextRung()
+    {
+        var s = new FpsStabiliser(117, refreshHz: 120, vrr: false);
+        s.SetCeiling(117);
+        var t = DateTime.UtcNow;
+        int? change = null;
+        for (var i = 0; i < 10 && change is null; i++) change = s.Update(95, t = t.AddSeconds(2));
+        Assert.Equal(60, change);
+        for (var i = 0; i < 40; i++) Assert.Null(s.Update(60, t = t.AddSeconds(2), 80)); // 80 % at 60 → would need 156 % at 117
+    }
+
+    [Fact]
     public void Includes141Target()
     {
         Assert.Contains(141, LauncherSettings.FpsTargets);

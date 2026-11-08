@@ -212,21 +212,19 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
 
     public bool Start()
     {
+        // Read every controller the player might hold: the first XInput pad (handheld built-in controls) and any
+        // DualShock/DualSense over HID. Both get hidden from the game and merged into the one virtual pad.
         var pads = ControllerDevices.XInputPads();
         if (pads.Count > 0) _slot = pads[0].Slot - 1;
-        else
+        PlayStationPads.Shared.Start();
+        _usesSony = true;
+        for (var i = 0; i < 20 && PlayStationPads.Shared.Current is null; i++) Thread.Sleep(50);
+        if (_slot < 0 && PlayStationPads.Shared.Current is null)
         {
-            // No Xbox-style pad: a DualShock/DualSense read directly over HID works too.
-            PlayStationPads.Shared.Start();
-            _usesSony = true;
-            for (var i = 0; i < 20 && PlayStationPads.Shared.Current is null; i++) Thread.Sleep(50);
-            if (PlayStationPads.Shared.Current is null)
-            {
-                status("Controller settings: no controller connected, so they're off this session.");
-                PlayStationPads.Shared.Stop();
-                _usesSony = false;
-                return false;
-            }
+            status("Controller settings: no controller connected, so they're off this session.");
+            PlayStationPads.Shared.Stop();
+            _usesSony = false;
+            return false;
         }
         if (HidHideClient.Find() is not { } cli) { status("Controller settings need HidHide (free, by Nefarius) to hide the real controller from the game. They're off this session."); return false; }
         try { _client = new ViGEmClient(); }
@@ -255,28 +253,21 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
     private void Loop()
     {
         timeBeginPeriod(1);
-        uint last = uint.MaxValue;
+        Core.Input.PadSnapshot? last = null;
         try
         {
             while (_run)
             {
-                if (_usesSony)
+                Core.Input.PadSnapshot? x = null;
+                if (_slot >= 0 && XInput.GetState(_slot, out var st) == 0)
+                    x = new Core.Input.PadSnapshot(st.Pad.Buttons, st.Pad.LX, st.Pad.LY, st.Pad.RX, st.Pad.RY, st.Pad.LeftTrigger, st.Pad.RightTrigger);
+                var sony = _usesSony ? PlayStationPads.Shared.Current : null;
+                var m = Core.Input.PadMerge.Combine(x, sony is { } v ? v with { Buttons = (ushort)(v.Buttons & ~Core.Input.PadSnapshot.Guide) } : null);
+                if (m != last)
                 {
-                    var p = PlayStationPads.Shared.Current;
-                    var g = p is { } v ? new XInput.Gamepad { Buttons = (ushort)(v.Buttons & ~Core.Input.PadSnapshot.Guide), LX = v.LX, LY = v.LY, RX = v.RX, RY = v.RY, LeftTrigger = v.LT, RightTrigger = v.RT } : default;
-                    Submit(g);
-                    Thread.Sleep(2);
-                    continue;
+                    last = m;
+                    Submit(new XInput.Gamepad { Buttons = m.Buttons, LX = m.LX, LY = m.LY, RX = m.RX, RY = m.RY, LeftTrigger = m.LT, RightTrigger = m.RT });
                 }
-                if (XInput.GetState(_slot, out var s) == 0)
-                {
-                    if (s.Packet != last)
-                    {
-                        last = s.Packet;
-                        Submit(s.Pad);
-                    }
-                }
-                else if (last != 0) { last = 0; Submit(default); }
                 Thread.Sleep(1);
             }
         }

@@ -341,7 +341,8 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <CheckBox Content="Stabilise FPS in every game unless the game says otherwise" IsChecked="{Binding StabiliseByDefault}" />
-                    <TextBlock Text="An even frame rate feels smoother than a higher one that keeps dipping. When a game can't hold its cap (a heavy area, heat), the cap drops to a level it holds steadily, e.g. 117 → 100, and climbs back when there's headroom, never above your cap. Uses RTSS to change the cap live."
+                    <CheckBox Content="My screen uses FreeSync / VRR in games (lets smoothness mode use in-between caps like 100 or 90)" IsChecked="{Binding S.VariableRefresh}" Margin="0,4,0,0" />
+                    <TextBlock Text="An even frame rate feels smoother than a higher one that keeps dipping. When a game can't hold its cap (a heavy area, heat), the cap drops to a level it holds steadily, e.g. 117 → 60 on a 120 Hz screen (or 117 → 100 with FreeSync), and climbs back when there's headroom, never above your cap. Uses RTSS to change the cap live."
                                Style="{StaticResource Wrap}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>

@@ -28,8 +28,8 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 - [x] Controller navigation (XInput + DualShock/DualSense HID). Verify: `--filter PlayStationTests`; on Windows, the D-pad moves focus on the Settings page
 
 ## 2. Active work
-- [ ] **Smoothness mode (`FpsStabiliser`)**: reported as feeling worse at the same FPS. Suspect: live RTSS limit rewrites / reloads disturbing frame pacing. Verify: B2; frametime p99 with it on is no worse than with it off (A/B benchmark on the same game)
-- [ ] **Controller profiles (ViGEm + HidHide)**: DualShock dead when on; deadzone sliders not applying. Verify: B1; on Windows, a slider drag changes `Library.json` → `Controller.LeftStick.InnerDeadzone`, and the pad works in a game with the profile on
+- [x] **Smoothness mode (`FpsStabiliser`)**: fixed in code, not yet confirmed on device. Cause: non-divisor caps (e.g. 100 on 120 Hz) judder without VRR. Now uses refresh divisors only unless Settings → "FreeSync / VRR" is on, and won't step up unless projected GPU load < 95 %. Verify: `--filter OverlayAndStabiliserTests`; on device, an A/B benchmark with it on shows p99 frametime ≤ with it off
+- [x] **Controller profiles (ViGEm + HidHide)**: fixed in code, not yet confirmed on device. Cause: the remapper read only XInput slot 0 (built-in pad) while HidHide hid the DualShock. Now merges XInput + Sony HID (`PadMerge`). Verify: B1; on Windows, a slider drag changes `Library.json` → `Controller.LeftStick.InnerDeadzone`, and the pad works in a game with the profile on
 - [ ] **Optimise = session baseline**: apply the best session's resolution/render scale when its FPS was ≥ 95 % of the cap. Verify: new Core test `--filter SessionBaseline*`, B2
 - [ ] **Graphics/resolution advisor** to reach a stable target. Verify: new Core tests, B2
 - [ ] **Handheld wattage advisor**: learn W per target, apply at launch/Optimise, restore after. Verify: new Core tests; on Windows, `ryzenadj --info` before = after the session

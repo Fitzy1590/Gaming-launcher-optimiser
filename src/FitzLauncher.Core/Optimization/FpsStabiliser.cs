@@ -5,10 +5,12 @@ namespace FitzLauncher.Core.Optimization;
 /// rate the game can actually sustain right now. When the frame rate keeps dipping well under the cap (a heavy
 /// area, heat), the cap drops to a level the game holds steadily; once there's clear headroom for long enough it
 /// steps back up, never above the cap you chose. Hysteresis and hold times stop it from flapping.
+/// On a fixed-refresh screen (no FreeSync/VRR) only caps that divide the refresh rate are used (120 Hz: 117, 60, 40),
+/// since e.g. 100 FPS on 120 Hz repeats every fifth frame and judders even though the counter reads 100.
 /// </summary>
 public sealed class FpsStabiliser
 {
-    /// <summary>Rungs it can settle on (plus the user's own cap).</summary>
+    /// <summary>Rungs it can settle on with VRR (plus the user's own cap).</summary>
     public static readonly int[] Ladder = [40, 45, 50, 55, 60, 72, 80, 90, 100, 110, 117, 141];
 
     private readonly Queue<(DateTime at, double fps)> _window = new();
@@ -16,14 +18,18 @@ public sealed class FpsStabiliser
     private readonly TimeSpan _downHold, _upHold;
     private DateTime _lastChange = DateTime.MinValue;
     private DateTime? _headroomSince;
+    private readonly int _refreshHz;
+    private readonly bool _vrr;
 
     public int Ceiling { get; private set; }
     /// <summary>The cap it's holding now (equals <see cref="Ceiling"/> when the game keeps up).</summary>
     public int Current { get; private set; }
     public bool Lowered => Current < Ceiling;
 
-    public FpsStabiliser(int ceiling, TimeSpan? window = null, TimeSpan? downHold = null, TimeSpan? upHold = null)
+    public FpsStabiliser(int ceiling, TimeSpan? window = null, TimeSpan? downHold = null, TimeSpan? upHold = null, int refreshHz = 0, bool vrr = true)
     {
+        _refreshHz = refreshHz;
+        _vrr = vrr || refreshHz <= 0;
         Ceiling = Current = ceiling;
         _span = window ?? TimeSpan.FromSeconds(12);
         _downHold = downHold ?? TimeSpan.FromSeconds(8);
@@ -60,9 +66,10 @@ public sealed class FpsStabiliser
             if (target < Current) return Change(target, now);
         }
 
-        // Up: the game held the current cap with room to spare (and the GPU isn't maxed) for a while.
+        // Up: the game held the current cap with room to spare for a while.
         var next = Rungs().Where(r => r > Current).DefaultIfEmpty(0).Min();
-        var headroom = next > 0 && low >= Current * 0.985 && (gpuLoad is null || gpuLoad < 88);
+        // GPU load scaled to the next rung must stay under ~95 %, so 60 → 117 needs the GPU under ~48 % at 60.
+        var headroom = next > 0 && low >= Current * 0.985 && (gpuLoad is null || gpuLoad * next / Current < 95);
         if (!headroom) { _headroomSince = null; return null; }
         _headroomSince ??= now;
         if (now - _headroomSince >= _upHold && held >= _upHold) return Change(next, now);
@@ -78,5 +85,8 @@ public sealed class FpsStabiliser
         return cap;
     }
 
-    private IEnumerable<int> Rungs() => Ladder.Where(r => r < Ceiling).Append(Ceiling).Order();
+    private IEnumerable<int> Rungs() => (_vrr ? Ladder : Divisors(_refreshHz)).Where(r => r < Ceiling).Append(Ceiling).Distinct().Order();
+
+    /// <summary>Even-pacing caps on a fixed-refresh screen: refresh / 2, / 3, / 4 (30 FPS minimum).</summary>
+    public static int[] Divisors(int refreshHz) => [.. Enumerable.Range(2, 3).Select(k => (int)Math.Round(refreshHz / (double)k)).Where(r => r >= 30)];
 }
