@@ -228,8 +228,19 @@
                         <Button Content="Get ViGEmBus" Command="{Binding GetViGEmCommand}" />
                         <Button Content="Get HidHide" Margin="8,0,0,0" Command="{Binding GetHidHideCommand}" />
                     </StackPanel>
-                    <TextBlock Text="Only Xbox-style (XInput) controllers can be tuned, which includes handheld built-in controls. PlayStation and Switch pads work through Steam Input or DS4Windows."
+                    <TextBlock Text="Xbox-style (XInput) pads, handheld built-in controls, DualShock 4 and DualSense (USB or Bluetooth) all work in the menus and can be tuned per game. Switch pads work through Steam Input."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+
+                    <TextBlock Text="PS button" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,16,0,4" />
+                    <CheckBox Content="PS button opens OneXConsole (press again to go back to the game), in games too" IsChecked="{Binding PsButtonOpensConsole}" />
+                    <StackPanel Margin="26,4,0,0" Visibility="{Binding PsButtonOpensConsole, Converter={StaticResource Vis}}">
+                        <CheckBox Content="Drive OneXConsole with the DualShock while it's open (acts as an Xbox controller; uses ViGEmBus, otherwise arrow keys, Enter and Esc)" IsChecked="{Binding ConsolePadMirror}" />
+                        <DockPanel Margin="0,6,0,0">
+                            <Button DockPanel.Dock="Right" Content="Try it" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding TestConsoleCommand}" />
+                            <Button DockPanel.Dock="Right" Content="Choose…" Style="{StaticResource GhostButton}" Command="{Binding ChooseConsoleCommand}" />
+                            <TextBlock Text="{Binding ConsoleText}" Style="{StaticResource Wrap}" FontSize="12" VerticalAlignment="Center" />
+                        </DockPanel>
+                    </StackPanel>
                     <CheckBox Content="Default controller settings for games without their own" IsChecked="{Binding Default.Enabled}" Margin="0,12,0,0" />
                     <views:ControllerProfileEditor DataContext="{Binding Default}" Margin="0,8,0,0" Visibility="{Binding Enabled, Converter={StaticResource Vis}, FallbackValue=Collapsed}" />
                 </StackPanel>

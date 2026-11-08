@@ -118,6 +118,7 @@ public partial class App : Application
             return; // skip the hardware scan, update checks and other start-up work
         }
         _ = vm.Hardware.EnsureScannedAsync();
+        _services.ApplyConsoleButton();
         // Tell the user about games added to their saved game folders since last time.
         _ = vm.CheckLibraryFoldersAsync();
         _ = vm.CheckForUpdatesOnStartAsync();

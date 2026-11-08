@@ -79,13 +79,27 @@ public static class ControllerDevices
         return names;
     }
 
-    /// <summary>Raw state of the first connected XInput controller (for the live preview), or null.</summary>
+    /// <summary>Raw state of the first connected controller (XInput, else a DualShock/DualSense being read), or null.</summary>
     public static (short lx, short ly, short rx, short ry, byte lt, byte rt)? ReadFirst()
     {
         try
         {
             for (var i = 0; i < 4; i++)
                 if (XInput.GetState(i, out var st) == 0) return (st.Pad.LX, st.Pad.LY, st.Pad.RX, st.Pad.RY, st.Pad.LeftTrigger, st.Pad.RightTrigger);
+        }
+        catch (DllNotFoundException) { }
+        if (PlayStationPads.Shared.Current is { } p) return (p.LX, p.LY, p.RX, p.RY, p.LT, p.RT);
+        return null;
+    }
+
+    /// <summary>Full state of the first XInput pad (buttons in XInput bits), or null.</summary>
+    public static Core.Input.PadSnapshot? ReadXInput()
+    {
+        try
+        {
+            for (var i = 0; i < 4; i++)
+                if (XInput.GetState(i, out var st) == 0)
+                    return new Core.Input.PadSnapshot(st.Pad.Buttons, st.Pad.LX, st.Pad.LY, st.Pad.RX, st.Pad.RY, st.Pad.LeftTrigger, st.Pad.RightTrigger);
         }
         catch (DllNotFoundException) { }
         return null;
@@ -191,6 +205,7 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
     private Thread? _thread;
     private volatile bool _run;
     private int _slot = -1;
+    private bool _usesSony;
 
     [DllImport("winmm.dll")] private static extern uint timeBeginPeriod(uint ms);
     [DllImport("winmm.dll")] private static extern uint timeEndPeriod(uint ms);
@@ -198,8 +213,21 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
     public bool Start()
     {
         var pads = ControllerDevices.XInputPads();
-        if (pads.Count == 0) { status("Controller settings: no Xbox-style controller connected, so they're off this session."); return false; }
-        _slot = pads[0].Slot - 1;
+        if (pads.Count > 0) _slot = pads[0].Slot - 1;
+        else
+        {
+            // No Xbox-style pad: a DualShock/DualSense read directly over HID works too.
+            PlayStationPads.Shared.Start();
+            _usesSony = true;
+            for (var i = 0; i < 20 && PlayStationPads.Shared.Current is null; i++) Thread.Sleep(50);
+            if (PlayStationPads.Shared.Current is null)
+            {
+                status("Controller settings: no controller connected, so they're off this session.");
+                PlayStationPads.Shared.Stop();
+                _usesSony = false;
+                return false;
+            }
+        }
         if (HidHideClient.Find() is not { } cli) { status("Controller settings need HidHide (free, by Nefarius) to hide the real controller from the game. They're off this session."); return false; }
         try { _client = new ViGEmClient(); }
         catch (Exception) { status("Controller settings need the ViGEmBus driver (free, by Nefarius). They're off this session."); return false; }
@@ -232,6 +260,14 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
         {
             while (_run)
             {
+                if (_usesSony)
+                {
+                    var p = PlayStationPads.Shared.Current;
+                    var g = p is { } v ? new XInput.Gamepad { Buttons = (ushort)(v.Buttons & ~Core.Input.PadSnapshot.Guide), LX = v.LX, LY = v.LY, RX = v.RX, RY = v.RY, LeftTrigger = v.LT, RightTrigger = v.RT } : default;
+                    Submit(g);
+                    Thread.Sleep(2);
+                    continue;
+                }
                 if (XInput.GetState(_slot, out var s) == 0)
                 {
                     if (s.Packet != last)
@@ -284,6 +320,7 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
         if (_slot >= 0) { var v = new XInput.Vibration(); XInput.SetState(_slot, ref v); }
         try { _pad?.Disconnect(); } catch (Exception) { /* already gone */ }
         _client?.Dispose();
+        if (_usesSony) { PlayStationPads.Shared.Stop(); _usesSony = false; }
         if (_hide is not null) foreach (var p in _hidden) _hide.Unhide(p);
         try { File.Delete(RestoreFile); } catch (IOException) { }
     }

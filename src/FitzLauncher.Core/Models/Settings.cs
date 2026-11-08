@@ -62,6 +62,12 @@ public sealed class LauncherSettings
     public bool GamepadNavigation { get; set; } = true;
     /// <summary>Controller tuning used for games without their own profile (off until enabled).</summary>
     public ControllerProfile DefaultController { get; set; } = new();
+    /// <summary>The PS button on a DualShock/DualSense opens OneXConsole (press again to go back), in games too.</summary>
+    public bool PsButtonOpensConsole { get; set; }
+    /// <summary>OneXConsole's exe or shortcut when it isn't found automatically.</summary>
+    public string? ConsoleAppPath { get; set; }
+    /// <summary>While OneXConsole is in front, mirror the Sony pad as an Xbox controller so it can drive it.</summary>
+    public bool ConsolePadMirror { get; set; } = true;
 
     // ---- game updates
     /// <summary>Check official sources for game updates on the first launch of each day.</summary>

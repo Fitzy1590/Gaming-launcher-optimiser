@@ -6,9 +6,9 @@ namespace FitzLauncher.App.Services;
 public enum PadButton { Up, Down, Left, Right, A, B, X, Y, LeftShoulder, RightShoulder, Start, Back, ScrollUp, ScrollDown }
 
 /// <summary>
-/// Xbox-style controller input via XInput (works with Xbox pads; PlayStation pads through Steam
-/// Input/DS4Windows). Polled at 60 Hz only while Big Picture is open, with key-repeat when a
-/// direction is held. The left stick behaves like the D-pad.
+/// Controller input for the menus: Xbox-style pads via XInput, plus DualShock 4 / DualSense read directly over
+/// HID (no DS4Windows or Steam needed). Polled at 60 Hz with key-repeat when a direction is held; the left stick
+/// behaves like the D-pad, the right stick scrolls.
 /// </summary>
 public sealed class GamepadPoller : IDisposable
 {
@@ -40,31 +40,36 @@ public sealed class GamepadPoller : IDisposable
         _timer.Tick += (_, _) => Poll();
     }
 
-    public void Start() { if (_available) _timer.Start(); }
-    public void Stop() => _timer.Stop();
+    private bool _sonyStarted;
+
+    public void Start()
+    {
+        if (!_sonyStarted) { FitzLauncher.Windows.PlayStationPads.Shared.Start(); _sonyStarted = true; }
+        _timer.Start();
+    }
+
+    public void Stop()
+    {
+        _timer.Stop();
+        if (_sonyStarted) { FitzLauncher.Windows.PlayStationPads.Shared.Stop(); _sonyStarted = false; }
+    }
 
     private void Poll()
     {
-        XInputState state = default;
-        var connected = false;
-        try
-        {
-            for (var i = 0; i < 4 && !connected; i++) connected = GetState(i, out state) == 0;
-        }
-        catch (DllNotFoundException) { _available = false; _timer.Stop(); return; }
-
         var down = new HashSet<PadButton>();
-        if (connected)
+        if (_available)
         {
-            foreach (var (mask, b) in Map) if ((state.Pad.Buttons & mask) != 0) down.Add(b);
-            const short dead = 16000;
-            if (state.Pad.LX < -dead) down.Add(PadButton.Left);
-            if (state.Pad.LX > dead) down.Add(PadButton.Right);
-            if (state.Pad.LY > dead) down.Add(PadButton.Up);
-            if (state.Pad.LY < -dead) down.Add(PadButton.Down);
-            if (state.Pad.RY > dead) down.Add(PadButton.ScrollUp);
-            if (state.Pad.RY < -dead) down.Add(PadButton.ScrollDown);
+            XInputState state = default;
+            var connected = false;
+            try
+            {
+                for (var i = 0; i < 4 && !connected; i++) connected = GetState(i, out state) == 0;
+            }
+            catch (DllNotFoundException) { _available = false; }
+            if (connected) Add(down, state.Pad.Buttons, state.Pad.LX, state.Pad.LY, state.Pad.RY);
         }
+        // DualShock / DualSense (merged, so a pad seen both ways doesn't double-press).
+        if (FitzLauncher.Windows.PlayStationPads.Shared.Current is { } ps) Add(down, ps.Buttons, ps.LX, ps.LY, ps.RY);
 
         var now = DateTime.UtcNow;
         foreach (var b in down)
@@ -83,5 +88,17 @@ public sealed class GamepadPoller : IDisposable
         foreach (var b in _held.Keys.Where(k => !down.Contains(k)).ToList()) _held.Remove(b);
     }
 
-    public void Dispose() => _timer.Stop();
+    private static void Add(HashSet<PadButton> down, ushort buttons, short lx, short ly, short ry)
+    {
+        foreach (var (mask, b) in Map) if ((buttons & mask) != 0) down.Add(b);
+        const short dead = 16000;
+        if (lx < -dead) down.Add(PadButton.Left);
+        if (lx > dead) down.Add(PadButton.Right);
+        if (ly > dead) down.Add(PadButton.Up);
+        if (ly < -dead) down.Add(PadButton.Down);
+        if (ry > dead) down.Add(PadButton.ScrollUp);
+        if (ry < -dead) down.Add(PadButton.ScrollDown);
+    }
+
+    public void Dispose() => Stop();
 }

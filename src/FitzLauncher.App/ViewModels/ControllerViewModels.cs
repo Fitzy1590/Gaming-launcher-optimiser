@@ -83,12 +83,24 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
     [ObservableProperty] private double _rightTriggerOut;
     [ObservableProperty] private string _previewText = "Move the sticks to see the effect.";
 
-    public void StartPreview() => _timer.Start();
-    public void StopPreview() { _timer.Stop(); Flush(); }
+    public void StartPreview()
+    {
+        if (_timer.IsEnabled) return;
+        FitzLauncher.Windows.PlayStationPads.Shared.Start();
+        _timer.Start();
+    }
+
+    public void StopPreview()
+    {
+        Flush();
+        if (!_timer.IsEnabled) return;
+        _timer.Stop();
+        FitzLauncher.Windows.PlayStationPads.Shared.Stop();
+    }
 
     private void Poll()
     {
-        if (ControllerDevices.ReadFirst() is not { } s) { PreviewText = "No Xbox-style controller connected."; return; }
+        if (ControllerDevices.ReadFirst() is not { } s) { PreviewText = "No controller connected."; return; }
         PreviewText = "Dot: where the stick is. Ring: what the game gets.";
         (LeftRawX, LeftRawY) = Pos(s.lx, s.ly, 6);
         (RightRawX, RightRawY) = Pos(s.rx, s.ry, 6);
@@ -136,6 +148,49 @@ public sealed partial class ControllersViewModel : ObservableObject
 
     public bool GamepadNavigation { get => _s.Settings.GamepadNavigation; set { _s.Settings.GamepadNavigation = value; _s.SaveSettings(); OnPropertyChanged(); } }
 
+    // ---- PS button → OneXConsole
+    public bool PsButtonOpensConsole
+    {
+        get => _s.Settings.PsButtonOpensConsole;
+        set
+        {
+            _s.Settings.PsButtonOpensConsole = value;
+            _s.SaveSettings();
+            _s.ApplyConsoleButton();
+            OnPropertyChanged();
+            UpdateConsoleText();
+        }
+    }
+
+    public bool ConsolePadMirror { get => _s.Settings.ConsolePadMirror; set { _s.Settings.ConsolePadMirror = value; _s.SaveSettings(); OnPropertyChanged(); } }
+
+    [ObservableProperty] private string _consoleText = "";
+
+    private void UpdateConsoleText()
+    {
+        var path = FitzLauncher.Windows.ConsoleBridge.Locate(_s.Settings.ConsoleAppPath);
+        ConsoleText = path is null
+            ? "OneXConsole wasn't found on this PC. Use Choose… to point to OneXConsole.exe (or its Start menu shortcut)."
+            : $"Found: {path}";
+    }
+
+    [RelayCommand]
+    private void ChooseConsole()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Find OneXConsole", Filter = "Programs and shortcuts (*.exe;*.lnk)|*.exe;*.lnk" };
+        if (dlg.ShowDialog() != true) return;
+        _s.Settings.ConsoleAppPath = dlg.FileName;
+        _s.SaveSettings();
+        UpdateConsoleText();
+    }
+
+    [RelayCommand]
+    private void TestConsole()
+    {
+        try { _s.ConsoleButton.Toggle(); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { ConsoleText = "Couldn't open OneXConsole: " + e.Message; }
+    }
+
     [RelayCommand]
     public async Task RefreshAsync()
     {
@@ -143,6 +198,12 @@ public sealed partial class ControllersViewModel : ObservableObject
         Connected.Clear();
         foreach (var p in pads) Connected.Add($"Player {p.Slot}: {p.Kind}" + (p.Battery.Length > 0 ? $" · {p.Battery}" : ""));
         foreach (var n in names.Where(n => !n.Contains("XINPUT", StringComparison.OrdinalIgnoreCase))) Connected.Add(n);
+        // DualShock / DualSense read directly (menus, PS button, per-game settings).
+        FitzLauncher.Windows.PlayStationPads.Shared.Start();
+        await Task.Delay(400);
+        foreach (var n in FitzLauncher.Windows.PlayStationPads.Shared.Connected) Connected.Add(n + ": works in menus and with per-game settings, no extra app needed");
+        FitzLauncher.Windows.PlayStationPads.Shared.Stop();
+        UpdateConsoleText();
         if (Connected.Count == 0) Connected.Add("No controller found. Plug one in or turn it on, then Refresh.");
         DriversReady = vigem && hid;
         DriverText = DriversReady

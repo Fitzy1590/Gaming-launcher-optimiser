@@ -169,8 +169,23 @@ public sealed class AppServices : IDisposable
         lock (_saveLock) Store.SaveSettings(Settings);
     }
 
+    private FitzLauncher.Windows.ConsoleBridge? _console;
+
+    /// <summary>PS button → OneXConsole (and driving it with the Sony pad).</summary>
+    public FitzLauncher.Windows.ConsoleBridge ConsoleButton => _console ??=
+        new FitzLauncher.Windows.ConsoleBridge(() => Settings.ConsoleAppPath, () => Settings.ConsolePadMirror, Log.Write);
+
+    /// <summary>Starts or stops the PS button watcher to match the setting.</summary>
+    public void ApplyConsoleButton()
+    {
+        if (Settings.PsButtonOpensConsole) ConsoleButton.Start();
+        else _console?.Stop();
+    }
+
     public void Dispose()
     {
+        _console?.Dispose();
+        FitzLauncher.Windows.PlayStationPads.Shared.Dispose();
         Temps.Dispose();
         Http.Dispose();
     }
