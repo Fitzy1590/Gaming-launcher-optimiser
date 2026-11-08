@@ -49,7 +49,7 @@ public sealed class GamepadNavigator : IDisposable
         if (w is IGamepadAware aware && aware.OnGamepad(b)) return;
 
         var focused = Keyboard.FocusedElement as DependencyObject;
-        if (focused is null || !IsInside(focused, w))
+        if (focused is null or Window || !IsInside(focused, w))
         {
             // First press: put the focus somewhere visible instead of acting.
             w.MoveFocus(new TraversalRequest(FocusNavigationDirection.First));
@@ -58,10 +58,7 @@ public sealed class GamepadNavigator : IDisposable
 
         switch (b)
         {
-            case PadButton.Up: Send(w, Key.Up); break;
-            case PadButton.Down: Send(w, Key.Down); break;
-            case PadButton.Left: Send(w, Key.Left); break;
-            case PadButton.Right: Send(w, Key.Right); break;
+            case PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right: Move(w, focused, b); break;
             case PadButton.A: Activate(w, focused); break;
             case PadButton.B:
                 if (!Send(w, Key.Escape) && w != Application.Current?.MainWindow) w.Close();
@@ -94,6 +91,46 @@ public sealed class GamepadNavigator : IDisposable
         }
         InputManager.Current.ProcessInput(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.KeyUpEvent });
         return handled;
+    }
+
+    /// <summary>
+    /// D-pad / left stick. Sliders take left/right as value changes and lists, open drop-downs and text boxes keep
+    /// their own arrow handling; everything else moves focus to the nearest control in that direction (bringing
+    /// it into view). With nothing further that way, up/down scroll the page instead.
+    /// </summary>
+    private static void Move(Window w, DependencyObject focused, PadButton b)
+    {
+        var key = b switch { PadButton.Up => Key.Up, PadButton.Down => Key.Down, PadButton.Left => Key.Left, _ => Key.Right };
+        var dir = b switch { PadButton.Up => FocusNavigationDirection.Up, PadButton.Down => FocusNavigationDirection.Down, PadButton.Left => FocusNavigationDirection.Left, _ => FocusNavigationDirection.Right };
+
+        if (focused is Slider slider && b is PadButton.Left or PadButton.Right)
+        {
+            var step = slider.SmallChange > 0 ? slider.SmallChange : 1;
+            slider.Value = Math.Clamp(slider.Value + (b == PadButton.Right ? step : -step), slider.Minimum, slider.Maximum);
+            return;
+        }
+        if (focused is ComboBoxItem || focused is ComboBox { IsDropDownOpen: true }) { Send(w, key); return; }
+        if (focused is TextBoxBase && b is PadButton.Left or PadButton.Right) { Send(w, key); return; }
+
+        var before = Keyboard.FocusedElement;
+        if (focused is ListBoxItem or TreeViewItem)
+        {
+            // Let the list move within itself first (grids of game tiles wrap properly this way).
+            Send(w, key);
+            if (!ReferenceEquals(Keyboard.FocusedElement, before)) { BringIntoView(); return; }
+        }
+        if (focused is UIElement el && el.MoveFocus(new TraversalRequest(dir)) && !ReferenceEquals(Keyboard.FocusedElement, before))
+        {
+            BringIntoView();
+            return;
+        }
+        if (b is PadButton.Up or PadButton.Down) Scroll(w, focused, b == PadButton.Up ? -1 : +1);
+    }
+
+    private static void BringIntoView()
+    {
+        if (Keyboard.FocusedElement is FrameworkElement fe)
+            fe.BringIntoView(new Rect(new Point(0, -40), new Size(fe.ActualWidth, fe.ActualHeight + 80))); // a little margin above/below
     }
 
     private static void Activate(Window w, DependencyObject focused)

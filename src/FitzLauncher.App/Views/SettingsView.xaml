@@ -212,6 +212,7 @@
             <Border Style="{StaticResource Card}" DataContext="{Binding Controllers}">
                 <StackPanel>
                     <CheckBox Content="Open straight into Big Picture (good for handhelds)" IsChecked="{Binding DataContext.S.StartInBigPicture, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,0,8" />
+                    <CheckBox Content="Open the launcher full screen with no title bar (Alt+Enter or the button at the top right switches any time)" IsChecked="{Binding DataContext.S.FullScreen, RelativeSource={RelativeSource AncestorType=UserControl}}" Margin="0,0,0,8" />
                     <CheckBox Content="Use a controller in the launcher's menus (D-pad or stick to move, A select, B back, LB/RB pages, Start play, X mods, Y search)" IsChecked="{Binding GamepadNavigation}" />
                     <DockPanel Margin="0,12,0,4">
                         <Button DockPanel.Dock="Right" Content="Refresh" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" />

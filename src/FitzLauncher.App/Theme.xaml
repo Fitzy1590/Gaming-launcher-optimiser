@@ -314,7 +314,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="RepeatButton">
-                    <Border Height="4" CornerRadius="2" Background="{DynamicResource Accent}" />
+                    <Grid Background="Transparent"><Border Height="4" CornerRadius="2" Background="{DynamicResource Accent}" VerticalAlignment="Center" /></Grid>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -331,7 +331,8 @@
         </Setter>
     </Style>
     <Style TargetType="Slider">
-        <Setter Property="MinHeight" Value="28" />
+        <Setter Property="MinHeight" Value="32" />
+        <Setter Property="Focusable" Value="True" />
         <Setter Property="IsMoveToPointEnabled" Value="True" />
         <Setter Property="IsSnapToTickEnabled" Value="True" />
         <Setter Property="TickFrequency" Value="1" />
@@ -347,10 +348,13 @@
                             <Track.DecreaseRepeatButton><RepeatButton Command="Slider.DecreaseLarge" Style="{StaticResource SliderFill}" /></Track.DecreaseRepeatButton>
                             <Track.IncreaseRepeatButton><RepeatButton Command="Slider.IncreaseLarge" Style="{StaticResource SliderBlank}" /></Track.IncreaseRepeatButton>
                             <Track.Thumb>
-                                <Thumb x:Name="thumb" Width="18" Height="18" BorderBrush="{StaticResource Bg}" BorderThickness="2">
+                                <Thumb x:Name="thumb" Width="28" Height="28" BorderBrush="{StaticResource Bg}" BorderThickness="2" Cursor="Hand">
                                     <Thumb.Template>
                                         <ControlTemplate TargetType="Thumb">
-                                            <Ellipse Fill="{StaticResource Text}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding BorderThickness}" />
+                                            <!-- 28 px grab area (finger-friendly) around a 20 px knob -->
+                                            <Grid Background="Transparent">
+                                                <Ellipse Width="20" Height="20" Fill="{StaticResource Text}" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="{TemplateBinding BorderThickness}" />
+                                            </Grid>
                                         </ControlTemplate>
                                     </Thumb.Template>
                                 </Thumb>
@@ -407,39 +411,98 @@
         </Setter>
     </Style>
 
-    <!-- Thin scrollbars -->
-    <Style TargetType="ScrollBar">
-        <Setter Property="Width" Value="8" />
-        <Setter Property="MinWidth" Value="8" />
-        <Setter Property="Background" Value="Transparent" />
+    <!-- Scrollbars: a wide, grabbable hit area (drag the thumb, or click/tap the rail to jump a page) with a slim
+         thumb that widens under the pointer -->
+    <Style x:Key="ScrollPage" TargetType="RepeatButton">
+        <Setter Property="Focusable" Value="False" />
+        <Setter Property="IsTabStop" Value="False" />
         <Setter Property="Template">
             <Setter.Value>
-                <ControlTemplate TargetType="ScrollBar">
-                    <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}" IsDirectionReversed="True">
-                        <Track.Thumb>
-                            <Thumb>
-                                <Thumb.Template>
-                                    <ControlTemplate TargetType="Thumb">
-                                        <Border Background="#26EDEDED" CornerRadius="4" Margin="2" />
-                                    </ControlTemplate>
-                                </Thumb.Template>
-                            </Thumb>
-                        </Track.Thumb>
-                    </Track>
+                <ControlTemplate TargetType="RepeatButton">
+                    <Border Background="Transparent" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="ScrollThumb" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid Background="Transparent">
+                        <Border x:Name="bar" Background="#40EDEDED" CornerRadius="4" Width="6" MinHeight="40" HorizontalAlignment="Center" />
+                    </Grid>
                     <ControlTemplate.Triggers>
-                        <Trigger Property="Orientation" Value="Horizontal">
-                            <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False" />
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bar" Property="Width" Value="10" />
+                            <Setter TargetName="bar" Property="Background" Value="#80EDEDED" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="bar" Property="Width" Value="10" />
+                            <Setter TargetName="bar" Property="Background" Value="{DynamicResource Accent}" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+    <Style x:Key="ScrollThumbH" TargetType="Thumb">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Thumb">
+                    <Grid Background="Transparent">
+                        <Border x:Name="bar" Background="#40EDEDED" CornerRadius="4" Height="6" MinWidth="40" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bar" Property="Height" Value="10" />
+                            <Setter TargetName="bar" Property="Background" Value="#80EDEDED" />
+                        </Trigger>
+                        <Trigger Property="IsDragging" Value="True">
+                            <Setter TargetName="bar" Property="Height" Value="10" />
+                            <Setter TargetName="bar" Property="Background" Value="{DynamicResource Accent}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style TargetType="ScrollBar">
+        <Setter Property="Width" Value="16" />
+        <Setter Property="MinWidth" Value="16" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ScrollBar">
+                    <Border Background="Transparent">
+                        <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageUpCommand" Style="{StaticResource ScrollPage}" /></Track.DecreaseRepeatButton>
+                            <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageDownCommand" Style="{StaticResource ScrollPage}" /></Track.IncreaseRepeatButton>
+                            <Track.Thumb><Thumb Style="{StaticResource ScrollThumb}" MinHeight="40" /></Track.Thumb>
+                        </Track>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
         <Style.Triggers>
             <Trigger Property="Orientation" Value="Horizontal">
-                <Setter Property="Height" Value="8" />
-                <Setter Property="MinHeight" Value="8" />
                 <Setter Property="Width" Value="Auto" />
                 <Setter Property="MinWidth" Value="0" />
+                <Setter Property="Height" Value="16" />
+                <Setter Property="MinHeight" Value="16" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Border Background="Transparent">
+                                <Track x:Name="PART_Track" IsDirectionReversed="False">
+                                    <Track.DecreaseRepeatButton><RepeatButton Command="ScrollBar.PageLeftCommand" Style="{StaticResource ScrollPage}" /></Track.DecreaseRepeatButton>
+                                    <Track.IncreaseRepeatButton><RepeatButton Command="ScrollBar.PageRightCommand" Style="{StaticResource ScrollPage}" /></Track.IncreaseRepeatButton>
+                                    <Track.Thumb><Thumb Style="{StaticResource ScrollThumbH}" MinWidth="40" /></Track.Thumb>
+                                </Track>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Trigger>
         </Style.Triggers>
     </Style>

@@ -79,6 +79,8 @@ public sealed class LauncherSettings
 
     /// <summary>Open straight into Big Picture (handheld).</summary>
     public bool StartInBigPicture { get; set; }
+    /// <summary>The launcher window fills the screen with no title bar (Alt+Enter toggles).</summary>
+    public bool FullScreen { get; set; }
 
     /// <summary>Cooling mode for games without their own.</summary>
     public FitzLauncher.Core.Optimization.CoolingMode DefaultCooling { get; set; } = FitzLauncher.Core.Optimization.CoolingMode.Off;

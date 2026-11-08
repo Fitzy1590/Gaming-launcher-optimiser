@@ -42,7 +42,7 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
         vm.SessionEnded += () =>
         {
             if (!vm.SafeMode) _nav.Start();
-            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            if (WindowState == WindowState.Minimized) WindowState = _fullScreen ? WindowState.Maximized : WindowState.Normal;
             Activate();
         };
 
@@ -51,8 +51,55 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
         {
             UseDarkTitleBar();
             RegisterBenchmarkHotkey();
+            if (_vm.Services.Settings.FullScreen) SetFullScreen(true, save: false);
+        };
+        PreviewKeyDown += (_, e) =>
+        {
+            if (e.Key == Key.System && e.SystemKey == Key.Enter && Keyboard.Modifiers == ModifierKeys.Alt) { SetFullScreen(!_fullScreen); e.Handled = true; }
+            else if (e.Key == Key.Escape && _fullScreen && Keyboard.Modifiers == ModifierKeys.Shift) { SetFullScreen(false); e.Handled = true; }
         };
     }
+
+    // ------------------------------------------------------------------ full screen
+
+    private bool _fullScreen;
+    private WindowState _stateBeforeFullScreen = WindowState.Normal;
+
+    /// <summary>Borderless full screen: no title bar or frame, covering the taskbar on the current screen.</summary>
+    public void SetFullScreen(bool on, bool save = true)
+    {
+        if (on == _fullScreen) return;
+        _fullScreen = on;
+        if (on)
+        {
+            _stateBeforeFullScreen = WindowState == WindowState.Minimized ? WindowState.Normal : WindowState;
+            // Leave maximised first: changing the style of a maximised window keeps the old (taskbar-sized) bounds.
+            WindowState = WindowState.Normal;
+            WindowStyle = WindowStyle.None;
+            ResizeMode = ResizeMode.NoResize;
+            WindowState = WindowState.Maximized;
+        }
+        else
+        {
+            WindowState = WindowState.Normal;
+            WindowStyle = WindowStyle.SingleBorderWindow;
+            ResizeMode = ResizeMode.CanResize;
+            WindowState = _stateBeforeFullScreen;
+        }
+        FullScreenIcon.Text = on ? "\uE73F" : "\uE740";
+        FullScreenButton.ToolTip = on ? "Leave full screen (Alt+Enter)" : "Full screen, no title bar (Alt+Enter)";
+        MinimiseButton.Visibility = CloseButton.Visibility = on ? Visibility.Visible : Visibility.Collapsed;
+        if (save)
+        {
+            _vm.Services.Settings.FullScreen = on;
+            _vm.Services.SaveSettings();
+        }
+    }
+
+    public bool IsFullScreen => _fullScreen;
+    private void FullScreen_Click(object sender, RoutedEventArgs e) => SetFullScreen(!_fullScreen);
+    private void Minimise_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+    private void Close_Click(object sender, RoutedEventArgs e) => Close();
 
     // ------------------------------------------------------------------ global benchmark hotkey
 

@@ -16,6 +16,9 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
 {
     private readonly Action _save;
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromMilliseconds(33) };
+    // Saving writes the whole library file; while a slider is dragged that would run on every pixel and make
+    // the drag stick, so changes are saved once the value settles.
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(400) };
     public ControllerProfile Profile { get; }
 
     public ControllerProfileViewModel(ControllerProfile profile, Action save)
@@ -23,6 +26,15 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
         Profile = profile;
         _save = save;
         _timer.Tick += (_, _) => Poll();
+        _saveTimer.Tick += (_, _) => Flush();
+    }
+
+    /// <summary>Writes any pending change now (also called when the editor closes).</summary>
+    public void Flush()
+    {
+        if (!_saveTimer.IsEnabled) return;
+        _saveTimer.Stop();
+        _save();
     }
 
     public static IReadOnlyList<StickCurve> Curves { get; } = Enum.GetValues<StickCurve>();
@@ -30,7 +42,8 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
     private void Set(Action change, [System.Runtime.CompilerServices.CallerMemberName] string? name = null)
     {
         change();
-        _save();
+        _saveTimer.Stop();
+        _saveTimer.Start();
         OnPropertyChanged(name);
         OnPropertyChanged(nameof(Summary));
     }
@@ -71,7 +84,7 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
     [ObservableProperty] private string _previewText = "Move the sticks to see the effect.";
 
     public void StartPreview() => _timer.Start();
-    public void StopPreview() => _timer.Stop();
+    public void StopPreview() { _timer.Stop(); Flush(); }
 
     private void Poll()
     {

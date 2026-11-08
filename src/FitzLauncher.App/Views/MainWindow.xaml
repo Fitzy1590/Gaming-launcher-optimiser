@@ -40,6 +40,16 @@
                         </StackPanel>
                     </Border>
                     <TextBlock Text="{Binding LibraryCount}" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
+                    <!-- Full screen: toggle, plus the window buttons the hidden title bar would have had -->
+                    <Button x:Name="FullScreenButton" Style="{StaticResource GhostButton}" Margin="16,0,0,0" Padding="10,6" Click="FullScreen_Click" ToolTip="Full screen, no title bar (Alt+Enter)">
+                        <TextBlock x:Name="FullScreenIcon" Style="{StaticResource Icon}" Text="&#xE740;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="MinimiseButton" Style="{StaticResource GhostButton}" Margin="4,0,0,0" Padding="10,6" Click="Minimise_Click" ToolTip="Minimise" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE921;" FontSize="14" />
+                    </Button>
+                    <Button x:Name="CloseButton" Style="{StaticResource GhostButton}" Margin="4,0,0,0" Padding="10,6" Click="Close_Click" ToolTip="Close the launcher" Visibility="Collapsed">
+                        <TextBlock Style="{StaticResource Icon}" Text="&#xE8BB;" FontSize="14" />
+                    </Button>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal">
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Home"
