@@ -50,6 +50,14 @@ public sealed class GameSession(
     /// <summary>APU power limit for this session (watts), applied through RyzenAdj.</summary>
     public int? PowerWatts { get; init; }
     public int PowerMaxWatts { get; init; } = 120;
+    public int PowerMinWatts { get; init; } = 10;
+    /// <summary>Find the lowest power limit that holds the target while playing.</summary>
+    public bool LivePowerTuning { get; init; }
+    /// <summary>Lowest power that held the target this session (live tuning), for next time.</summary>
+    public int? LearnedWatts { get; private set; }
+    /// <summary>The FPS target <see cref="LearnedWatts"/> applies to.</summary>
+    public int? LearnedTarget { get; private set; }
+    private PowerGovernor? _powerGov;
     public RyzenAdjClient? RyzenAdj { get; init; }
     /// <summary>RTSS limiter mode written for this session (0 async, 1 front-edge sync), for learning.</summary>
     public int? LimiterMode { get; init; }
@@ -181,6 +189,8 @@ public sealed class GameSession(
             if (next == now) { Note($"Power {now} W"); return; }
             if (!RyzenAdj.Apply(next, PowerMaxWatts)) { Note("Couldn't change power"); return; }
             _livePower = next;
+            _powerGov = null; // you're in charge now
+            LearnedWatts = null;
             Note($"Power {next} W");
             Status?.Invoke($"Power limit changed to {next} W in-game");
         }
@@ -322,6 +332,12 @@ public sealed class GameSession(
             Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
         }
         if (powerSet) lock (_capLock) _livePower = PowerWatts;
+        if (powerSet && LivePowerTuning && Cap is > 0 and { } powerTarget)
+        {
+            _powerGov = new PowerGovernor(PowerWatts!.Value, PowerMinWatts, PowerMaxWatts, powerTarget);
+            LearnedTarget = powerTarget;
+            Status?.Invoke($"Power: finding the lowest limit that holds {powerTarget} FPS (starting at {PowerWatts} W)");
+        }
 
         // ---------------------------------------------------------------- Curve Optimizer undervolt
         if (RyzenAdj is not null && UndervoltOffset is { } uvOffset and < 0)
@@ -472,6 +488,19 @@ public sealed class GameSession(
                     }
                 }
 
+                // Live power tuning: the governor follows the target unless the thermal guard or idle cap is in charge.
+                if (_powerGov is { } gov && currentGuard is not { IsThrottling: true } && idleGov is not { Idle: true } && BenchmarkSecondsLeft() is null)
+                {
+                    int? targetNow;
+                    lock (_capLock) targetNow = _livePower;
+                    if (gov.Update(fps.CurrentFps, DateTime.UtcNow) is { } w && w != targetNow && RyzenAdj!.Apply(w, PowerMaxWatts))
+                    {
+                        lock (_capLock) _livePower = w;
+                        Note($"Power {w} W");
+                    }
+                    LearnedWatts = gov.Learned;
+                }
+
                 // Vendor apps sometimes re-apply their own power limit; re-assert ours every minute.
                 int? livePower;
                 lock (_capLock) livePower = _livePower;
@@ -537,7 +566,7 @@ public sealed class GameSession(
         summary.AvgGpuTempC = gpuSamples > 0 ? sumGpu / gpuSamples : null;
         summary.TempAlerts = alerts;
         summary.AvgGpuLoad = gpuLoadSamples > 0 ? gpuLoadSum / gpuLoadSamples : null;
-        summary.PowerWatts = powerSet ? PowerWatts : null;
+        summary.PowerWatts = powerSet ? LearnedWatts ?? PowerWatts : null; // the lowest that held, when tuned live
         summary.LimiterMode = LimiterMode;
         summary.AsleepSeconds = Math.Round(_sleep.Asleep.TotalSeconds);
 

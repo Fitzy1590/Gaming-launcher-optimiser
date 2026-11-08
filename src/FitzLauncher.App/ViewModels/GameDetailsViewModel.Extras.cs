@@ -126,6 +126,7 @@ public sealed partial class GameDetailsViewModel
         LoadInsights();
         LoadAmd();
         LoadUpscaling();
+        LoadAdvice();
         foreach (var o in StatusOptions) o.IsSelected = o.Value == Game.Status;
         foreach (var o in PinningOptions) o.IsSelected = o.Value == Game.CorePinning;
         var plan = CpuAffinityPlanner.Plan(_s.CpuTopology, Game.CorePinning);
@@ -310,17 +311,26 @@ public sealed partial class GameDetailsViewModel
 
     // ------------------------------------------------------------------ power & pacing
 
-    public bool ShowPower => _s.Settings.PowerControl && _s.Hardware?.IsApu == true;
+    public bool ShowPower => _s.Hardware?.IsApu == true;
     public bool PowerOn { get => Game.PowerAuto; set { Game.PowerAuto = value; _s.SaveLibrary(); OnPropertyChanged(nameof(PowerText)); } }
     public string PowerText => !Game.PowerAuto ? "Off for this game: your device's own power setting is used."
         : RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is null ? "RyzenAdj wasn't found. Set it up in Settings → Power."
-        : Game.PowerWatts is { } w ? $"Next session: {w} W (learned from your sessions; range {_s.Settings.PowerMinWatts}-{_s.Settings.PowerMaxWatts} W)"
-        : $"Next session: {_s.Settings.PowerDefaultWatts} W to start, then adjusted after each session";
+        : !_s.Settings.PowerControl ? "Power control is off in Settings → Power (Optimise turns it on)."
+        : PowerSummary();
+
+    private string PowerSummary()
+    {
+        var target = Game.FpsTarget;
+        var next = PowerTuner.WattsFor(Game, _s.Settings, target);
+        var learned = Game.PowerByTarget.Count == 0 ? "" : " Learned: " + string.Join(", ", Game.PowerByTarget.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} FPS → {kv.Value} W")) + ".";
+        return $"Next session: {next} W{(target is { } t ? $" for {t} FPS" : "")}, then tuned live to the lowest power that holds it; your previous limit is put back when the game closes.{learned}";
+    }
 
     [RelayCommand]
     private void ResetPower()
     {
         Game.PowerWatts = null;
+        Game.PowerByTarget.Clear();
         _s.SaveLibrary();
         OnPropertyChanged(nameof(PowerText));
     }

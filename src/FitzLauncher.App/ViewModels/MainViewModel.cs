@@ -411,8 +411,10 @@ public sealed partial class MainViewModel : ObservableObject
             RyzenAdj = ryzenAdj ?? undervolt,
             UndervoltOffset = undervolt is null || SafeMode ? null : _s.Settings.UndervoltCurrent,
             Controller = SafeMode ? null : game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
-            PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings) * coolingPlan.PowerScale)),
+            PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
+            PowerMinWatts = _s.Settings.PowerMinWatts,
+            LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
         };
         using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;
         if (quick is not null)
@@ -462,7 +464,10 @@ public sealed partial class MainViewModel : ObservableObject
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
-                coolingPlan.PowerScale < 1 ? null : PowerTuner.Learn(game, summary, _s.Settings), PacingTuner.Learn(game, summary), crashNote };
+                coolingPlan.PowerScale < 1 ? null
+                    : session.LearnedWatts is { } lw && session.LearnedTarget is { } powerTarget ? PowerTuner.LearnLive(game, powerTarget, lw, _s.Settings)
+                    : PowerTuner.Learn(game, summary, _s.Settings),
+                PacingTuner.Learn(game, summary), crashNote };
             if (session.FinalTarget is { } kept && game.CapPerDevice && screen is not null)
             {
                 DeviceCaps.Save(game, Environment.MachineName, screen, kept);

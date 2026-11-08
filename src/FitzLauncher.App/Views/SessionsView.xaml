@@ -22,6 +22,7 @@
                 <ColumnDefinition Width="80" />
                 <ColumnDefinition Width="90" />
                 <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="170" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="When" Style="{StaticResource MutedText}" />
             <TextBlock Grid.Column="1" Text="Game" Style="{StaticResource MutedText}" />
@@ -31,6 +32,7 @@
             <TextBlock Grid.Column="5" Text="1% low" Style="{StaticResource MutedText}" />
             <TextBlock Grid.Column="6" Text="On target" Style="{StaticResource MutedText}" />
             <TextBlock Grid.Column="7" Text="Max temps" Style="{StaticResource MutedText}" />
+            <TextBlock Grid.Column="8" Text="Setup" Style="{StaticResource MutedText}" />
         </Grid>
 
         <ListBox Grid.Row="2" ItemsSource="{Binding Rows}" Background="Transparent" BorderThickness="0"
@@ -66,6 +68,7 @@
                             <ColumnDefinition Width="80" />
                             <ColumnDefinition Width="90" />
                             <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="170" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="{Binding When}" Foreground="{StaticResource Muted}" />
                         <TextBlock Grid.Column="1" Text="{Binding Game}" FontWeight="Medium" />
@@ -74,6 +77,7 @@
                         <TextBlock Grid.Column="4" Text="{Binding Avg}" Style="{StaticResource Figure}" FontSize="13" />
                         <TextBlock Grid.Column="5" Text="{Binding Low}" Style="{StaticResource Figure}" FontSize="13" />
                         <TextBlock Grid.Column="6" Text="{Binding AtTarget}" Style="{StaticResource Figure}" FontSize="13" />
+                        <TextBlock Grid.Column="8" Text="{Binding Setup}" Style="{StaticResource Figure}" FontSize="13" Foreground="{StaticResource Muted}" ToolTip="Resolution · render scale · power limit" />
                         <StackPanel Grid.Column="7" Orientation="Horizontal">
                             <TextBlock Text="{Binding Temps}" Style="{StaticResource Figure}" FontSize="13" Foreground="{StaticResource Muted}" />
                             <TextBlock Style="{StaticResource Icon}" Text="&#xE7BA;" FontSize="12" Margin="8,0,0,0" Foreground="{StaticResource Bad}" Visibility="{Binding HadAlerts, Converter={StaticResource Vis}}" ToolTip="Temperature alerts during this session" />

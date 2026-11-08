@@ -105,6 +105,8 @@ public sealed class LauncherSettings
     public string? RyzenAdjPath { get; set; }
     public int PowerMinWatts { get; set; } = 25;
     public int PowerMaxWatts { get; set; } = 85;
+    /// <summary>Adjust the APU power limit live in each session to the lowest that holds the target.</summary>
+    public bool LivePowerTuning { get; set; } = true;
     /// <summary>Starting point for a game with nothing learned yet.</summary>
     public int PowerDefaultWatts { get; set; } = 65;
 

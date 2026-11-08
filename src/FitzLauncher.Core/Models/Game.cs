@@ -67,6 +67,8 @@ public sealed class Game
     public bool PowerAuto { get; set; } = true;
     /// <summary>Learned sustained power limit for this game, in watts (null = use the default).</summary>
     public int? PowerWatts { get; set; }
+    /// <summary>Lowest power limit that held each FPS target (learned live in sessions).</summary>
+    public Dictionary<int, int> PowerByTarget { get; set; } = [];
 
     // ---- RTSS limiter mode A/B (0 = async, 1 = front-edge sync)
     public Dictionary<int, LimiterResult> LimiterResults { get; set; } = [];

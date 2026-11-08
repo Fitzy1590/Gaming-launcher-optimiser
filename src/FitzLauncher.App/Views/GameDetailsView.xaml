@@ -98,6 +98,25 @@
                 <TextBlock Text="Included in Optimise (no visual change)" Style="{StaticResource H2}" />
                 <ItemsControl ItemsSource="{Binding OneClick}" ItemTemplate="{StaticResource OneClickRow}" />
 
+                <!-- Session baseline + in-game advice for the target -->
+                <TextBlock Text="{Binding BaselineText}" Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding BaselineText, Converter={StaticResource HasValue}}" />
+                <Border Style="{StaticResource Card}" Margin="0,12,0,0" Visibility="{Binding HasAdvice, Converter={StaticResource Vis}}">
+                    <StackPanel>
+                        <TextBlock Text="In-game settings for your target" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                        <TextBlock Text="{Binding AdviceHeadline}" Style="{StaticResource Wrap}" Margin="0,4,0,6" />
+                        <ItemsControl ItemsSource="{Binding AdviceSteps}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,2">
+                                        <TextBlock DockPanel.Dock="Left" Text="•" Margin="0,0,8,0" Foreground="{DynamicResource Accent}" />
+                                        <TextBlock Text="{Binding}" Style="{StaticResource Wrap}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Suggestions -->
                 <DockPanel Margin="0,16,0,8" Visibility="{Binding HasSuggestions, Converter={StaticResource Vis}}">
                     <Button DockPanel.Dock="Right" Content="Apply recommended" Command="{Binding ApplyRecommendedCommand}" />

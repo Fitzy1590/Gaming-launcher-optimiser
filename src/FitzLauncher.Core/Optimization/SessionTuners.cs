@@ -10,8 +10,21 @@ public static class PowerTuner
 {
     public const int StepDown = 3, StepUp = 5;
 
-    public static int WattsFor(Game game, LauncherSettings s) =>
-        Math.Clamp(game.PowerWatts ?? s.PowerDefaultWatts, s.PowerMinWatts, s.PowerMaxWatts);
+    public static int WattsFor(Game game, LauncherSettings s, int? target = null) =>
+        Math.Clamp(target is { } t && (game.PowerByTarget.Count > 0)
+            ? PowerGovernor.Estimate(game.PowerByTarget, t, game.PowerWatts ?? s.PowerDefaultWatts)
+            : game.PowerWatts ?? s.PowerDefaultWatts, s.PowerMinWatts, s.PowerMaxWatts);
+
+    /// <summary>Saves what the live governor found: the lowest power that held this target.</summary>
+    public static string? LearnLive(Game game, int target, int? learned, LauncherSettings s)
+    {
+        if (!game.PowerAuto || learned is not { } w) return null;
+        w = Math.Clamp(w, s.PowerMinWatts, s.PowerMaxWatts);
+        var had = game.PowerByTarget.TryGetValue(target, out var before);
+        game.PowerByTarget[target] = w;
+        game.PowerWatts = w;
+        return had && before == w ? null : $"{target} FPS held at {w} W: that's used from the start next time.";
+    }
 
     public static string? Learn(Game game, SessionSummary session, LauncherSettings s)
     {

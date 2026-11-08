@@ -129,6 +129,7 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <CheckBox Content="Set a power limit per game and learn the lowest one that still holds the FPS target" IsChecked="{Binding S.PowerControl}" />
+                    <CheckBox Content="Tune it live while playing (+3 W when the target is missed, −2 W while it holds easily)" IsChecked="{Binding S.LivePowerTuning}" IsEnabled="{Binding S.PowerControl}" Margin="26,4,0,0" />
                     <TextBlock Text="Uses RyzenAdj, the free tool handheld utilities use. Download it once from github.com/FlyGoat/RyzenAdj. If your device's own app (OneXConsole) also sets the power limit, turn that off while the launcher manages it, or the two will fight."
                                Style="{StaticResource Wrap}" Margin="0,8,0,8" />
                     <DockPanel Margin="0,0,0,8">

@@ -137,6 +137,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
         var applied = 0;
         var failed = new List<string>();
         var manual = 0;
+        var notes = new List<string>();
         await Busy(target is { } t ? $"Optimising for a stable {t} FPS…" : "Removing the frame cap…", async () =>
         {
             Game.FpsTarget = target;
@@ -153,6 +154,11 @@ public sealed partial class GameDetailsViewModel : ObservableObject
                     else failed.Add($"{tweak.Title}: {r.Message}");
                 }
             });
+            if (target is { } tt)
+            {
+                var screen = await Task.Run(PrimaryDisplay);
+                notes = ApplyBaselineAndPower(tt, screen);
+            }
             Game.OptimizedAt = DateTimeOffset.Now;
             _s.SaveLibrary();
         });
@@ -160,7 +166,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
         RebuildPlan();
         Card.Refresh();
         Status = failed.Count == 0
-            ? $"Applied {applied} optimisation(s) with no visual change.{(manual > 0 ? " The frame cap needs one manual step (see below)." : "")}{(Suggestions.Any(x => x.Recommended && !x.IsApplied) ? " Recommended graphics changes are listed below." : "")}"
+            ? $"Applied {applied} optimisation(s) with no visual change{(notes.Count > 0 ? "; " + string.Join("; ", notes) : "")}.{(manual > 0 ? " The frame cap needs one manual step (see below)." : "")}{(Suggestions.Any(x => x.Recommended && !x.IsApplied) || HasAdvice ? " Graphics advice for your target is listed below." : "")}"
             : $"Applied {applied}; {failed.Count} couldn't be applied: {string.Join("; ", failed)}";
         foreach (var f in failed) _s.Log.Write($"[{Game.Name}] {f}");
     }
@@ -325,6 +331,13 @@ public sealed class SessionRow(SessionSummary s)
     public string Temps => $"{(s.MaxCpuTempC is { } c ? $"CPU {c:0}°" : "")}{(s.MaxGpuTempC is { } g ? $"  GPU {g:0}°" : "")}".Trim();
     public string Target => s.TargetFps is { } t2 ? t2.ToString() : "–";
     public bool HadAlerts => s.TempAlerts > 0;
+    /// <summary>What it ran at: resolution, render scale, power.</summary>
+    public string Setup => string.Join(" · ", new[]
+    {
+        s.DisplayWidth > 0 ? $"{s.DisplayWidth}×{s.DisplayHeight}" : null,
+        s.RenderScale < 100 ? $"{s.RenderScale}%" : null,
+        s.PowerWatts is { } w ? $"{w} W" : null,
+    }.Where(x => x is not null));
 
     public static string Describe(SessionSummary s)
     {
