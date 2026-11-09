@@ -6,7 +6,27 @@ namespace FitzLauncher.Core.Optimization;
 /// <summary>The numbers the overlay can show at one moment.</summary>
 public readonly record struct OverlayValues(
     double Fps, double OnePercentLow, double? Watts, double? CpuTempC, double? GpuTempC, double? GpuLoad, int? Cap,
-    bool ThermalThrottling = false, int? BenchmarkSecondsLeft = null, string? Note = null, DateTime? Now = null);
+    bool ThermalThrottling = false, int? BenchmarkSecondsLeft = null, string? Note = null, DateTime? Now = null,
+    OtherOsd? Other = null, int? LimitWatts = null);
+
+/// <summary>What another on-screen display (MSI Afterburner's lines in RTSS) is already showing.</summary>
+public readonly record struct OtherOsd(bool ShowsFps, bool ShowsPower, int Temperatures);
+
+/// <summary>Reads RTSS OSD text from other apps to see which numbers are already on screen.</summary>
+public static partial class OsdTextAnalyzer
+{
+    [System.Text.RegularExpressions.GeneratedRegex(@"<[^>]*>")] private static partial System.Text.RegularExpressions.Regex Tags();
+    [System.Text.RegularExpressions.GeneratedRegex(@"\bFPS\b|framerate", System.Text.RegularExpressions.RegexOptions.IgnoreCase)] private static partial System.Text.RegularExpressions.Regex Fps();
+    [System.Text.RegularExpressions.GeneratedRegex(@"\d\s*W\b")] private static partial System.Text.RegularExpressions.Regex Power();
+    [System.Text.RegularExpressions.GeneratedRegex(@"°\s*C")] private static partial System.Text.RegularExpressions.Regex Temp();
+
+    public static OtherOsd Analyze(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return default;
+        var plain = Tags().Replace(text, " ");
+        return new OtherOsd(Fps().IsMatch(plain), Power().IsMatch(plain), Temp().Matches(plain).Count);
+    }
+}
 
 /// <summary>
 /// Builds the launcher's RTSS overlay text from <see cref="OverlaySettings"/>: a single tidy row
@@ -21,11 +41,14 @@ public static class OverlayFormatter
     {
         var items = new List<(string value, string label)>();
         var ci = CultureInfo.InvariantCulture;
-        if (o.Fps && v.Fps > 0) items.Add((v.Fps.ToString("0", ci), "FPS"));
+        // One counter, not two: leave out what Afterburner already shows (one temperature is its GPU one, two are CPU and GPU).
+        var other = o.AvoidDuplicates ? v.Other ?? default : default;
+        if (o.Fps && v.Fps > 0 && !other.ShowsFps) items.Add((v.Fps.ToString("0", ci), "FPS"));
         if (o.OnePercentLow && v.OnePercentLow > 0) items.Add((v.OnePercentLow.ToString("0", ci), "1% low"));
-        if (o.Watts && v.Watts is > 0 and { } w) items.Add((w.ToString("0", ci), "W"));
-        if (o.CpuTemp && v.CpuTempC is { } c) items.Add(("CPU", c.ToString("0", ci) + "°"));
-        if (o.GpuTemp && v.GpuTempC is { } g) items.Add(("GPU", g.ToString("0", ci) + "°"));
+        if (o.Watts && v.Watts is > 0 and { } w && !other.ShowsPower) items.Add((w.ToString("0", ci), "W"));
+        if (o.Limit && v.LimitWatts is { } lim) items.Add(("TDP", lim.ToString("0", ci) + " W"));
+        if (o.CpuTemp && v.CpuTempC is { } c && other.Temperatures < 2) items.Add(("CPU", c.ToString("0", ci) + "°"));
+        if (o.GpuTemp && v.GpuTempC is { } g && other.Temperatures < 1) items.Add(("GPU", g.ToString("0", ci) + "°"));
         if (o.GpuLoad && v.GpuLoad is { } l) items.Add(("GPU", l.ToString("0", ci) + "%"));
         if (o.Cap && v.Cap is { } cap and > 0) items.Add(("cap", cap.ToString(ci)));
         if (o.Clock && v.Now is { } now) items.Add((now.ToString("HH:mm", ci), ""));
@@ -39,7 +62,8 @@ public static class OverlayFormatter
         parts.AddRange(extras.Select(e => o.Coloured ? $"<C={Warn}>{e}<C>" : e));
         if (parts.Count == 0) return "";
 
-        var body = o.Arrangement == OverlayArrangement.Column ? string.Join("\n", parts) : string.Join("   ", parts);
+        var pad = new string(' ', Math.Clamp(o.LeftMargin, 0, 12));
+        var body = o.Arrangement == OverlayArrangement.Column ? string.Join("\n", parts.Select(x => pad + x)) : pad + string.Join("   ", parts);
         var size = Math.Clamp(o.SizePercent, 50, 150);
         return o.Coloured && size != 100 ? $"<S={size}>{body}<S>" : body;
     }

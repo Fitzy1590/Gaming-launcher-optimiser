@@ -38,6 +38,9 @@ public sealed partial class OverlayEditorViewModel : ObservableObject
     public bool GpuLoad { get => O.GpuLoad; set => Set(() => O.GpuLoad = value); }
     public bool Cap { get => O.Cap; set => Set(() => O.Cap = value); }
     public bool Clock { get => O.Clock; set => Set(() => O.Clock = value); }
+    public bool Limit { get => O.Limit; set => Set(() => O.Limit = value); }
+    public bool AvoidDuplicates { get => O.AvoidDuplicates; set => Set(() => O.AvoidDuplicates = value); }
+    public int LeftMargin { get => O.LeftMargin; set => Set(() => O.LeftMargin = Math.Clamp(value, 0, 12)); }
     public bool Coloured { get => O.Coloured; set => Set(() => O.Coloured = value); }
     public int SizePercent { get => O.SizePercent; set => Set(() => O.SizePercent = value); }
 

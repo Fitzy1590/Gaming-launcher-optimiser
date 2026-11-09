@@ -108,12 +108,62 @@ public class AutoTdpTests
     }
 
     [Fact]
-    public void LeavesPowerAloneWhileTheThermalGuardActs()
+    public void DoesNotAddPowerWhileWarmOrWhileTheThermalGuardActs()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 40);
         for (var t = 0; t < 60; t += 2)
-            Assert.Null(g.Update(new AutoTdpSample(500, 70, 60, 40, TempC: 91, ThermalHold: true), T0.AddSeconds(t))?.Watts);
+            Assert.Null(g.Update(new AutoTdpSample(500, 70, 60, 40, TempC: 80, ThermalHold: true), T0.AddSeconds(t))?.Watts); // dipping at the limit, but guard active
         Assert.Equal(40, g.Current);
+        var warm = new AutoTdpGovernor(Target, 25, 60, 40);
+        for (var t = 0; t < 60; t += 2)
+            Assert.Null(warm.Update(new AutoTdpSample(500, 70, 60, 40, TempC: 87), T0.AddSeconds(t))?.Watts); // 85-90 °C: no more power
+        Assert.Equal(40, warm.Current);
+    }
+
+    [Fact]
+    public void WhenHotItLowersPowerNotTheFpsTargetAndStopsOnceCoolEnough()
+    {
+        // Temperature follows power: 30 + 1.05 × limit (60 W → 93 °C). The game needs 50 W.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 60, thermalTriggerC: 90);
+        var guardMayAct = new List<bool>();
+        for (var t = 0; t < 400; t += 2)
+        {
+            var s = Plant(g.Current, needed: 50) with { TempC = 30 + 1.05 * g.Current };
+            guardMayAct.Add(!g.CanCoolByPower);
+            g.Update(s, T0.AddSeconds(t));
+        }
+        Assert.InRange(g.Current, 52, 58);           // cooled to just under 90 °C, not slashed to the floor
+        Assert.True(g.CanCoolByPower);               // …and the cap guard was told to wait while that happened
+        Assert.False(guardMayAct[0]);
+    }
+
+    [Fact]
+    public void AtTheFloorAndStillHotTheCapGuardIsToldItMayAct()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 26, thermalTriggerC: 90);
+        for (var t = 0; t < 120; t += 2) g.Update(Plant(g.Current, 80) with { TempC = 95 }, T0.AddSeconds(t));
+        Assert.Equal(25, g.Current);
+        Assert.False(g.CanCoolByPower);
+    }
+
+    [Fact]
+    public void AfterCoolingItDoesNotClimbStraightBackToThePowerThatOverheated()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 60, thermalTriggerC: 90);
+        for (var t = 0; t < 120; t += 2) g.Update(Plant(g.Current, 50) with { TempC = 30 + 1.05 * g.Current }, T0.AddSeconds(t));
+        var cooled = g.Current;
+        // A heavy scene now asks for more, with the chip cool: it may rise a little, not back to 60.
+        for (var t = 120; t < 240; t += 2) g.Update(Plant(g.Current, 70) with { TempC = 70 }, T0.AddSeconds(t));
+        Assert.True(g.Current <= cooled + 5, $"went from {cooled} to {g.Current}");
+    }
+
+    [Fact]
+    public void FollowsTheTargetItIsHolding()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, 45);
+        g.SetTarget(100); // e.g. the cap was lowered
+        for (var t = 0; t < 200; t += 2) g.Update(new AutoTdpSample(500, 100, 96, 35), T0.AddSeconds(t)); // 100 FPS is now healthy
+        Assert.True(g.Current < 45);
     }
 
     [Fact]

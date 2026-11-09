@@ -119,6 +119,35 @@ public sealed class RtssClient(string rtssDirectory) : IDisposable
 
     // ------------------------------------------------------------------ OSD
 
+    /// <summary>
+    /// The text other apps (MSI Afterburner's monitoring lines, RTSS's own statistics) currently show on the OSD, so we don't
+    /// show the same numbers a second time. Empty when RTSS isn't running or nothing else is displaying.
+    /// </summary>
+    public static string ReadOtherOsdText()
+    {
+        try
+        {
+            using var mmf = MemoryMappedFile.OpenExisting("RTSSSharedMemoryV2", MemoryMappedFileRights.Read);
+            using var view = mmf.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+            if (view.ReadUInt32(0) != RtssSignature) return "";
+            var version = view.ReadUInt32(4);
+            if (version < 0x00020000) return "";
+            var entrySize = view.ReadUInt32(20);
+            var arrOffset = view.ReadUInt32(24);
+            var arrSize = view.ReadUInt32(28);
+            var sb = new System.Text.StringBuilder();
+            for (uint i = 0; i < arrSize; i++)
+            {
+                long entry = arrOffset + i * entrySize;
+                if (ReadString(view, entry + 256, 256) == Owner) continue;
+                var text = version >= 0x00020007 ? ReadString(view, entry + 512, 4096) : ReadString(view, entry, 256);
+                if (text.Length > 0) sb.Append(text).Append('\n');
+            }
+            return sb.ToString();
+        }
+        catch (Exception e) when (e is FileNotFoundException or IOException or UnauthorizedAccessException) { return ""; }
+    }
+
     /// <summary>Writes our OSD line. Returns false if RTSS isn't running.</summary>
     public static bool SetOsdText(string text)
     {

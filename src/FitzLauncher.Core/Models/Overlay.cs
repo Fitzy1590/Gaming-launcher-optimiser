@@ -16,6 +16,12 @@ public sealed class OverlaySettings
     public bool GpuLoad { get; set; }
     public bool Cap { get; set; }
     public bool Clock { get; set; }
+    /// <summary>Show the power limit Auto TDP is holding ("TDP 45 W") when Auto TDP is on.</summary>
+    public bool Limit { get; set; } = true;
+    /// <summary>Leave out numbers another on-screen display (MSI Afterburner) already shows, so there's one FPS counter, not two.</summary>
+    public bool AvoidDuplicates { get; set; } = true;
+    /// <summary>Spaces before each line, so the text isn't clipped at the edge of the screen (overscan, bezels).</summary>
+    public int LeftMargin { get; set; } = 2;
     /// <summary>Accent-coloured values with dim labels (RTSS colour tags); off for plain text.</summary>
     public bool Coloured { get; set; } = true;
     /// <summary>Text size relative to RTSS's own setting (50-150%).</summary>

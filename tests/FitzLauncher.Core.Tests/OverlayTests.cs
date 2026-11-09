@@ -11,21 +11,21 @@ public class OverlayTests
     [Fact]
     public void DefaultRowIsFpsWattsTemps()
     {
-        var o = new OverlaySettings { Coloured = false };
+        var o = new OverlaySettings { LeftMargin = 0, Coloured = false };
         Assert.Equal("117 FPS   45 W   CPU 77°   GPU 75°", OverlayFormatter.Format(o, V));
     }
 
     [Fact]
     public void ColumnPutsEachOnItsOwnLine()
     {
-        var o = new OverlaySettings { Coloured = false, Arrangement = OverlayArrangement.Column, CpuTemp = false };
+        var o = new OverlaySettings { LeftMargin = 0, Coloured = false, Arrangement = OverlayArrangement.Column, CpuTemp = false };
         Assert.Equal("117 FPS\n45 W\nGPU 75°", OverlayFormatter.Format(o, V));
     }
 
     [Fact]
     public void ColouredUsesRtssTagsAndSize()
     {
-        var o = new OverlaySettings { Watts = false, CpuTemp = false, GpuTemp = false, SizePercent = 80 };
+        var o = new OverlaySettings { LeftMargin = 0, Watts = false, CpuTemp = false, GpuTemp = false, SizePercent = 80 };
         Assert.Equal("<S=80><C=FFFFFF>117<C> <C=9AA4B2>FPS<C><S>", OverlayFormatter.Format(o, V));
     }
 
@@ -41,7 +41,7 @@ public class OverlayTests
     [Fact]
     public void ExtrasAppearOnlyWhenRelevant()
     {
-        var o = new OverlaySettings { Coloured = false, Watts = false, CpuTemp = false, GpuTemp = false };
+        var o = new OverlaySettings { LeftMargin = 0, Coloured = false, Watts = false, CpuTemp = false, GpuTemp = false };
         Assert.Equal("117 FPS   cooling: cap 110", OverlayFormatter.Format(o, V with { ThermalThrottling = true, Cap = 110 }));
     }
 

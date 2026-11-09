@@ -115,7 +115,7 @@ public class ThermalGovernorTests
     {
         var g = new ThermalGovernor(90, new ThermalGuardOptions { TriggerC = 90, StepDownAfterSeconds = 1, MinimumCap = 72 }, 90);
         var t = DateTime.Now;
-        for (var i = 0; i < 20; i++) g.Update(60, 95, t.AddSeconds(i * 2));
+        for (var i = 0; i < 20; i++) g.Update(60, 120 - i * 2, t.AddSeconds(i * 2)); // cooling a little each tick, still hot
         Assert.Equal(72, g.CurrentCap);
     }
 }
@@ -591,3 +591,79 @@ public class ReleaseInfoTests
     [InlineData("latest", false)]
     public void Parses_tags(string tag, bool ok) => Assert.Equal(ok, FitzLauncher.Core.Updates.ReleaseInfo.TryParseVersion(tag, out _));
 }
+
+public class ThermalGuardFutilityTests
+{
+    private static readonly ThermalGuardOptions O = new() { TriggerC = 90, ReleaseBelowC = 5, StepDownAfterSeconds = 15, RecoverAfterSeconds = 45 };
+
+    [Fact]
+    public void PutsTheCapBackWhenLoweringItDoesNotCoolAnything()
+    {
+        var g = new ThermalGovernor(117, O, 90);
+        var t = new DateTime(2026, 1, 1);
+        var lowestCap = 117;
+        for (var sec = 0; sec <= 61; sec++)
+        {
+            g.Update(60, 93, t.AddSeconds(sec)); // 93 °C whatever the cap is (e.g. sitting in a menu)
+            lowestCap = Math.Min(lowestCap, g.CurrentCap);
+        }
+        Assert.True(lowestCap < 117);               // it did try
+        Assert.Equal(117, g.CurrentCap);            // 45 s later with no change it gave up and restored the cap
+        for (var sec = 62; sec < 600; sec++) Assert.Null(g.Update(60, 93, t.AddSeconds(sec))); // and doesn't keep trying while it stays hot
+        Assert.False(g.IsThrottling);
+    }
+
+    [Fact]
+    public void KeepsSteppingWhileTheCapIsActuallyCooling()
+    {
+        var g = new ThermalGovernor(117, O, 90);
+        var t = new DateTime(2026, 1, 1);
+        for (var sec = 0; sec <= 40; sec++) g.Update(60, 96 - sec * 0.1, t.AddSeconds(sec)); // 0.1 °C cooler each second
+        Assert.True(g.IsThrottling);
+        Assert.True(g.CurrentCap <= 100);
+        for (var sec = 41; sec <= 100; sec++) g.Update(60, 96 - sec * 0.1, t.AddSeconds(sec));
+        Assert.True(g.IsThrottling); // still capped at 86 °C (not yet cool enough to recover), and never given up on: the cap was working
+    }
+
+    [Fact]
+    public void CanBeToldToWaitWhileSomethingElseCools()
+    {
+        var g = new ThermalGovernor(117, O, 90);
+        var t = new DateTime(2026, 1, 1);
+        for (var i = 0; i < 120; i += 2) Assert.Null(g.Update(60, 95, t.AddSeconds(i), allowStepDown: false));
+        Assert.False(g.IsThrottling);
+    }
+}
+
+public class OverlayDuplicateTests
+{
+    private static readonly OverlayValues V = new(100, 90, 60, 83, 81, 95, 100, ThermalThrottling: true, LimitWatts: 52);
+
+    [Fact]
+    public void LeavesOutWhatAfterburnerAlreadyShowsAndKeepsAMargin()
+    {
+        var o = new FitzLauncher.Core.Models.OverlaySettings { Coloured = false };
+        // Afterburner shows FPS, power and one temperature (its GPU one).
+        var text = OverlayFormatter.Format(o, V with { Other = new OtherOsd(true, true, 1) });
+        Assert.Equal("  TDP 52 W   CPU 83°   cooling: cap 100", text);
+    }
+
+    [Fact]
+    public void ShowsEverythingWhenNothingElseIsOnScreenOrDedupingIsOff()
+    {
+        var o = new FitzLauncher.Core.Models.OverlaySettings { Coloured = false };
+        Assert.Equal("  100 FPS   60 W   TDP 52 W   CPU 83°   GPU 81°   cooling: cap 100", OverlayFormatter.Format(o, V));
+        o.AvoidDuplicates = false;
+        Assert.Contains("100 FPS", OverlayFormatter.Format(o, V with { Other = new OtherOsd(true, true, 2) }));
+    }
+
+    [Fact]
+    public void ReadsWhichNumbersAnotherOsdShows()
+    {
+        var a = OsdTextAnalyzer.Analyze("<C=FF8000>81 °C   100 FPS\n60 W<C>");
+        Assert.Equal(new OtherOsd(true, true, 1), a);
+        Assert.Equal(new OtherOsd(false, false, 2), OsdTextAnalyzer.Analyze("GPU 70 °C\nCPU 83 °C"));
+        Assert.Equal(default, OsdTextAnalyzer.Analyze(""));
+    }
+}
+

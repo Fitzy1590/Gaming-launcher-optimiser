@@ -17,6 +17,9 @@ public sealed class ThermalGovernor
     private readonly int[] _steps;
     private int _index;
     private DateTime? _hotSince, _coolSince;
+    private DateTime _episodeStart;
+    private double _episodeTemp;
+    private bool _futile;
 
     /// <param name="triggerC">Temperature that starts the guard (the setting, lowered by cooler modes).</param>
     public ThermalGovernor(int originalCap, ThermalGuardOptions options, double triggerC)
@@ -31,8 +34,13 @@ public sealed class ThermalGovernor
     public bool IsThrottling => _index > 0;
     public double TriggerC => _trigger;
 
-    /// <summary>Feed a reading; returns the new cap when it changes, otherwise null.</summary>
-    public int? Update(double? cpuC, double? gpuC, DateTime now)
+    /// <summary>
+    /// Feed a reading; returns the new cap when it changes, otherwise null. <paramref name="allowStepDown"/> is false
+    /// while something better is cooling the chip (auto TDP lowering power): the cap then stays put, though it can still recover.
+    /// If a lower cap isn't bringing the temperature down (the heat isn't coming from the frame rate, e.g. a menu), it
+    /// goes back up a step and stops asking: running slower for nothing is the worst of both.
+    /// </summary>
+    public int? Update(double? cpuC, double? gpuC, DateTime now, bool allowStepDown = true)
     {
         var temp = Math.Max(cpuC ?? 0, gpuC ?? 0);
         if (temp <= 0) return null; // no reading
@@ -43,8 +51,17 @@ public sealed class ThermalGovernor
         {
             _coolSince = null;
             _hotSince ??= now;
-            if ((now - _hotSince.Value).TotalSeconds >= _o.StepDownAfterSeconds && _index < _steps.Length - 1)
+            // Capped for a fair while (three step intervals) and it's no cooler than when it started: the frame rate isn't
+            // where the heat comes from. Put the cap back and stop asking, until it has cooled down.
+            if (_index > 0 && !_futile && (now - _episodeStart).TotalSeconds >= 3 * _o.StepDownAfterSeconds && temp > _episodeTemp - 1.5)
             {
+                _futile = true;
+                _index = 0;
+                return CurrentCap;
+            }
+            if (allowStepDown && !_futile && (now - _hotSince.Value).TotalSeconds >= _o.StepDownAfterSeconds && _index < _steps.Length - 1)
+            {
+                if (_index == 0) { _episodeStart = now; _episodeTemp = temp; }
                 _index++;
                 _hotSince = now; // give the lower cap time to work before another step
                 return CurrentCap;
@@ -53,6 +70,7 @@ public sealed class ThermalGovernor
         }
 
         _hotSince = null;
+        if (cool) _futile = false;
         if (!cool || _index == 0) { _coolSince = null; return null; } // levelling out: hold
         _coolSince ??= now;
         if ((now - _coolSince.Value).TotalSeconds >= _o.RecoverAfterSeconds)

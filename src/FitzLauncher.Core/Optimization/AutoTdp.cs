@@ -57,8 +57,11 @@ public sealed class AutoTdpGovernor
 {
     private const double SmoothFloor = 0.90, AvgFloor = 0.95, RoomLow = 0.96, RoomAvg = 0.985;
 
-    private readonly int _target, _min, _max;
+    private int _target;
+    private readonly int _min, _max;
     private readonly bool _simulated;
+    private readonly double _trigger;
+    private bool _hotEpisode;
     private readonly Queue<(DateTime at, double w)> _drawn = [];
     private readonly Dictionary<int, double> _levelSeconds = [];
     private DateTime? _last, _healthySince;
@@ -69,9 +72,10 @@ public sealed class AutoTdpGovernor
     private string? _lastNote;
     private double _seconds, _limitSeconds, _drawnSeconds, _drawnTotal, _healthySeconds;
 
-    public AutoTdpGovernor(int target, int minWatts, int maxWatts, int startWatts, bool simulated = false)
+    /// <param name="thermalTriggerC">The temperature (the thermal guard's trigger) above which it lowers power to cool the chip.</param>
+    public AutoTdpGovernor(int target, int minWatts, int maxWatts, int startWatts, bool simulated = false, double thermalTriggerC = 90)
     {
-        (_target, _min, _max, _simulated) = (target, minWatts, Math.Max(maxWatts, minWatts), simulated);
+        (_target, _min, _max, _simulated, _trigger) = (target, minWatts, Math.Max(maxWatts, minWatts), simulated, thermalTriggerC);
         Current = Math.Clamp(startWatts, _min, _max);
         _floor = _min;
         _ceiling = _max;
@@ -79,6 +83,12 @@ public sealed class AutoTdpGovernor
     }
 
     public int Current { get; private set; }
+
+    /// <summary>The FPS the game is being held to right now (the cap can change: quick switch, thermal guard).</summary>
+    public void SetTarget(int target) { if (target > 0) _target = target; }
+
+    /// <summary>Power can still come down to cool the chip, so the FPS-cap guard should hold off (real mode only).</summary>
+    public bool CanCoolByPower => !_simulated && Current > _min;
     public int MaxUsed { get; private set; }
     public double PeakDrawn { get; private set; }
     public int Changes { get; private set; }
@@ -119,10 +129,30 @@ public sealed class AutoTdpGovernor
         var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : s.LowFps < _target * SmoothFloor || s.Fps < _target * AvgFloor;
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
-        if (s.ThermalHold || s.TempC >= 88)
+        // Too hot: the fix that costs the least is less power (the frame cap stays put). Stop once it's below the trigger.
+        var temp = s.TempC ?? 0;
+        var hot = temp > 0 && temp >= _trigger;
+        var warm = temp > 0 && temp >= _trigger - 5;
+        if (hot)
         {
+            _hotEpisode = true;
             _healthySince = null;
-            return Note("holding: the thermal guard is cooling things down");
+            if (Current > _min)
+            {
+                if ((now - _lastChange).TotalSeconds < 12) return null; // let the last cut take effect
+                var next = Math.Max(_min, Current - (temp >= _trigger + 4 ? 5 : 3));
+                var cut = Change(next, now, raised: false, $"{temp:0} °C: lowering power to cool it, keeping the FPS target");
+                _healthySince = null;
+                return cut;
+            }
+            return Note($"{temp:0} °C at the {_min} W floor: the thermal guard eases the FPS cap instead");
+        }
+        if (_hotEpisode && temp > 0 && temp < _trigger - 3)
+        {
+            // Cooled down: don't climb straight back to the power that heated it.
+            _hotEpisode = false;
+            _ceiling = Math.Min(_max, Current + 4);
+            _ceilingUntil = now.AddMinutes(5);
         }
 
         // Did the last raise actually help?
@@ -140,8 +170,9 @@ public sealed class AutoTdpGovernor
         if (distress)
         {
             _healthySince = null;
+            if (warm || s.ThermalHold) return Note("dipping, but it's warm: not adding power");
             if (!binding) return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W: more power won't help here (CPU or engine limited)");
-            if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "more power didn't help here");
+            if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "holding here for a few minutes: more power either overheated it or didn't help");
             if ((now - _lastChange).TotalSeconds < 3) return null;
             var severe = !_simulated && s.LowFps < _target * 0.80;
             var next = Math.Min(Math.Min(_max, ceiling), Current + (severe ? 8 : 5));

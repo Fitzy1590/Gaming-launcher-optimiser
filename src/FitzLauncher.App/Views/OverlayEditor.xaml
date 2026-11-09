@@ -18,7 +18,14 @@
             <CheckBox Content="GPU load" IsChecked="{Binding GpuLoad}" Margin="0,4,16,4" />
             <CheckBox Content="FPS cap" IsChecked="{Binding Cap}" Margin="0,4,16,4" />
             <CheckBox Content="Clock" IsChecked="{Binding Clock}" Margin="0,4,16,4" />
+            <CheckBox Content="TDP limit (Auto TDP)" IsChecked="{Binding Limit}" Margin="0,4,16,4" ToolTip="The power limit Auto TDP is holding, when it's on" />
         </WrapPanel>
+        <CheckBox Content="One counter, not two: leave out numbers MSI Afterburner already shows on screen (FPS, power, temperature)" IsChecked="{Binding AvoidDuplicates}" Margin="0,6,0,0" />
+        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+            <TextBlock Text="Left margin" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBox Text="{Binding LeftMargin, UpdateSourceTrigger=PropertyChanged}" Width="44" AutomationProperties.Name="Left margin in spaces" ToolTip="Spaces before each line, so it isn't cut off at the screen edge (0-12)" />
+            <TextBlock Text="spaces: raise it if the left edge is clipped on your screen" Style="{StaticResource MutedText}" VerticalAlignment="Center" Margin="8,0,0,0" />
+        </StackPanel>
         <DockPanel Margin="0,6,0,0">
             <CheckBox DockPanel.Dock="Left" Content="Colour" IsChecked="{Binding Coloured}" Margin="0,0,16,0" VerticalAlignment="Center" ToolTip="White values, grey labels" />
             <TextBlock DockPanel.Dock="Left" Text="Size" VerticalAlignment="Center" Margin="0,0,8,0" />

@@ -437,7 +437,7 @@ public sealed partial class MainViewModel : ObservableObject
         // Where auto TDP starts: what held this target last time (a little above), else the learned/default power.
         var autoStart = autoTarget is { } at && game.AutoTdpProfiles.TryGetValue(at, out var known) && known.Typical > 0
             ? (int)Math.Round(known.Typical * 1.08)
-            : PowerTuner.WattsFor(game, _s.Settings, autoTarget);
+            : _s.Settings.AutoTdpStartWatts;
         autoStart = Math.Clamp(autoStart, autoMin, autoMax);
         // Undervolt ladder: first undervolted session starts one step in.
         var st = _s.Settings;

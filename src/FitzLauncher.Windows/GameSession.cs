@@ -460,7 +460,7 @@ public sealed class GameSession(
         {
             _autoSimulated = AutoTdp == AutoTdpMode.Observe;
             var startWatts = _autoSimulated ? (int)Math.Round(RyzenAdj?.Read()?.StapmW ?? 45) : PowerWatts!.Value;
-            _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated);
+            _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated, thermalTriggerC: GuardTriggerC);
             AutoTdpTarget = autoTarget;
             Status?.Invoke(_autoSimulated
                 ? $"Auto TDP is watching (not changing anything): it logs the power it would use to hold {autoTarget} FPS"
@@ -581,7 +581,10 @@ public sealed class GameSession(
 
                 ThermalGovernor? currentGuard;
                 lock (_capLock) currentGuard = _guard;
-                if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
+                // While Auto TDP can still cool the chip by lowering power, the FPS-cap guard waits (unless it's very hot).
+                var hotNow = Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
+                var guardMayStepDown = _auto is not { CanCoolByPower: true } || hotNow >= GuardTriggerC + 6;
+                if (currentGuard?.Update(r.CpuTempC, r.GpuTempC, DateTime.Now, guardMayStepDown) is { } newCap && rtss!.SetFramerateLimit(renderExe, newCap))
                 {
                     Status?.Invoke(currentGuard.IsThrottling ? $"Thermal guard: running hot, cap lowered to {newCap} FPS" : $"Thermal guard: cooled down, cap back to {newCap} FPS");
                     // Cooler modes also trim the APU's power while hot, and give it back once cool.
@@ -615,6 +618,7 @@ public sealed class GameSession(
                     var hot = Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
                     var sample = new AutoTdpSample(frames, avg, low, r.Watts, hot > 0 ? hot : null, currentGuard?.IsThrottling == true);
                     var before = ag.Current;
+                    if ((currentGuard?.CurrentCap ?? Cap) is { } heldTo and > 0) ag.SetTarget(heldTo); // the target it's holding right now
                     var decision = ag.Update(sample, DateTime.UtcNow);
                     WriteAutoCsv(start, before, sample, decision);
                     if (decision is { } dec)
@@ -672,9 +676,13 @@ public sealed class GameSession(
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
                     DateTimeOffset.Now - start, currentGuard?.CurrentCap ?? Cap, currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
                     DateTime.Now < _noteUntil ? _note : null);
-                if (overlay && (!_overlayHidden || _hud)) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
-                    new OverlayValues(live.Fps, live.OnePercentLow, r.Watts, r.CpuTempC, r.GpuTempC, r.GpuLoad, live.Cap, live.ThermalThrottling,
-                        live.BenchmarkSecondsLeft, live.Note, DateTime.Now)));
+                if (overlay && (!_overlayHidden || _hud))
+                {
+                    var other = overlayLayout.AvoidDuplicates ? OsdTextAnalyzer.Analyze(RtssClient.ReadOtherOsdText()) : (OtherOsd?)null;
+                    RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
+                        new OverlayValues(live.Fps, live.OnePercentLow, r.Watts, r.CpuTempC, r.GpuTempC, r.GpuLoad, live.Cap, live.ThermalThrottling,
+                            live.BenchmarkSecondsLeft, live.Note, DateTime.Now, other, _auto is { } liveAuto && !_autoSimulated ? liveAuto.Current : null)));
+                }
                 Live?.Invoke(live);
             }
         }

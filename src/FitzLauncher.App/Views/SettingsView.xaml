@@ -165,13 +165,15 @@
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="autotdp" Content="On" IsChecked="{Binding S.AutoTdp, Converter={StaticResource Eq}, ConverterParameter=On}" />
                     </WrapPanel>
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Start at" VerticalAlignment="Center" />
+                        <TextBox Text="{Binding S.AutoTdpStartWatts}" Width="56" Margin="8,0,16,0" AutomationProperties.Name="Starting watts" ToolTip="Where a game it hasn't learned yet starts; it then goes up or down from here" />
                         <TextBlock Text="Stay between" VerticalAlignment="Center" Width="100" />
                         <TextBox Text="{Binding S.AutoTdpMinWatts}" Width="56" AutomationProperties.Name="Lowest watts" />
                         <TextBlock Text="and" VerticalAlignment="Center" Margin="8,0" />
                         <TextBox Text="{Binding S.AutoTdpMaxWatts}" Width="56" AutomationProperties.Name="Highest watts" />
                         <TextBlock Text="W" VerticalAlignment="Center" Margin="8,0" />
                     </StackPanel>
-                    <TextBlock Text="Smooth means the 1% low stays above 90% of your FPS target. Each game can choose its own mode on its page. Needs RyzenAdj (above) and an FPS target. Watch mode is the safe way to start: after a session, the launcher log and the auto-tdp folder in Fitz's data folder hold a line per two seconds (limit, FPS, 1% low, watts, temperature, decision)."
+                    <TextBlock Text="Smooth means the 1% low stays above 90% of your FPS target. When the chip reaches the thermal guard temperature (90°C unless your cooling mode lowers it), Auto TDP lowers power first and keeps the FPS target; the FPS cap only comes down if power is already at its minimum. Each game can choose its own mode on its page. Needs RyzenAdj (above) and an FPS target. Watch mode is the safe way to start: after a session, the launcher log and the auto-tdp folder in Fitz's data folder hold a line per two seconds (limit, FPS, 1% low, watts, temperature, decision)."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
                     <TextBlock Text="OneXConsole also sets power per game. Turn its per-game TDP off for games Fitz manages, or the two will fight; Fitz checks every few seconds and tells you if something keeps changing the limit."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />

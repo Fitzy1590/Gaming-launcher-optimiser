@@ -121,6 +121,8 @@ public sealed class LauncherSettings
     public bool LivePowerTuning { get; set; } = true;
     /// <summary>Auto TDP for handhelds: Off, Observe (logs what it would do) or On (holds the FPS target with the least power). Off by default.</summary>
     public FitzLauncher.Core.Optimization.AutoTdpMode AutoTdp { get; set; }
+    /// <summary>Where Auto TDP starts for a game it hasn't learned yet (a known-good middle: it then goes up or down from here).</summary>
+    public int AutoTdpStartWatts { get; set; } = 45;
     public int AutoTdpMinWatts { get; set; } = 25;
     public int AutoTdpMaxWatts { get; set; } = 60;
     /// <summary>Starting point for a game with nothing learned yet.</summary>
