@@ -31,6 +31,9 @@ public sealed class GamepadPoller : IDisposable
     private readonly DispatcherTimer _timer;
     private readonly Dictionary<PadButton, DateTime> _held = [];
     private bool _available = true;
+    private const int DirectionSettleMs = 80;
+    private PadButton? _lastDir;
+    private DateTime _lastDirAt;
 
     public event Action<PadButton>? Pressed;
 
@@ -77,6 +80,15 @@ public sealed class GamepadPoller : IDisposable
         {
             if (!_held.TryGetValue(b, out var next))
             {
+                // A D-pad hat reports diagonals as two directions while the thumb rolls from one to the next, so a
+                // direction arriving right after a different one is part of the same click: swallow it.
+                var isDir = b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right;
+                if (isDir && _lastDir != b && (now - _lastDirAt).TotalMilliseconds < DirectionSettleMs)
+                {
+                    _held[b] = now.AddMilliseconds(380);
+                    continue;
+                }
+                if (isDir) { _lastDir = b; _lastDirAt = now; }
                 Pressed?.Invoke(b);
                 _held[b] = now.AddMilliseconds(380); // first repeat delay
             }
