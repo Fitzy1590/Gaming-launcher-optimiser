@@ -123,6 +123,7 @@ public partial class App : Application
             return; // skip the hardware scan, update checks and other start-up work
         }
         _ = vm.Hardware.EnsureScannedAsync();
+        FitzLauncher.Windows.WindowsActions.ToggleOverlay = () => Dispatcher.BeginInvoke(vm.ToggleOverlayFromPad);
         _services.ApplyConsoleButton();
         _services.StartLowPowerSleep(() => vm.SessionOwnsPower).AsleepChanged += asleep => Dispatcher.BeginInvoke(() => vm.OnDeviceSleep(asleep));
         // Tell the user about games added to their saved game folders since last time.

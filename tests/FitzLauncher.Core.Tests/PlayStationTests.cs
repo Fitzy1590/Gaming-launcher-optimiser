@@ -157,3 +157,36 @@ public class PadComboTests
         Assert.Empty(off.Update(P(0), t.AddMilliseconds(60))); // pressing a button still cancels the tap
     }
 }
+
+public class PadComboDefaultsTests
+{
+    [Fact]
+    public void NewDefaultsSleepOnLeftAndHideCountersOnRight()
+    {
+        var s = PadComboSettings.New();
+        Assert.Equal(PadAction.Sleep, s.ActionFor(PadSnapshot.Left));
+        Assert.Equal(PadAction.ToggleOverlay, s.ActionFor(PadSnapshot.Right));
+        Assert.Equal(PadAction.BrightnessUp, s.ActionFor(PadSnapshot.RightShoulder));
+    }
+
+    [Fact]
+    public void OldUntouchedDefaultsMigrateButCustomOnesStay()
+    {
+        var old = new PadComboSettings
+        {
+            Combos =
+            [
+                new() { Button = PadSnapshot.Left, Action = PadAction.BrightnessDown }, new() { Button = PadSnapshot.Right, Action = PadAction.BrightnessUp },
+                new() { Button = PadSnapshot.LeftShoulder, Action = PadAction.PreviousTrack }, new() { Button = PadSnapshot.RightShoulder, Action = PadAction.NextTrack },
+            ],
+        };
+        old.AddNewDefaults();
+        Assert.Equal(PadAction.Sleep, old.ActionFor(PadSnapshot.Left));
+        Assert.Equal(PadAction.TrainerOrGame, old.ActionFor(PadSnapshot.RightThumb));
+
+        var custom = new PadComboSettings { Combos = [new() { Button = PadSnapshot.Left, Action = PadAction.Mute }] };
+        custom.AddNewDefaults();
+        Assert.Equal(PadAction.Mute, custom.ActionFor(PadSnapshot.Left));
+        Assert.Equal(PadComboSettings.CurrentDefaults, custom.DefaultsVersion);
+    }
+}

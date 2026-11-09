@@ -72,7 +72,9 @@ public sealed class LauncherSettings
     /// <summary>While OneXConsole is in front, mirror the Sony pad as an Xbox controller so it can drive it.</summary>
     public bool ConsolePadMirror { get; set; } = true;
     /// <summary>Hold PS + a button for Windows actions (volume, brightness, screenshot…).</summary>
-    public FitzLauncher.Core.Input.PadComboSettings PadCombos { get; set; } = new();
+    public FitzLauncher.Core.Input.PadComboSettings PadCombos { get; set; } = FitzLauncher.Core.Input.PadComboSettings.New();
+    /// <summary>FPS counters hidden with PS + Right (FPS is still recorded).</summary>
+    public bool OverlayHiddenByPad { get; set; }
 
     // ---- game updates
     /// <summary>Check official sources for game updates on the first launch of each day.</summary>

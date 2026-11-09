@@ -22,6 +22,10 @@ public sealed class ConsoleBridge : IDisposable
     private Thread? _thread;
     private volatile bool _run;
     private nint _returnTo;
+    // Set when the PS button opened OneXConsole over something: once OneXConsole closes or hides itself (after
+    // you pick an option), that window (the game) is brought back automatically.
+    private volatile bool _watchReturn;
+    private bool _consoleSeen;
 
     private ViGEmClient? _client;
     private IXbox360Controller? _pad;
@@ -88,6 +92,7 @@ public sealed class ConsoleBridge : IDisposable
             {
                 lastForegroundCheck = DateTime.UtcNow;
                 consoleInFront = ConsoleWindowInFront(out _);
+                if (_watchReturn) WatchReturn(consoleInFront);
             }
             if (consoleInFront && _mirrorEnabled() && s is { } pad) Mirror(pad);
             else if (_pad is not null || _lastKeys != 0) { DisconnectPad(); _lastKeys = 0; }
@@ -103,11 +108,14 @@ public sealed class ConsoleBridge : IDisposable
     {
         if (ConsoleWindowInFront(out var hwnd))
         {
+            _watchReturn = false;
             if (_returnTo != 0 && IsWindow(_returnTo)) Activate(_returnTo);
             else ShowWindow(hwnd, 6 /* SW_MINIMIZE */);
             return;
         }
         _returnTo = GetForegroundWindow();
+        _watchReturn = _returnTo != 0;
+        _consoleSeen = false;
         if (FindConsoleWindow() is { } existing && existing != 0)
         {
             if (IsIconic(existing)) ShowWindow(existing, 9 /* SW_RESTORE */);
@@ -124,6 +132,26 @@ public sealed class ConsoleBridge : IDisposable
             if (FindConsoleWindow() is { } w && w != 0) { Activate(w); break; }
         }
     }
+
+    private void WatchReturn(bool consoleInFront)
+    {
+        if (consoleInFront) { _consoleSeen = true; return; }
+        if (!_consoleSeen) return; // still opening
+        _watchReturn = false;
+        var fg = GetForegroundWindow();
+        // OneXConsole closed/hid itself (focus fell to the desktop, taskbar or nothing): go back to the game.
+        // If you switched to another app on purpose, leave it.
+        if (_returnTo != 0 && IsWindow(_returnTo) && fg != _returnTo && (fg == 0 || IsShellWindow(fg))) Activate(_returnTo);
+    }
+
+    private static bool IsShellWindow(nint hwnd)
+    {
+        var sb = new System.Text.StringBuilder(64);
+        GetClassName(hwnd, sb, sb.Capacity);
+        return sb.ToString() is "Progman" or "WorkerW" or "Shell_TrayWnd" or "Shell_SecondaryTrayWnd";
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(nint hwnd, System.Text.StringBuilder name, int max);
 
     private static bool IsConsoleProcess(string name) =>
         name.StartsWith("OneXConsole", StringComparison.OrdinalIgnoreCase) || name.StartsWith("OneX Console", StringComparison.OrdinalIgnoreCase);

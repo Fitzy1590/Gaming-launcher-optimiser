@@ -181,6 +181,37 @@ public sealed class GameSession(
     /// <summary>Quick HUD (View + LB held): shows the target and power line until released.</summary>
     public void SetHud(bool open) => _hud = open;
 
+    private volatile bool _overlayHidden;
+    private bool _osdTurnedOff;
+
+    /// <summary>Starts with the overlay hidden (remembered from PS + Right).</summary>
+    public bool StartOverlayHidden { get; init; }
+
+    /// <summary>
+    /// PS + Right: hide every FPS counter (ours, and RTSS/Afterburner's for this game) or bring them back.
+    /// FPS is still recorded. Returns the new state (true = hidden).
+    /// </summary>
+    public bool ToggleOverlayHidden()
+    {
+        _overlayHidden = !_overlayHidden;
+        RtssClient? rtss;
+        string? exe;
+        lock (_capLock) { rtss = _rtss; exe = _renderExe; }
+        if (_overlayHidden)
+        {
+            RtssClient.ClearOsd();
+            if (rtss is not null && exe is not null) _osdTurnedOff = rtss.SetOsdEnabled(exe, false);
+        }
+        else
+        {
+            if (_osdTurnedOff && rtss is not null && exe is not null) rtss.SetOsdEnabled(exe, true);
+            _osdTurnedOff = false;
+            Note("Overlay on", 3);
+        }
+        Status?.Invoke(_overlayHidden ? "FPS counters hidden (still recording)" : "FPS counters shown");
+        return _overlayHidden;
+    }
+
     /// <summary>In-game power change, ±5 W per press (needs RyzenAdj).</summary>
     public void ChangePower(int direction)
     {
@@ -352,6 +383,7 @@ public sealed class GameSession(
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
         var overlayLayout = game.Overlay ?? settings.EffectiveOverlay;
         var overlay = overlayLayout.Enabled && rtss is not null;
+        if (StartOverlayHidden && rtss is not null) ToggleOverlayHidden();
 
         // ---------------------------------------------------------------- CPU pinning
         var affinity = CpuAffinityPlanner.Plan(cpuTopology, game.CorePinning);
@@ -503,7 +535,7 @@ public sealed class GameSession(
                 var live = new LiveStats(fps.CurrentFps, p99 > 0 ? 1000 / p99 : 0, r.CpuTempC, r.GpuTempC, r.GpuLoad,
                     DateTimeOffset.Now - start, currentGuard?.CurrentCap ?? Cap, currentGuard?.IsThrottling ?? false, BenchmarkSecondsLeft(),
                     DateTime.Now < _noteUntil ? _note : null);
-                if (overlay) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
+                if (overlay && (!_overlayHidden || _hud)) RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
                     new OverlayValues(live.Fps, live.OnePercentLow, r.Watts, r.CpuTempC, r.GpuTempC, r.GpuLoad, live.Cap, live.ThermalThrottling,
                         live.BenchmarkSecondsLeft, live.Note, DateTime.Now)));
                 Live?.Invoke(live);
@@ -520,6 +552,7 @@ public sealed class GameSession(
         fps.Stop();
         _fps = null;
         if (overlay) RtssClient.ClearOsd();
+        if (_osdTurnedOff && rtss is not null) { rtss.SetOsdEnabled(renderExe, true); _osdTurnedOff = false; } // never leave RTSS's OSD off
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
         limiter?.RestoreAll();

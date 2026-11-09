@@ -246,7 +246,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="Volume and brightness repeat while held. Combo buttons aren't passed to the game or OneXConsole while PS is held. Brightness works on the built-in screen only." Style="{StaticResource Wrap}" FontSize="12" />
+                        <TextBlock Text="PS + Left sleeps; PS + Right hides/shows all FPS counters (FPS is still recorded). Volume and brightness repeat while held. Combo buttons aren't passed to the game or OneXConsole while PS is held. Brightness works on the built-in screen only." Style="{StaticResource Wrap}" FontSize="12" />
                         <Button Content="Reset to defaults" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Command="{Binding ResetCombosCommand}" />
                     </StackPanel>
                     <CheckBox Content="PS button opens OneXConsole (press again to go back to the game), in games too" IsChecked="{Binding PsButtonOpensConsole}" />

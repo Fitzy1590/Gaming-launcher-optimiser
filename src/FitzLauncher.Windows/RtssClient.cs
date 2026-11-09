@@ -27,6 +27,32 @@ public sealed class RtssClient(string rtssDirectory) : IDisposable
     public static bool IsRunning => System.Diagnostics.Process.GetProcessesByName("RTSS").Length > 0;
 
     /// <summary>Changes the frame limit for one exe immediately (also saved to its profile).</summary>
+    /// <summary>
+    /// Turns RTSS's on-screen display (every app's lines, Afterburner's included) off or on for one game's profile,
+    /// via the same RTSSHooks profile API as the frame limit ("EnableOSD" is the profile's [OSD] key).
+    /// </summary>
+    public bool SetOsdEnabled(string exeName, bool on) => SetProfileInt(exeName, "EnableOSD", on ? 1 : 0);
+
+    private bool SetProfileInt(string exeName, string property, int value)
+    {
+        if (!LoadHooks()) return false;
+        try
+        {
+            var load = Fn<ProfileFn>("LoadProfile");
+            var set = Fn<SetPropertyFn>("SetProfileProperty");
+            var save = Fn<ProfileFn>("SaveProfile");
+            var update = Fn<UpdateFn>("UpdateProfiles");
+            if (load is null || set is null || save is null || update is null) return false;
+            load(exeName);
+            var v = value;
+            var ok = set(property, ref v, sizeof(int));
+            save(exeName);
+            update();
+            return ok;
+        }
+        catch (Exception e) when (e is SEHException or AccessViolationException or EntryPointNotFoundException) { return false; }
+    }
+
     public bool SetFramerateLimit(string exeName, int fps)
     {
         if (!LoadHooks()) return false;

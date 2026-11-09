@@ -22,6 +22,12 @@ public static class WindowsActions
     /// <summary>The running trainer and game processes, for <see cref="PadAction.TrainerOrGame"/> (set by the app).</summary>
     public static Func<(int? Trainer, IReadOnlyCollection<int> Game)>? TrainerAndGame { get; set; }
 
+    /// <summary>Called for <see cref="PadAction.ToggleOverlay"/> (set by the app).</summary>
+    public static Action? ToggleOverlay { get; set; }
+
+    // https://learn.microsoft.com/windows/win32/api/powrprof/nf-powrprof-setsuspendstate
+    [DllImport("powrprof.dll", SetLastError = true)] private static extern bool SetSuspendState(bool hibernate, bool force, bool disableWakeEvent);
+
     public static void Run(PadAction action)
     {
         switch (action)
@@ -42,6 +48,13 @@ public static class WindowsActions
             case PadAction.OnScreenKeyboard: TouchKeyboard(); break;
             case PadAction.OpenLauncher: OpenLauncher?.Invoke(); break;
             case PadAction.TrainerOrGame: SwitchTrainerAndGame(); break;
+            case PadAction.ToggleOverlay: ToggleOverlay?.Invoke(); break;
+            case PadAction.Sleep:
+                // Same as Start → Sleep (Modern Standby on handhelds). A moment's pause so the button release
+                // doesn't count as wake-up input.
+                Thread.Sleep(1200);
+                SetSuspendState(false, false, false);
+                break;
         }
     }
 

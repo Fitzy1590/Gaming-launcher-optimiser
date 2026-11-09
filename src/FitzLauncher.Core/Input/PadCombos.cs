@@ -4,7 +4,7 @@ namespace FitzLauncher.Core.Input;
 public enum PadAction
 {
     None, VolumeUp, VolumeDown, Mute, BrightnessUp, BrightnessDown, PlayPause, NextTrack, PreviousTrack,
-    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame,
+    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame, ToggleOverlay, Sleep,
 }
 
 /// <summary>One PS + button combo.</summary>
@@ -17,21 +17,27 @@ public sealed class PadCombo
 
 public sealed class PadComboSettings
 {
+    public const int CurrentDefaults = 2;
+    /// <summary>Fresh settings (not loaded from a file).</summary>
+    public static PadComboSettings New() => new() { DefaultsVersion = CurrentDefaults };
+
     public bool Enabled { get; set; } = true;
     public List<PadCombo> Combos { get; set; } = Defaults();
+    /// <summary>Version of the built-in defaults these settings were created from (see <see cref="AddNewDefaults"/>).</summary>
+    public int DefaultsVersion { get; set; } // 0 in settings saved before versioning; new settings get the current version from New()
 
     public static List<PadCombo> Defaults() =>
     [
         new() { Button = PadSnapshot.Up, Action = PadAction.VolumeUp },
         new() { Button = PadSnapshot.Down, Action = PadAction.VolumeDown },
-        new() { Button = PadSnapshot.Left, Action = PadAction.BrightnessDown },
-        new() { Button = PadSnapshot.Right, Action = PadAction.BrightnessUp },
+        new() { Button = PadSnapshot.Left, Action = PadAction.Sleep },
+        new() { Button = PadSnapshot.Right, Action = PadAction.ToggleOverlay },
         new() { Button = PadSnapshot.A, Action = PadAction.Mute },
         new() { Button = PadSnapshot.B, Action = PadAction.SwitchWindow },
         new() { Button = PadSnapshot.X, Action = PadAction.GameBar },
         new() { Button = PadSnapshot.Y, Action = PadAction.OnScreenKeyboard },
-        new() { Button = PadSnapshot.LeftShoulder, Action = PadAction.PreviousTrack },
-        new() { Button = PadSnapshot.RightShoulder, Action = PadAction.NextTrack },
+        new() { Button = PadSnapshot.LeftShoulder, Action = PadAction.BrightnessDown },
+        new() { Button = PadSnapshot.RightShoulder, Action = PadAction.BrightnessUp },
         new() { Button = PadSnapshot.Back, Action = PadAction.Screenshot },
         new() { Button = PadSnapshot.Start, Action = PadAction.PlayPause },
         new() { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame },
@@ -49,6 +55,22 @@ public sealed class PadComboSettings
     /// <summary>Adds combos introduced in later versions to saved settings, without touching the user's choices.</summary>
     public void AddNewDefaults()
     {
+        // v2: PS + Left sleeps, PS + Right hides the FPS counters; brightness moved to L1/R1. Only applied when
+        // those four buttons are still on the v1 defaults, so nobody's own choices are overwritten.
+        if (DefaultsVersion < CurrentDefaults)
+        {
+            bool Is(ushort b, PadAction a) => ActionFor(b) == a;
+            if (Is(PadSnapshot.Left, PadAction.BrightnessDown) && Is(PadSnapshot.Right, PadAction.BrightnessUp)
+                && Is(PadSnapshot.LeftShoulder, PadAction.PreviousTrack) && Is(PadSnapshot.RightShoulder, PadAction.NextTrack))
+            {
+                Combos.RemoveAll(c => c.Button is PadSnapshot.Left or PadSnapshot.Right or PadSnapshot.LeftShoulder or PadSnapshot.RightShoulder);
+                Combos.Add(new PadCombo { Button = PadSnapshot.Left, Action = PadAction.Sleep });
+                Combos.Add(new PadCombo { Button = PadSnapshot.Right, Action = PadAction.ToggleOverlay });
+                Combos.Add(new PadCombo { Button = PadSnapshot.LeftShoulder, Action = PadAction.BrightnessDown });
+                Combos.Add(new PadCombo { Button = PadSnapshot.RightShoulder, Action = PadAction.BrightnessUp });
+            }
+            DefaultsVersion = CurrentDefaults;
+        }
         if (Combos.All(c => c.Action != PadAction.TrainerOrGame) && Combos.All(c => c.Button != PadSnapshot.RightThumb))
             Combos.Add(new PadCombo { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame });
     }

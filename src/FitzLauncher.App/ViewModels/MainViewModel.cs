@@ -39,6 +39,15 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action<bool>? DeviceSleepChanged;
 
     public bool SessionOwnsPower => _session?.OwnsPowerLimit == true;
+
+    /// <summary>PS + Right: hide or show the FPS counters (remembered for the next game).</summary>
+    public void ToggleOverlayFromPad()
+    {
+        var hidden = _session is { } s ? s.ToggleOverlayHidden() : !_s.Settings.OverlayHiddenByPad;
+        _s.Settings.OverlayHiddenByPad = hidden;
+        _s.SaveSettings();
+        if (_session is null) ShowToast(hidden ? "FPS counters will be hidden in games (PS + Right shows them)." : "FPS counters will show in games.");
+    }
     private bool _consoleWasRunning;
 
     /// <summary>Low-power sleep: stop the launcher's own polling while asleep, start it again on wake.</summary>
@@ -414,6 +423,7 @@ public sealed partial class MainViewModel : ObservableObject
             PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
+            StartOverlayHidden = _s.Settings.OverlayHiddenByPad,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
         };
         using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;

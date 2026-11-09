@@ -175,7 +175,7 @@ public sealed partial class ControllersViewModel : ObservableObject
     [RelayCommand]
     private void ResetCombos()
     {
-        _s.Settings.PadCombos.Combos = FitzLauncher.Core.Input.PadComboSettings.Defaults();
+        _s.Settings.PadCombos = FitzLauncher.Core.Input.PadComboSettings.New();
         _s.SaveSettings();
         _comboRows = null;
         OnPropertyChanged(nameof(ComboRows));
@@ -259,6 +259,8 @@ public sealed partial class PadComboRow(ushort button, string name, Services.App
         new(FitzLauncher.Core.Input.PadAction.TaskManager, "Task Manager"),
         new(FitzLauncher.Core.Input.PadAction.OpenLauncher, "Open Fitz Launcher"),
         new(FitzLauncher.Core.Input.PadAction.TrainerOrGame, "Switch trainer ↔ game"),
+        new(FitzLauncher.Core.Input.PadAction.ToggleOverlay, "Hide / show FPS counters"),
+        new(FitzLauncher.Core.Input.PadAction.Sleep, "Sleep"),
     ];
 
     public FitzLauncher.Core.Input.PadAction Action
