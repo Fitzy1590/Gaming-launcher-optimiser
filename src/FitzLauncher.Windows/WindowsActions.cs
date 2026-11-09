@@ -22,6 +22,10 @@ public static class WindowsActions
     /// <summary>The running trainer and game processes, for <see cref="PadAction.TrainerOrGame"/> (set by the app).</summary>
     public static Func<(int? Trainer, IReadOnlyCollection<int> Game)>? TrainerAndGame { get; set; }
 
+    /// <summary>In-game FPS target step (+1 / -1) and power step, for the running game (set by the app per session).</summary>
+    public static Action<int>? TargetStep { get; set; }
+    public static Action<int>? PowerStep { get; set; }
+
     /// <summary>Called for <see cref="PadAction.ToggleOverlay"/> (set by the app).</summary>
     public static Action? ToggleOverlay { get; set; }
 
@@ -49,6 +53,10 @@ public static class WindowsActions
             case PadAction.OpenLauncher: OpenLauncher?.Invoke(); break;
             case PadAction.TrainerOrGame: SwitchTrainerAndGame(); break;
             case PadAction.ToggleOverlay: ToggleOverlay?.Invoke(); break;
+            case PadAction.TargetUp: TargetStep?.Invoke(+1); break;
+            case PadAction.TargetDown: TargetStep?.Invoke(-1); break;
+            case PadAction.PowerUp: PowerStep?.Invoke(+1); break;
+            case PadAction.PowerDown: PowerStep?.Invoke(-1); break;
             // AI Game Companion's fixed global hotkeys: Ctrl+Shift+G panel, Ctrl+Shift+A screenshot + question.
             case PadAction.GameHelp: Keys(VK_CONTROL, VK_SHIFT, VK_G); break;
             case PadAction.GameHelpAsk: Keys(VK_CONTROL, VK_SHIFT, VK_A); break;

@@ -1,0 +1,32 @@
+<Window x:Class="FitzLauncher.App.Views.ActionWheelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent" Topmost="True"
+        ShowInTaskbar="False" ShowActivated="False" Focusable="False" SizeToContent="WidthAndHeight" ResizeMode="NoResize"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" FontFamily="{StaticResource UiFont}"
+        AutomationProperties.Name="PS actions wheel">
+    <!-- Hold PS: the wheel on the left (flick the right stick, release PS), a legend of every PS + button shortcut on the right.
+         Click-through and never takes focus from the game. -->
+    <Grid Margin="8">
+        <Border Background="{DynamicResource Deep}" Opacity="0.95" CornerRadius="8" />
+        <Border BorderBrush="{StaticResource StrongBorder}" BorderThickness="1" CornerRadius="8" Padding="24">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Width="340" Margin="24,0,0,0">
+                    <TextBlock Text="Hold PS, then press" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                    <ItemsControl x:Name="Legend">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,0,0,4">
+                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Button}" Width="120" Foreground="{StaticResource Muted}" FontSize="13" />
+                                    <TextBlock Text="{Binding Action}" Foreground="{StaticResource Text}" FontSize="13" TextWrapping="Wrap" />
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock x:Name="TapHint" Style="{StaticResource Wrap}" FontSize="12" Margin="0,12,0,0" />
+                </StackPanel>
+                <Canvas x:Name="Ring" Width="520" Height="400" />
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

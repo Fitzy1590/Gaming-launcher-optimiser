@@ -35,8 +35,18 @@ public sealed class ConsoleBridge : IDisposable
     private readonly Func<bool> _consoleEnabled;
     private readonly PadComboEngine _combos;
 
-    /// <summary>True while PS is held (its combo buttons shouldn't reach games or menus).</summary>
-    public static bool Chording { get; private set; }
+    private static volatile PadComboEngine? s_active;
+
+    /// <summary>
+    /// What a game should see of a Sony pad right now: PS never; while PS is held only buttons that were already down
+    /// (new presses are the shortcut's), and the right stick while the wheel is open. Unchanged when the bridge isn't running.
+    /// </summary>
+    public static PadSnapshot ForGame(PadSnapshot s) =>
+        s_active is { } e ? e.GameView(s) : s with { Buttons = (ushort)(s.Buttons & ~PadSnapshot.Guide) };
+
+    /// <summary>The actions wheel opened, closed or moved to another slot (raised on the bridge's thread).</summary>
+    public event Action<WheelState>? WheelChanged;
+    private WheelState _lastWheel;
 
     public ConsoleBridge(Func<string?> pathOverride, Func<bool> mirrorEnabled, Action<string> log, Func<bool>? consoleEnabled = null, Func<PadComboSettings>? combos = null)
     {
@@ -54,6 +64,7 @@ public sealed class ConsoleBridge : IDisposable
     {
         if (_run) return;
         _run = true;
+        s_active = _combos;
         PlayStationPads.Shared.Start();
         _thread = new Thread(Loop) { IsBackground = true, Name = "Console button", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
@@ -64,6 +75,7 @@ public sealed class ConsoleBridge : IDisposable
         if (!_run) return;
         _run = false;
         _thread?.Join(500);
+        if (ReferenceEquals(s_active, _combos)) s_active = null;
         DisconnectPad();
         PlayStationPads.Shared.Stop();
     }
@@ -85,8 +97,9 @@ public sealed class ConsoleBridge : IDisposable
                 }
                 catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log($"PS button ({action}): " + e.Message); }
             }
-            Chording = _combos.Chording;
-            if (Chording && s is { } held) s = held with { Buttons = 0 }; // the combo isn't also a press in OneXConsole
+            var wheel = _combos.Wheel;
+            if (wheel != _lastWheel) { _lastWheel = wheel; WheelChanged?.Invoke(wheel); }
+            if (s is { } raw) s = _combos.GameView(raw); // OneXConsole sees the same as a game: no PS, no shortcut presses
 
             if (DateTime.UtcNow - lastForegroundCheck > TimeSpan.FromMilliseconds(250))
             {
@@ -96,9 +109,9 @@ public sealed class ConsoleBridge : IDisposable
             }
             if (consoleInFront && _mirrorEnabled() && s is { } pad) Mirror(pad);
             else if (_pad is not null || _lastKeys != 0) { DisconnectPad(); _lastKeys = 0; }
-            Thread.Sleep(consoleInFront ? 4 : 16);
+            Thread.Sleep(consoleInFront || _combos.Chording ? 4 : 16);
         }
-        Chording = false;
+        if (_lastWheel.Open) WheelChanged?.Invoke(default);
     }
 
     // ------------------------------------------------------------------ open / go back

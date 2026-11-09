@@ -444,8 +444,8 @@ public sealed partial class MainViewModel : ObservableObject
         if (quick is not null)
         {
             quick.KeepAwakeOnInput = _s.Settings.IdleSleepInGame;
-            if (_s.Settings.QuickSwitch) quick.Step += session.ChangeTarget;
-            if (_s.Settings.QuickMenu)
+            if (_s.Settings.QuickSwitch && _s.Settings.LegacyPadShortcuts) quick.Step += session.ChangeTarget;
+            if (_s.Settings.QuickMenu && _s.Settings.LegacyPadShortcuts)
             {
                 quick.Hud += session.SetHud;
                 quick.PowerStep += session.ChangePower;
@@ -476,6 +476,9 @@ public sealed partial class MainViewModel : ObservableObject
                 if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
             });
         }
+        // PS shortcuts and the wheel can step the FPS target and power limit of this game.
+        FitzLauncher.Windows.WindowsActions.TargetStep = session.ChangeTarget;
+        FitzLauncher.Windows.WindowsActions.PowerStep = session.ChangePower;
         System.Diagnostics.Process? gameHelp = null;
         if (_s.Settings.GameHelpWithGames && !SafeMode)
             session.Launched += () => _ = Task.Run(async () =>
@@ -529,6 +532,8 @@ public sealed partial class MainViewModel : ObservableObject
         {
             trainerCts.Cancel();
             FitzLauncher.Windows.WindowsActions.TrainerAndGame = null;
+            FitzLauncher.Windows.WindowsActions.TargetStep = null;
+            FitzLauncher.Windows.WindowsActions.PowerStep = null;
             GameHelpService.Stop(gameHelp);
             FitzLauncher.Windows.PlayStationPads.Shared.Stop();
             if (game.Trainer is { CloseWithGame: true }) FitzLauncher.App.Services.Mods.TrainerService.Stop(trainer);

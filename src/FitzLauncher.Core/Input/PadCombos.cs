@@ -5,6 +5,7 @@ public enum PadAction
 {
     None, VolumeUp, VolumeDown, Mute, BrightnessUp, BrightnessDown, PlayPause, NextTrack, PreviousTrack,
     Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame, ToggleOverlay, Sleep, GameHelp, GameHelpAsk,
+    TargetUp, TargetDown, PowerUp, PowerDown,
 }
 
 /// <summary>One PS + button combo.</summary>
@@ -17,12 +18,16 @@ public sealed class PadCombo
 
 public sealed class PadComboSettings
 {
-    public const int CurrentDefaults = 3;
+    public const int CurrentDefaults = 4;
     /// <summary>Fresh settings (not loaded from a file).</summary>
     public static PadComboSettings New() => new() { DefaultsVersion = CurrentDefaults };
 
     public bool Enabled { get; set; } = true;
     public List<PadCombo> Combos { get; set; } = Defaults();
+    /// <summary>Show the actions wheel (with the shortcut legend) while PS is held on its own.</summary>
+    public bool WheelEnabled { get; set; } = true;
+    /// <summary>The eight wheel slots, clockwise from the top: flick the right stick to one and release PS.</summary>
+    public List<PadAction> WheelActions { get; set; } = DefaultWheel();
     /// <summary>Version of the built-in defaults these settings were created from (see <see cref="AddNewDefaults"/>).</summary>
     public int DefaultsVersion { get; set; } // 0 in settings saved before versioning; new settings get the current version from New()
 
@@ -43,6 +48,37 @@ public sealed class PadComboSettings
         new() { Button = PadSnapshot.Start, Action = PadAction.PlayPause },
         new() { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame },
     ];
+
+    public const int WheelSlots = 8;
+
+    public static List<PadAction> DefaultWheel() =>
+    [
+        PadAction.GameHelp,       // top
+        PadAction.Screenshot,     // top right
+        PadAction.ToggleOverlay,  // right
+        PadAction.TargetUp,       // bottom right
+        PadAction.Sleep,          // bottom
+        PadAction.TargetDown,     // bottom left
+        PadAction.TrainerOrGame,  // left
+        PadAction.Mute,           // top left
+    ];
+
+    /// <summary>Slot names for settings and the wheel, clockwise from the top.</summary>
+    public static readonly string[] SlotNames = ["Top", "Top right", "Right", "Bottom right", "Bottom", "Bottom left", "Left", "Top left"];
+
+    /// <summary>The configured action for a slot (always <see cref="WheelSlots"/> entries; missing ones are empty).</summary>
+    public PadAction WheelAction(int slot) => slot >= 0 && slot < WheelActions.Count ? WheelActions[slot] : PadAction.None;
+
+    /// <summary>The wheel slot (0 = top, clockwise) a right-stick position points at, or -1 when it's near the centre.</summary>
+    public static int SlotFor(short rx, short ry, int current = -1)
+    {
+        var mag = Math.Sqrt((double)rx * rx + (double)ry * ry);
+        if (mag < 8000) return -1;                 // centred: nothing selected
+        if (mag < 18000 && current >= 0) return current; // between the two thresholds, keep the selection (no flicker)
+        if (mag < 18000) return -1;
+        var deg = Math.Atan2(rx, ry) * 180 / Math.PI; // clockwise from the top (up = positive Y)
+        return ((int)Math.Round(deg / 45.0) % WheelSlots + WheelSlots) % WheelSlots;
+    }
 
     /// <summary>Every button that can be combined with PS, with its DualShock name.</summary>
     public static readonly (ushort Button, string Name)[] Buttons =
@@ -81,8 +117,10 @@ public sealed class PadComboSettings
                 Combos.Add(new PadCombo { Button = PadSnapshot.Y, Action = PadAction.GameHelp });
                 Combos.Add(new PadCombo { Button = PadSnapshot.LeftThumb, Action = PadAction.OnScreenKeyboard });
             }
-            DefaultsVersion = CurrentDefaults;
+            DefaultsVersion = 3;
         }
+        if (WheelActions.Count != WheelSlots) WheelActions = DefaultWheel(); // v4: the actions wheel
+        DefaultsVersion = CurrentDefaults;
         if (Combos.All(c => c.Action != PadAction.TrainerOrGame) && Combos.All(c => c.Button != PadSnapshot.RightThumb))
             Combos.Add(new PadCombo { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame });
     }
@@ -90,62 +128,113 @@ public sealed class PadComboSettings
     public PadAction ActionFor(ushort button) => Combos.FirstOrDefault(c => c.Button == button)?.Action ?? PadAction.None;
 }
 
+/// <summary>The actions wheel's state: whether it's showing and which slot is highlighted (-1 = none).</summary>
+public readonly record struct WheelState(bool Open, int Slot);
+
 /// <summary>
-/// Turns PS-button input into events: hold PS and press a button → that button's action (volume and brightness
-/// repeat while held); tap PS on its own → <see cref="Tap"/> (opens OneXConsole). A combo cancels the tap.
+/// Turns PS-button input into events.
+/// <list type="bullet">
+/// <item>Tap PS on its own (released within 0.35 s) → <see cref="Tap"/> (opens OneXConsole).</item>
+/// <item>Hold PS and press a button → that button's action (volume and brightness repeat while held).</item>
+/// <item>Hold PS for 0.35 s without pressing anything → the actions wheel opens. Flick the right stick towards a
+/// slot and release PS to run it; release with the stick centred to cancel. Pressing a shortcut button closes it.</item>
+/// </list>
+/// While PS is held the game only sees what it already had: buttons held when PS went down stay held until you
+/// release them, new presses are kept for the shortcut, and the right stick is kept for the wheel (see <see cref="GameView"/>).
 /// </summary>
 public sealed class PadComboEngine(Func<PadComboSettings> settings)
 {
     public const PadAction Tap = (PadAction)(-1);
-    private static readonly TimeSpan TapMax = TimeSpan.FromMilliseconds(700), RepeatDelay = TimeSpan.FromMilliseconds(400), RepeatEvery = TimeSpan.FromMilliseconds(120);
+    public static readonly TimeSpan WheelDelay = TimeSpan.FromMilliseconds(350);
+    private static readonly TimeSpan RepeatDelay = TimeSpan.FromMilliseconds(400), RepeatEvery = TimeSpan.FromMilliseconds(120);
 
-    private bool _psDown, _comboUsed;
+    private readonly Lock _lock = new();
+    private bool _psDown, _comboUsed, _wheelOpen;
     private DateTime _psSince;
-    private ushort _held;
+    private ushort _held, _preHeld;
+    private int _slot = -1;
     private readonly Dictionary<ushort, DateTime> _nextRepeat = [];
 
-    /// <summary>True while PS is held: the other buttons belong to the combo, so callers hide them from games/menus.</summary>
-    public bool Chording => _psDown;
+    /// <summary>True while PS is held.</summary>
+    public bool Chording { get { lock (_lock) return _psDown; } }
+
+    public WheelState Wheel { get { lock (_lock) return new WheelState(_wheelOpen, _wheelOpen ? _slot : -1); } }
 
     public static bool Repeats(PadAction a) => a is PadAction.VolumeUp or PadAction.VolumeDown or PadAction.BrightnessUp or PadAction.BrightnessDown;
 
     public List<PadAction> Update(PadSnapshot? pad, DateTime now)
     {
-        var fired = new List<PadAction>();
-        var s = pad ?? default;
-        var ps = s.Has(PadSnapshot.Guide);
-        var cfg = settings();
-
-        if (ps && !_psDown) { _psDown = true; _psSince = now; _comboUsed = false; _held = (ushort)(s.Buttons & ~PadSnapshot.Guide); }
-        else if (!ps && _psDown)
+        lock (_lock)
         {
-            _psDown = false;
-            _nextRepeat.Clear();
-            if (!_comboUsed && now - _psSince <= TapMax) fired.Add(Tap);
+            var fired = new List<PadAction>();
+            var s = pad ?? default;
+            var ps = s.Has(PadSnapshot.Guide);
+            var cfg = settings();
+            var buttons = (ushort)(s.Buttons & ~PadSnapshot.Guide);
+
+            if (ps && !_psDown)
+            {
+                _psDown = true; _psSince = now; _comboUsed = false; _wheelOpen = false; _slot = -1;
+                _held = _preHeld = buttons; // what was already held stays the game's
+            }
+            else if (!ps && _psDown)
+            {
+                _psDown = false;
+                _nextRepeat.Clear();
+                if (_wheelOpen)
+                {
+                    if (_slot >= 0 && cfg.WheelAction(_slot) is var a and not PadAction.None) fired.Add(a); // release = run the highlighted slot
+                }
+                else if (!_comboUsed && now - _psSince < WheelDelay) fired.Add(Tap);
+                _wheelOpen = false; _slot = -1; _preHeld = 0;
+                return fired;
+            }
+            if (!_psDown) return fired;
+
+            _preHeld &= buttons; // a pre-held button that's let go is no longer the game's
+
+            // The wheel: after a short hold with nothing pressed.
+            if (!_comboUsed && !_wheelOpen && cfg.Enabled && cfg.WheelEnabled && now - _psSince >= WheelDelay) _wheelOpen = true;
+            if (_wheelOpen) _slot = PadComboSettings.SlotFor(s.RX, s.RY, _slot);
+
+            var pressed = (ushort)(buttons & ~_held);
+            foreach (var (bit, _) in PadComboSettings.Buttons)
+            {
+                if ((buttons & bit) == 0) { _nextRepeat.Remove(bit); continue; }
+                var action = cfg.Enabled ? cfg.ActionFor(bit) : PadAction.None;
+                if ((pressed & bit) != 0)
+                {
+                    _comboUsed = true; // any button with PS cancels the tap and the wheel, mapped or not
+                    _wheelOpen = false; _slot = -1;
+                    if (action == PadAction.None) continue;
+                    fired.Add(action);
+                    if (Repeats(action)) _nextRepeat[bit] = now + RepeatDelay;
+                }
+                else if (_nextRepeat.TryGetValue(bit, out var due) && now >= due)
+                {
+                    fired.Add(action);
+                    _nextRepeat[bit] = now + RepeatEvery;
+                }
+            }
+            _held = buttons;
             return fired;
         }
-        if (!_psDown) return fired;
+    }
 
-        var buttons = (ushort)(s.Buttons & ~PadSnapshot.Guide);
-        var pressed = (ushort)(buttons & ~_held);
-        foreach (var (bit, _) in PadComboSettings.Buttons)
+    /// <summary>
+    /// What the game (or OneXConsole) should see right now. PS itself is never passed on. While PS is held only the
+    /// buttons that were already down when PS was pressed stay down (so holding block or sprint doesn't drop out); new
+    /// presses belong to the shortcut. With the wheel open the right stick is the wheel's, so it's centred for the game.
+    /// Sticks and triggers otherwise pass through untouched.
+    /// </summary>
+    public PadSnapshot GameView(PadSnapshot s)
+    {
+        lock (_lock)
         {
-            if ((buttons & bit) == 0) { _nextRepeat.Remove(bit); continue; }
-            var action = cfg.Enabled ? cfg.ActionFor(bit) : PadAction.None;
-            if ((pressed & bit) != 0)
-            {
-                _comboUsed = true; // any button with PS cancels the tap, mapped or not
-                if (action == PadAction.None) continue;
-                fired.Add(action);
-                if (Repeats(action)) _nextRepeat[bit] = now + RepeatDelay;
-            }
-            else if (_nextRepeat.TryGetValue(bit, out var due) && now >= due)
-            {
-                fired.Add(action);
-                _nextRepeat[bit] = now + RepeatEvery;
-            }
+            var clean = s with { Buttons = (ushort)(s.Buttons & ~PadSnapshot.Guide) };
+            if (!_psDown || !settings().Enabled) return clean;
+            clean = clean with { Buttons = (ushort)(clean.Buttons & _preHeld) };
+            return _wheelOpen ? clean with { RX = 0, RY = 0 } : clean;
         }
-        _held = buttons;
-        return fired;
     }
 }

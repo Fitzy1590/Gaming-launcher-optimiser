@@ -138,6 +138,9 @@ public sealed class LauncherSettings
     public int AdaptiveIdleCap { get; set; } = 60;
     /// <summary>Hold View + LB in-game for the quick HUD (D-pad: target up/down, power left/right).</summary>
     public bool QuickMenu { get; set; } = true;
+    /// <summary>The older XInput shortcuts (View + D-pad up/down for the FPS target, View + LB for the quick menu).
+    /// Off by default: PS + a button, and the PS actions wheel, are the controller shortcuts.</summary>
+    public bool LegacyPadShortcuts { get; set; }
     /// <summary>Freeze the game when the screen turns off or the PC sleeps; unfreeze on wake once signed in.</summary>
     public bool PauseOnSleep { get; set; } = true;
     /// <summary>Let Windows' idle timers turn off the screen / sleep during a game; controller input counts as activity.</summary>

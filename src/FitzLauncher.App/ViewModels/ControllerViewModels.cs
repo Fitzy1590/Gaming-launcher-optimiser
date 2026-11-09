@@ -169,6 +169,13 @@ public sealed partial class ControllersViewModel : ObservableObject
         set { _s.Settings.PadCombos.Enabled = value; _s.SaveSettings(); _s.ApplyConsoleButton(); OnPropertyChanged(); }
     }
 
+    public bool WheelEnabled { get => _s.Settings.PadCombos.WheelEnabled; set { _s.Settings.PadCombos.WheelEnabled = value; _s.SaveSettings(); OnPropertyChanged(); } }
+
+    private List<WheelSlotRow>? _wheelRows;
+    public List<WheelSlotRow> WheelRows => _wheelRows ??= [.. Enumerable.Range(0, FitzLauncher.Core.Input.PadComboSettings.WheelSlots).Select(i => new WheelSlotRow(i, _s))];
+
+    [RelayCommand] private void PreviewWheel() => _s.ActionWheel.Preview();
+
     private List<PadComboRow>? _comboRows;
     public List<PadComboRow> ComboRows => _comboRows ??= [.. FitzLauncher.Core.Input.PadComboSettings.Buttons.Select(b => new PadComboRow(b.Button, b.Name, _s))];
 
@@ -178,7 +185,10 @@ public sealed partial class ControllersViewModel : ObservableObject
         _s.Settings.PadCombos = FitzLauncher.Core.Input.PadComboSettings.New();
         _s.SaveSettings();
         _comboRows = null;
+        _wheelRows = null;
         OnPropertyChanged(nameof(ComboRows));
+        OnPropertyChanged(nameof(WheelRows));
+        OnPropertyChanged(nameof(WheelEnabled));
     }
 
     public bool ConsolePadMirror { get => _s.Settings.ConsolePadMirror; set { _s.Settings.ConsolePadMirror = value; _s.SaveSettings(); OnPropertyChanged(); } }
@@ -263,6 +273,10 @@ public sealed partial class PadComboRow(ushort button, string name, Services.App
         new(FitzLauncher.Core.Input.PadAction.Sleep, "Sleep"),
         new(FitzLauncher.Core.Input.PadAction.GameHelp, "Game help panel (AI Game Companion)"),
         new(FitzLauncher.Core.Input.PadAction.GameHelpAsk, "Game help: ask about the screen"),
+        new(FitzLauncher.Core.Input.PadAction.TargetUp, "FPS target up (in game)"),
+        new(FitzLauncher.Core.Input.PadAction.TargetDown, "FPS target down (in game)"),
+        new(FitzLauncher.Core.Input.PadAction.PowerUp, "Power limit +5 W (in game)"),
+        new(FitzLauncher.Core.Input.PadAction.PowerDown, "Power limit −5 W (in game)"),
     ];
 
     public FitzLauncher.Core.Input.PadAction Action
@@ -273,6 +287,32 @@ public sealed partial class PadComboRow(ushort button, string name, Services.App
             var list = s.Settings.PadCombos.Combos;
             list.RemoveAll(c => c.Button == button);
             if (value != FitzLauncher.Core.Input.PadAction.None) list.Add(new FitzLauncher.Core.Input.PadCombo { Button = button, Action = value });
+            s.SaveSettings();
+            OnPropertyChanged();
+        }
+    }
+}
+
+/// <summary>Names for pad actions, shared by Settings and the wheel.</summary>
+public static class PadActionLabels
+{
+    public static string Label(FitzLauncher.Core.Input.PadAction a) =>
+        PadComboRow.Choices.FirstOrDefault(c => c.Key == a).Value ?? a.ToString();
+}
+
+/// <summary>One slot of the actions wheel in Settings → Controllers.</summary>
+public sealed partial class WheelSlotRow(int index, Services.AppServices s) : ObservableObject
+{
+    public string Name { get; } = FitzLauncher.Core.Input.PadComboSettings.SlotNames[index];
+
+    public FitzLauncher.Core.Input.PadAction Action
+    {
+        get => s.Settings.PadCombos.WheelAction(index);
+        set
+        {
+            var list = s.Settings.PadCombos.WheelActions;
+            while (list.Count < FitzLauncher.Core.Input.PadComboSettings.WheelSlots) list.Add(FitzLauncher.Core.Input.PadAction.None);
+            list[index] = value;
             s.SaveSettings();
             OnPropertyChanged();
         }

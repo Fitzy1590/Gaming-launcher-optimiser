@@ -185,11 +185,23 @@ public sealed class AppServices : IDisposable
     public GameHelpService GameHelp => _gameHelp ??= new GameHelpService(this);
 
     private FitzLauncher.Windows.ConsoleBridge? _console;
+    private ActionWheelService? _wheel;
+    public ActionWheelService ActionWheel => _wheel ??= new ActionWheelService(this);
 
-    /// <summary>PS button → OneXConsole (and driving it with the Sony pad).</summary>
-    public FitzLauncher.Windows.ConsoleBridge ConsoleButton => _console ??=
-        new FitzLauncher.Windows.ConsoleBridge(() => Settings.ConsoleAppPath, () => Settings.ConsolePadMirror, Log.Write,
-            () => Settings.PsButtonOpensConsole, () => Settings.PadCombos);
+    /// <summary>PS button → OneXConsole, PS + button shortcuts and the actions wheel (and driving OneXConsole with the Sony pad).</summary>
+    public FitzLauncher.Windows.ConsoleBridge ConsoleButton
+    {
+        get
+        {
+            if (_console is null)
+            {
+                _console = new FitzLauncher.Windows.ConsoleBridge(() => Settings.ConsoleAppPath, () => Settings.ConsolePadMirror, Log.Write,
+                    () => Settings.PsButtonOpensConsole, () => Settings.PadCombos);
+                ActionWheel.Attach(_console);
+            }
+            return _console;
+        }
+    }
 
     /// <summary>Starts or stops the PS button watcher to match the setting.</summary>
     public void ApplyConsoleButton()

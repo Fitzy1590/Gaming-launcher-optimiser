@@ -263,7 +263,7 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
                     x = new Core.Input.PadSnapshot(st.Pad.Buttons, st.Pad.LX, st.Pad.LY, st.Pad.RX, st.Pad.RY, st.Pad.LeftTrigger, st.Pad.RightTrigger);
                 var sony = _usesSony ? PlayStationPads.Shared.Current : null;
                 // While PS is held its buttons are a Windows shortcut (volume etc.), not game input.
-                var m = Core.Input.PadMerge.Combine(x, sony is { } v ? v with { Buttons = ConsoleBridge.Chording || v.Has(Core.Input.PadSnapshot.Guide) ? (ushort)0 : v.Buttons } : null);
+                var m = Core.Input.PadMerge.Combine(x, sony is { } v ? ConsoleBridge.ForGame(v) : null);
                 if (m != last)
                 {
                     last = m;
