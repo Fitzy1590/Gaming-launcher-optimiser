@@ -16,6 +16,7 @@
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
     <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="10.0.14" />
     <PackageReference Include="System.Management" Version="10.0.14" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.14" />
     <PackageReference Include="System.Diagnostics.EventLog" Version="10.0.14" />

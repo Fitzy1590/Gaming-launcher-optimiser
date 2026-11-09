@@ -7,11 +7,17 @@ using FitzLauncher.Core.Storage;
 
 namespace FitzLauncher.App.ViewModels;
 
-public sealed class StutterCauseRow(StutterCauseFinding f)
+public sealed partial class StutterCauseRow(StutterCauseFinding f, GameDetailsViewModel owner) : ObservableObject
 {
     public string Title => $"{f.Title} · {f.Count} stutter(s)";
     public string Detail => f.Detail;
     public string Fix => f.Fix;
+    public bool HasAction => f.Action != StutterFix.None;
+    public string ActionLabel => f.ActionLabel;
+    [ObservableProperty] private string _result = "";
+
+    [RelayCommand]
+    private void Apply() => Result = owner.ApplyStutterFix(f.Action) ?? "Already set: nothing more to change here.";
 }
 
 public sealed partial class AbOption(object? value, string label, bool isB, GameDetailsViewModel owner) : ObservableObject
@@ -40,9 +46,17 @@ public sealed partial class GameDetailsViewModel
         StutterMoments.Clear();
         if (r is null) return;
         StutterSummary = $"{r.SessionStart.ToLocalTime():d MMM HH:mm}: {r.Summary}";
-        foreach (var c in r.Causes.Take(4)) StutterCauses.Add(new StutterCauseRow(c));
+        foreach (var c in r.Causes.Take(4)) StutterCauses.Add(new StutterCauseRow(c, this));
         foreach (var m in r.WorstMoments)
-            StutterMoments.Add($"{(int)m.At.TotalMinutes:00}:{m.At.Seconds:00}  ·  {m.WorstMs:0} ms{(m.Frames > 1 ? $" ({m.Frames} spikes)" : "")}  ·  {m.Cause switch { StutterCause.ShaderCompile => "shader compiling", StutterCause.BackgroundApp => "background app", StutterCause.Memory => "memory", StutterCause.Thermal => "heat", StutterCause.CpuLimit => "CPU maxed", _ => "frame pacing" }}");
+            StutterMoments.Add($"{(int)m.At.TotalMinutes:00}:{m.At.Seconds:00}  ·  {m.WorstMs:0} ms{(m.Frames > 1 ? $" ({m.Frames} spikes)" : "")}  ·  {m.Cause switch { StutterCause.ShaderCompile => "shader compiling", StutterCause.BackgroundApp => "background app", StutterCause.Memory => "memory", StutterCause.Thermal => "heat", StutterCause.CpuLimit => "CPU maxed", StutterCause.DiskBusy => "busy drive", StutterCause.PowerChange => "power limit change", _ => "frame pacing" }}{(m.Evidence.Length > 0 ? $": {m.Evidence}" : "")}");
+    }
+
+    /// <summary>Applies one of the detective's suggested fixes to this game (or the launcher setting it names).</summary>
+    public string? ApplyStutterFix(StutterFix fix)
+    {
+        var done = StutterFixes.Apply(Game, _s.Settings, fix);
+        if (done is not null) { _s.SaveLibrary(); _s.SaveSettings(); }
+        return done;
     }
 
     // ------------------------------------------------------------------ A/B wizard

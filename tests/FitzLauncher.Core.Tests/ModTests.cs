@@ -715,3 +715,50 @@ public class UpscalerAdvisorTests
         Assert.DoesNotContain("dxgi.dll", targets);
     }
 }
+
+public class StutterEvidenceTests
+{
+    private static readonly DateTimeOffset T0 = DateTimeOffset.UtcNow;
+
+    private static FitzLauncher.Core.Fps.StutterReport Run(FitzLauncher.Core.Fps.ContextSample sample, double atMin = 10) =>
+        FitzLauncher.Core.Fps.StutterDetective.Analyze(new FitzLauncher.Core.Models.Game { Name = "G" }, T0, T0.AddMinutes(30),
+            [new(T0.AddMinutes(atMin), 70)], [sample with { At = T0.AddMinutes(atMin) }], 90, 90);
+
+    [Fact]
+    public void Busy_drive_is_named_with_evidence()
+    {
+        var r = Run(new(T0, 60, 60, 40, 50, 40, null, 0, false, DiskBusyPercent: 100));
+        Assert.Equal(FitzLauncher.Core.Fps.StutterCause.DiskBusy, r.Causes[0].Cause);
+        Assert.Contains("100%", r.WorstMoments[0].Evidence);
+    }
+
+    [Fact]
+    public void Power_limit_change_offers_watch_only()
+    {
+        var r = Run(new(T0, 60, 60, 40, 50, 40, null, 0, false, PowerLimitChanged: true));
+        Assert.Equal(FitzLauncher.Core.Fps.StutterCause.PowerChange, r.Causes[0].Cause);
+        Assert.Equal(FitzLauncher.Core.Fps.StutterFix.AutoTdpWatchOnly, r.Causes[0].Action);
+    }
+
+    [Fact]
+    public void Background_app_evidence_names_the_app()
+    {
+        var r = Run(new(T0, 60, 60, 40, 50, 40, "OneDrive", 38, false));
+        Assert.Equal("OneDrive was using 38% of the CPU", r.WorstMoments[0].Evidence);
+        Assert.Equal(FitzLauncher.Core.Fps.StutterFix.LimitBackgroundApps, r.Causes[0].Action);
+    }
+
+    [Fact]
+    public void Fixes_change_the_game_once_and_are_then_no_ops()
+    {
+        var g = new FitzLauncher.Core.Models.Game();
+        var st = new FitzLauncher.Core.Models.LauncherSettings { BackgroundLimiter = false };
+        Assert.NotNull(FitzLauncher.Core.Fps.StutterFixes.Apply(g, st, FitzLauncher.Core.Fps.StutterFix.LimitBackgroundApps));
+        Assert.True(st.BackgroundLimiter);
+        Assert.Null(FitzLauncher.Core.Fps.StutterFixes.Apply(g, st, FitzLauncher.Core.Fps.StutterFix.LimitBackgroundApps));
+        Assert.NotNull(FitzLauncher.Core.Fps.StutterFixes.Apply(g, st, FitzLauncher.Core.Fps.StutterFix.CoolMode));
+        Assert.Equal(FitzLauncher.Core.Optimization.CoolingMode.Cool, g.Cooling);
+        Assert.NotNull(FitzLauncher.Core.Fps.StutterFixes.Apply(g, st, FitzLauncher.Core.Fps.StutterFix.AutoTdpWatchOnly));
+        Assert.Equal(FitzLauncher.Core.Optimization.AutoTdpMode.Observe, g.AutoTdp);
+    }
+}

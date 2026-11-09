@@ -367,6 +367,9 @@
                                             <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
                                             <TextBlock Text="{Binding Detail}" Style="{StaticResource Wrap}" />
                                             <TextBlock Text="{Binding Fix}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                                            <Button Content="{Binding ActionLabel}" Command="{Binding ApplyCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                                    Visibility="{Binding HasAction, Converter={StaticResource Vis}}" />
+                                            <TextBlock Text="{Binding Result}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

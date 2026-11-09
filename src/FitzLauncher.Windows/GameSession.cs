@@ -39,6 +39,16 @@ public sealed class GameSession(
     /// <summary>Why the session stuttered (set when it ends).</summary>
     public FitzLauncher.Core.Fps.StutterReport? StutterReport { get; private set; }
     private readonly List<FitzLauncher.Core.Fps.ContextSample> _samples = [];
+    private readonly DiskActivity _disk = new();
+    private DateTimeOffset _lastPowerChange = DateTimeOffset.MinValue;
+
+    /// <summary>Changes the power limit and remembers when, so a stutter at that moment can be explained.</summary>
+    private bool SetPower(int watts)
+    {
+        var ok = RyzenAdj!.Apply(watts, PowerMaxWatts);
+        if (ok) _lastPowerChange = DateTimeOffset.UtcNow;
+        return ok;
+    }
 
     /// <summary>One-launch options from the display plan (e.g. Unity's -screen-width).</summary>
     public string ExtraArguments { get; init; } = "";
@@ -271,7 +281,7 @@ public sealed class GameSession(
             if (RyzenAdj is null || _livePower is not { } now) { Note("Power control needs RyzenAdj"); return; }
             var next = Math.Clamp(now + direction * 5, 10, PowerMaxWatts);
             if (next == now) { Note($"Power {now} W"); return; }
-            if (!RyzenAdj.Apply(next, PowerMaxWatts)) { Note("Couldn't change power"); return; }
+            if (!SetPower(next)) { Note("Couldn't change power"); return; }
             _livePower = next;
             _powerGov = null; // you're in charge now
             if (_auto is not null && !_autoSimulated) { _auto = null; Trace?.Invoke("Auto TDP paused: you changed the power limit by hand."); }
@@ -593,7 +603,8 @@ public sealed class GameSession(
                 {
                     var top = limiter?.LastTop ?? (null, 0);
                     _samples.Add(new FitzLauncher.Core.Fps.ContextSample(DateTimeOffset.UtcNow, r.CpuTempC, r.GpuTempC, r.CpuLoad, r.GpuLoad,
-                        MemoryCleaner.FreePercent(), top.Name, top.Cpu, _guard?.IsThrottling == true));
+                        MemoryCleaner.FreePercent(), top.Name, top.Cpu, _guard?.IsThrottling == true,
+                        _disk.BusyPercent(), (DateTimeOffset.UtcNow - _lastPowerChange).TotalSeconds < 4));
                 }
 
                 if (CheckSustained(r.CpuTempC, settings.CpuTempAlertC, ref cpuHotSince, ref lastCpuAlert))
@@ -615,7 +626,7 @@ public sealed class GameSession(
                             if (_livePower is { } lpw)
                             {
                                 var nextW = currentGuard.IsThrottling ? Math.Max(10, lpw - 5) : Math.Min(PowerWatts!.Value, lpw + 5);
-                                if (nextW != lpw && RyzenAdj!.Apply(nextW, PowerMaxWatts)) _livePower = nextW;
+                                if (nextW != lpw && SetPower(nextW)) _livePower = nextW;
                             }
                 }
 
@@ -646,7 +657,7 @@ public sealed class GameSession(
                     if (decision is { } dec)
                     {
                         Trace?.Invoke("Auto TDP" + (_autoSimulated ? " (observing, not applied)" : "") + ": " + dec.Reason);
-                        if (!_autoSimulated && dec.Watts is { } nw && RyzenAdj!.Apply(nw, PowerMaxWatts))
+                        if (!_autoSimulated && dec.Watts is { } nw && SetPower(nw))
                         {
                             lock (_capLock) _livePower = nw;
                             Note($"TDP {nw} W");
@@ -659,7 +670,7 @@ public sealed class GameSession(
                 {
                     int? targetNow;
                     lock (_capLock) targetNow = _livePower;
-                    if (gov.Update(fps.CurrentFps, DateTime.UtcNow) is { } w && w != targetNow && RyzenAdj!.Apply(w, PowerMaxWatts))
+                    if (gov.Update(fps.CurrentFps, DateTime.UtcNow) is { } w && w != targetNow && SetPower(w))
                     {
                         lock (_capLock) _livePower = w;
                         Note($"Power {w} W");
@@ -676,7 +687,7 @@ public sealed class GameSession(
                     // TDP) has changed it back; put ours back, and say so once if it keeps happening.
                     if (RyzenAdj!.Read() is { } actual && Math.Abs(actual.StapmW - al) > 1.5)
                     {
-                        RyzenAdj.Apply(al, PowerMaxWatts);
+                        SetPower(al);
                         if (++_autoOverrides >= 2 && !_autoWarned)
                         {
                             _autoWarned = true;

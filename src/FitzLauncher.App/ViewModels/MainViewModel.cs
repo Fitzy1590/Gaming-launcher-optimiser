@@ -566,7 +566,11 @@ public sealed partial class MainViewModel : ObservableObject
             if (tune.Length == 0) tune = null;
             await RefreshAchievementsAsync(game);
             _s.SaveLibrary();
-            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\n{tune}" : ""));
+            // Stutters worth acting on: say what caused them and where the fix is.
+            var stutterNote = session.StutterReport is { PerMinute: >= 1, Causes.Count: > 0 } sr
+                ? $"\nStutters ({sr.PerMinute:0.#}/min): {sr.Causes[0].Title.ToLowerInvariant()}. Open {game.Name} → Stutter detective for the fix."
+                : "";
+            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\n{tune}" : "") + stutterNote);
             await BackupSavesAsync(game, "after playing");
             await Task.Run(_s.SyncUpload);
         }
