@@ -1,3 +1,4 @@
+using FitzLauncher.Core.Mods;
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -86,32 +87,24 @@ public sealed class NexusClient(HttpClient http, string apiKey, string cacheDir)
     }
 
     /// <summary>Search by name (GraphQL v2). An empty query returns the most endorsed mods.</summary>
-    public async Task<List<ModSearchResult>> SearchAsync(string domain, string query, CancellationToken ct = default)
+    public async Task<List<ModSearchResult>> SearchAsync(string domain, string query, CancellationToken ct = default) =>
+        (await SearchAsync(domain, query, ModRanking.Relevance, 0, ct)).Results;
+
+    /// <summary>A page of mods for a ranking (most downloaded, popular this month, …), optionally filtered by name.</summary>
+    public async Task<(List<ModSearchResult> Results, int Total)> SearchAsync(string domain, string? query, ModRanking ranking, int offset, CancellationToken ct = default)
     {
         const string gql = """
-            query Search($filter: ModsFilter, $sort: [ModsSort!], $count: Int) {
-              mods(filter: $filter, sort: $sort, count: $count) {
-                nodes { modId name summary author version pictureUrl thumbnailUrl downloads endorsements updatedAt }
+            query Search($filter: ModsFilter, $sort: [ModsSort!], $count: Int, $offset: Int) {
+              mods(filter: $filter, sort: $sort, count: $count, offset: $offset) {
+                totalCount
+                nodes { modId name summary author version pictureUrl thumbnailUrl downloads endorsements updatedAt createdAt status }
               }
             }
             """;
-        var filter = new JsonObject { ["gameDomainName"] = new JsonArray(new JsonObject { ["value"] = domain, ["op"] = "EQUALS" }) };
-        if (!string.IsNullOrWhiteSpace(query)) filter["nameStemmed"] = new JsonArray(new JsonObject { ["value"] = query.Trim(), ["op"] = "MATCHES" });
-        var body = new JsonObject
-        {
-            ["query"] = gql,
-            ["variables"] = new JsonObject
-            {
-                ["filter"] = filter, ["count"] = 40,
-                ["sort"] = new JsonArray(new JsonObject { [string.IsNullOrWhiteSpace(query) ? "endorsements" : "relevance"] = new JsonObject { ["direction"] = "DESC" } }),
-            },
-        };
-        using var res = await http.SendAsync(Req(HttpMethod.Post, V2, new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json")), ct);
-        var text = await res.Content.ReadAsStringAsync(ct);
-        var j = JsonNode.Parse(text);
-        if (j?["errors"] is JsonArray { Count: > 0 } errs || !res.IsSuccessStatusCode)
-            throw new StoreException("Nexus search didn't work" + (j?["errors"]?[0]?["message"]?.GetValue<string>() is { } m ? $": {m}" : "") + ". Use Open on Nexus, then Mod Manager Download.");
-        return (j?["data"]?["mods"]?["nodes"]?.AsArray() ?? []).Select(n => new ModSearchResult
+        var (filter, sort) = NexusQuery.Build(domain, query, ranking, DateTimeOffset.UtcNow);
+        var j = await GraphAsync(gql, new JsonObject { ["filter"] = filter, ["sort"] = sort, ["count"] = 40, ["offset"] = offset }, ct);
+        var mods = j["mods"];
+        var list = (mods?["nodes"]?.AsArray() ?? []).Select(n => new ModSearchResult
         {
             Source = ModSource.Nexus,
             Id = n!["modId"]!.ToString(),
@@ -124,7 +117,81 @@ public sealed class NexusClient(HttpClient http, string apiKey, string cacheDir)
             Endorsements = n["endorsements"]?.GetValue<long>() ?? 0,
             Updated = DateTimeOffset.TryParse(n["updatedAt"]?.ToString(), out var u) ? u : null,
             PageUrl = PageUrl(domain, n["modId"]!.ToString()),
+            Deprecated = n["status"]?.GetValue<string>() is { } st && !st.Equals("published", StringComparison.OrdinalIgnoreCase),
         }).Where(r => r.Name.Length > 0).ToList();
+        return (list, mods?["totalCount"]?.GetValue<int>() ?? list.Count);
+    }
+
+    private async Task<JsonNode> GraphAsync(string gql, JsonObject variables, CancellationToken ct)
+    {
+        var body = new JsonObject { ["query"] = gql, ["variables"] = variables };
+        using var res = await http.SendAsync(Req(HttpMethod.Post, V2, new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json")), ct);
+        var text = await res.Content.ReadAsStringAsync(ct);
+        if (res.StatusCode == HttpStatusCode.TooManyRequests) throw new StoreException("Nexus rate limit reached; try again in a few minutes.");
+        JsonNode? j;
+        try { j = JsonNode.Parse(text); } catch (JsonException) { j = null; }
+        if (j?["errors"] is JsonArray { Count: > 0 } || !res.IsSuccessStatusCode || j?["data"] is null)
+            throw new StoreException("Nexus didn't answer" + (j?["errors"]?[0]?["message"]?.GetValue<string>() is { } m ? $": {m}" : "") + ". Use Open on Nexus instead.");
+        return j["data"]!;
+    }
+
+    /// <summary>A mod's requirements: other Nexus mods (same game), external tools, DLC.</summary>
+    public async Task<ModRequirementInfo?> RequirementsAsync(long gameId, long modId, CancellationToken ct = default)
+    {
+        const string gql = """
+            query Req($ids: [CompositeIdInput!]!) {
+              legacyMods(ids: $ids) {
+                nodes {
+                  modId name
+                  modRequirements {
+                    nexusRequirements(count: 50) { nodes { modId modName gameId externalRequirement url notes } }
+                    dlcRequirements { gameExpansion { name } }
+                  }
+                }
+              }
+            }
+            """;
+        var j = await GraphAsync(gql, new JsonObject { ["ids"] = new JsonArray(new JsonObject { ["gameId"] = gameId, ["modId"] = modId }) }, ct);
+        if (j["legacyMods"]?["nodes"]?[0] is not { } n) return null;
+        var reqs = (n["modRequirements"]?["nexusRequirements"]?["nodes"]?.AsArray() ?? []).Select(r =>
+        {
+            var external = r!["externalRequirement"]?.GetValue<bool>() == true || r["gameId"]?.ToString() != gameId.ToString();
+            return new RequiredMod(external ? null : long.TryParse(r["modId"]?.ToString(), out var id) ? id : null,
+                r["modName"]?.GetValue<string>() ?? "?", r["url"]?.GetValue<string>(), external, r["notes"]?.GetValue<string>());
+        }).ToList();
+        var dlc = (n["modRequirements"]?["dlcRequirements"]?.AsArray() ?? []).Select(d => d?["gameExpansion"]?["name"]?.GetValue<string>()).OfType<string>().ToList();
+        return new ModRequirementInfo(modId, n["name"]?.GetValue<string>() ?? $"Mod {modId}", reqs, dlc);
+    }
+
+    /// <summary>The Nexus game id for a domain (needed by some queries).</summary>
+    public async Task<long?> GameIdAsync(string domain, CancellationToken ct = default) =>
+        (await GamesAsync(ct)).FirstOrDefault(g => g.Domain.Equals(domain, StringComparison.OrdinalIgnoreCase))?.Id;
+
+    /// <summary>The mod's main file (newest MAIN, else newest file).</summary>
+    public async Task<ModFileOption?> PrimaryFileAsync(string domain, long modId, CancellationToken ct = default) =>
+        (await FilesAsync(domain, modId, ct)).FirstOrDefault();
+
+    // ---- your account: tracked mods and endorsements (v1)
+
+    /// <summary>Mods you track on Nexus (all games).</summary>
+    public async Task<List<(string Domain, long ModId)>> TrackedAsync(CancellationToken ct = default) =>
+        (await GetAsync($"{V1}/user/tracked_mods.json", ct)).AsArray()
+            .Select(t => (t?["domain_name"]?.GetValue<string>() ?? "", t?["mod_id"]?.GetValue<long>() ?? 0)).Where(t => t.Item2 > 0).ToList();
+
+    public async Task TrackAsync(string domain, long modId, CancellationToken ct = default)
+    {
+        using var res = await http.SendAsync(Req(HttpMethod.Post, $"{V1}/user/tracked_mods.json?domain_name={Uri.EscapeDataString(domain)}",
+            new FormUrlEncodedContent([new("mod_id", modId.ToString())])), ct);
+        if (!res.IsSuccessStatusCode && res.StatusCode != HttpStatusCode.UnprocessableEntity) // 422 = already tracked
+            throw new StoreException($"Nexus didn't track the mod ({(int)res.StatusCode}).");
+    }
+
+    public async Task EndorseAsync(string domain, long modId, string? version, CancellationToken ct = default)
+    {
+        using var res = await http.SendAsync(Req(HttpMethod.Post, $"{V1}/games/{domain}/mods/{modId}/endorse.json",
+            new FormUrlEncodedContent([new("version", version ?? "")])), ct);
+        var text = await res.Content.ReadAsStringAsync(ct);
+        if (!res.IsSuccessStatusCode) throw new StoreException(Message(text) ?? $"Nexus didn't record the endorsement ({(int)res.StatusCode}). You need to have downloaded the mod first.");
     }
 
     public static string PageUrl(string domain, string modId) => $"https://www.nexusmods.com/{domain}/mods/{modId}";

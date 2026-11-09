@@ -27,6 +27,8 @@ public sealed class InstalledMod
     public List<string> Requires { get; set; } = [];
     /// <summary>Other mods it depends on (Thunderstore "Owner-Name", mod.io ids), when the source lists them.</summary>
     public List<string> Dependencies { get; set; } = [];
+    /// <summary>Nexus mods this one requires (from its requirements list at install).</summary>
+    public List<ModRef> NexusRequirements { get; set; } = [];
     /// <summary>Game exe version when installed, to warn after a game update.</summary>
     public string? GameVersionAtInstall { get; set; }
     /// <summary>How files were placed, for the details view ("FOMOD: picked Core + 2K textures").</summary>
@@ -84,3 +86,6 @@ public sealed class TrainerCheat
     public string Name { get; set; } = "";
     public bool Favourite { get; set; }
 }
+
+/// <summary>A reference to another mod by its Nexus id.</summary>
+public sealed record ModRef(long ModId, string Name);

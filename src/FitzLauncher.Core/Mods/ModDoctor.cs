@@ -7,7 +7,10 @@ namespace FitzLauncher.Core.Mods;
 
 public enum IssueSeverity { Info, Warning, Error }
 
-public sealed record ModIssue(IssueSeverity Severity, string Title, string Detail, Guid? ModId = null, string? Fix = null);
+public enum AutoFix { None, EnableMod, Redeploy }
+
+/// <summary>A problem found in a mod setup. <see cref="AutoFix"/> issues can be repaired without asking (pre-launch check).</summary>
+public sealed record ModIssue(IssueSeverity Severity, string Title, string Detail, Guid? ModId = null, string? Fix = null, AutoFix AutoFix = AutoFix.None, Guid? FixModId = null);
 
 /// <summary>Everything the checks need about the game, gathered by the app.</summary>
 public sealed class ModCheckContext
@@ -113,6 +116,25 @@ public static partial class ModCompatibility
             foreach (var m in enabled.Where(m => m.Files.Any(f => f.StartsWith(paks, StringComparison.OrdinalIgnoreCase) && f.EndsWith(".pak", StringComparison.OrdinalIgnoreCase))
                                              && !m.Files.Any(f => f.EndsWith(".utoc", StringComparison.OrdinalIgnoreCase))))
                 issues.Add(new(IssueSeverity.Warning, $"{m.Name} may not load", "This game uses IoStore (.utoc/.ucas) and the mod only has a .pak. Many mods for these games need all three files.", m.Id, "Check the mod is made for this game version."));
+
+        // ---- Nexus requirements recorded at install
+        var byNexusId = mods.Where(m => m.Source == ModSource.Nexus && long.TryParse(m.SourceId, out _)).GroupBy(m => long.Parse(m.SourceId!)).ToDictionary(g => g.Key, g => g.First());
+        foreach (var m in enabled)
+            foreach (var req in m.NexusRequirements)
+            {
+                if (!byNexusId.TryGetValue(req.ModId, out var have))
+                    issues.Add(new(IssueSeverity.Error, $"{m.Name} needs {req.Name}", $"{req.Name} isn't installed.", m.Id, $"Install {req.Name} (Find mods → Install with requirements)."));
+                else if (!have.Enabled)
+                    issues.Add(new(IssueSeverity.Error, $"{m.Name} needs {req.Name}", $"{req.Name} is installed but turned off.", m.Id, $"Turn {req.Name} on.", AutoFix.EnableMod, have.Id));
+            }
+
+        // ---- deployed files gone from the game folder (game update, "verify files", antivirus)
+        foreach (var m in enabled.Where(m => m.Files.Count > 0 && File.Exists(c.StagedPath(m, m.Files[0]))))
+        {
+            var gone = m.Files.Where(f => ModInstallPlanner.IsSafeRelative(f) && !c.ExistsInGame(f)).Take(3).ToList();
+            if (gone.Count > 0)
+                issues.Add(new(IssueSeverity.Error, $"{m.Name}: files missing from the game", $"{string.Join(", ", gone.Select(Path.GetFileName))}{(gone.Count == 3 ? "…" : "")} were removed (usually a game update or file check).", m.Id, "Put them back.", AutoFix.Redeploy, m.Id));
+        }
 
         // ---- missing staged files
         foreach (var m in enabled.Where(m => m.Files.Count > 0 && !File.Exists(c.StagedPath(m, m.Files[0]))))
