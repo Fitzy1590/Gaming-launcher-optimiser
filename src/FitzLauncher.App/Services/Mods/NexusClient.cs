@@ -116,6 +116,7 @@ public sealed class NexusClient(HttpClient http, string apiKey, string cacheDir)
             Downloads = n["downloads"]?.GetValue<long>() ?? 0,
             Endorsements = n["endorsements"]?.GetValue<long>() ?? 0,
             Updated = DateTimeOffset.TryParse(n["updatedAt"]?.ToString(), out var u) ? u : null,
+            Released = DateTimeOffset.TryParse(n["createdAt"]?.ToString(), out var c) ? c : null,
             PageUrl = PageUrl(domain, n["modId"]!.ToString()),
             Deprecated = n["status"]?.GetValue<string>() is { } st && !st.Equals("published", StringComparison.OrdinalIgnoreCase),
         }).Where(r => r.Name.Length > 0).ToList();

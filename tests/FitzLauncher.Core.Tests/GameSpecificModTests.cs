@@ -58,7 +58,8 @@ public class GameSpecificModTests
         var oldMod = new DateTimeOffset(2021, 5, 1, 0, 0, 0, TimeSpan.Zero);
         var nextGenGame = new DateTimeOffset(2024, 5, 1, 0, 0, 0, TimeSpan.Zero);
         var r = ModPreInstallCheck.Assess(W3, null, oldMod, nextGenGame);
-        Assert.Equal(CompatVerdict.Check, r.Verdict);
+        Assert.Equal(CompatVerdict.Problem, r.Verdict);
+        Assert.Equal("Not compatible", r.Summary);
         Assert.Contains(r.Reasons, x => x.Contains("next-gen"));
 
         var cp = ModPreInstallCheck.Assess(new GameModLayout { Framework = ModFramework.Cyberpunk }, null, new DateTimeOffset(2023, 1, 1, 0, 0, 0, TimeSpan.Zero), nextGenGame);

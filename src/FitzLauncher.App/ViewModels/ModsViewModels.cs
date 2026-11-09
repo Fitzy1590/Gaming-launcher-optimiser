@@ -43,6 +43,10 @@ public sealed partial class ModResultRow(ModSearchResult r, ModsViewModel owner)
     public ModSearchResult Result { get; } = r;
     public string Name => Result.Name;
     public string Summary => Result.Summary;
+    /// <summary>"Released 12 Mar 2024" (and the last update when it's later), shown next to the name.</summary>
+    public string Dates => Result.Released is { } r
+        ? $"Released {r.LocalDateTime:d MMM yyyy}" + (Result.Updated is { } u && u > r.AddDays(1) ? $" · updated {u.LocalDateTime:d MMM yyyy}" : "")
+        : Result.Updated is { } u2 ? $"Updated {u2.LocalDateTime:d MMM yyyy}" : "";
     public string Meta => string.Join(" · ", new[]
     {
         Result.Author is { Length: > 0 } a ? $"by {a}" : null, Result.Version is { Length: > 0 } v ? $"v{v}" : null,

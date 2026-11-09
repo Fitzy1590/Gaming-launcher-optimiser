@@ -78,6 +78,9 @@ public sealed partial class ModsViewModel
     /// </summary>
     public Task InstallWithRequirementsAsync(ModResultRow row) => Busy($"Planning {row.Name}…", async () =>
     {
+        if (row.Verdict == CompatVerdict.Problem &&
+            MessageBox.Show($"{row.Name} was checked as not compatible:\n\n{row.CompatDetail}\n\nInstall it anyway?", "Fitz Launcher · not compatible",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) { Status = "Cancelled."; return; }
         var plan = await PlanAsync(long.Parse(row.Result.Id), row.Name);
         var toInstall = plan.Install.Where(x => !InstalledNexus(x.ModId) || x.ModId.ToString() == row.Result.Id).ToList();
         var extras = new List<string>();

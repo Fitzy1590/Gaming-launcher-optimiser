@@ -76,7 +76,7 @@ public sealed class VerdictIcon : IValueConverter
 {
     public object Convert(object? value, Type t, object p, CultureInfo c) => value?.ToString() switch
     {
-        "Good" => "\uE73E", "Check" => "\uE946", "Problem" => "\uE7BA", _ => "",
+        "Good" => "\uE73E", "Check" => "\uE7BA", "Problem" => "\uE711", _ => "", // tick, warning, cross
     };
     public object ConvertBack(object value, Type t, object p, CultureInfo c) => throw new NotSupportedException();
 }

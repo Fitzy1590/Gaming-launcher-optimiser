@@ -16,6 +16,8 @@ public sealed class ModSearchResult
     public long Endorsements { get; init; }
     public string PageUrl { get; init; } = "";
     public DateTimeOffset? Updated { get; init; }
+    /// <summary>When the mod was first published.</summary>
+    public DateTimeOffset? Released { get; init; }
     /// <summary>Direct download (Thunderstore / mod.io); null for Nexus (files are listed separately).</summary>
     public string? DownloadUrl { get; init; }
     public string? FileName { get; init; }

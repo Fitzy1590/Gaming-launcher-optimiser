@@ -122,7 +122,7 @@ public sealed record CompatReport(CompatVerdict Verdict, IReadOnlyList<string> R
     {
         CompatVerdict.Good => "Looks compatible",
         CompatVerdict.Check => "Check before installing",
-        _ => "Likely problem",
+        _ => "Not compatible",
     };
 }
 
@@ -153,7 +153,7 @@ public static class ModPreInstallCheck
         }
         // Big updates that broke most older mods: Witcher 3 next-gen (4.0) and Cyberpunk 2.0.
         if (modUpdated is { } m0 && gameUpdated is { } g0 && BigUpdate(layout.Framework) is { } big && g0 >= big.Date && m0 < big.Date)
-            Bump(CompatVerdict.Check, $"Last updated before {big.Name} ({big.Date:MMM yyyy}); your game is newer, so check the mod page says it works with {big.Name}.");
+            Bump(CompatVerdict.Problem, $"Last updated before {big.Name} ({big.Date:MMM yyyy}) and your game is newer: most mods from then don't work any more.");
         else if (modUpdated is { } mu && gameUpdated is { } gu && gu > mu.AddDays(2))
             Bump(CompatVerdict.Check, $"The game was updated ({gu:d MMM yyyy}) after this mod's last update ({mu:d MMM yyyy}); if it uses a script extender or DLLs, check the comments for an update.");
         if (reasons.Count == 0) reasons.Add("No requirements or known conflicts with this game install.");
