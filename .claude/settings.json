@@ -8,7 +8,14 @@
       "Read(**/*.snk)",
       "Read(**/credentials*)",
       "Read(**/*secret*.json)",
-      "Read(~/.nuget/NuGet/NuGet.Config)"
+      "Read(~/.nuget/NuGet/NuGet.Config)",
+      "Read(**/*.jks)",
+      "Read(**/*.p12)",
+      "Read(**/*.keystore)",
+      "Read(./secrets/**)",
+      "Read(**/prod.keys)",
+      "Read(**/title.keys)",
+      "Read(**/*.key)"
     ]
   },
   "hooks": {
@@ -16,14 +23,22 @@
       {
         "matcher": "Edit|MultiEdit|Write",
         "hooks": [
-          { "type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-cs.sh", "timeout": 60 }
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format-cs.sh",
+            "timeout": 60
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "cd \"$CLAUDE_PROJECT_DIR\" && dotnet build FitzLauncher.slnx -v q -nologo 1>&2 || exit 2", "timeout": 300 }
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && dotnet build FitzLauncher.slnx -v q -nologo 1>&2 || exit 2",
+            "timeout": 300
+          }
         ]
       }
     ]

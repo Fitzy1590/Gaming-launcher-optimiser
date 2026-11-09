@@ -40,3 +40,9 @@ Everything must be usable with keyboard and controller alone; `GamepadNavigator`
 - Generic "AI app" styling: purple/blue gradients, glassmorphism stacks, emoji as icons, drop shadows on everything, centred hero text on functional pages, card corners over 8 px, decorative badges and filler copy.
 - Stock WPF chrome showing through (default blue focus rectangles, default scrollbars or `ComboBox` popups): restyle via `Theme.xaml`.
 - Blocking calls in code-behind; logic belongs in ViewModels.
+
+## Emulation hub
+- Layout: platform drawer (left, 240 px, collapsible under 1100 px wide), poster grid (centre), game detail drawer (right, 420 px, slides over). Poster tiles are 2:3, columns = floor(width / 200), minimum 2; the grid is virtualised.
+- Posters load lazily from the disk cache with a token-coloured placeholder; never block scrolling on a download.
+- Every action in the drawer (Play, Update, Tune, Mods) is reachable by pad: D-pad moves tile to tile, A opens the drawer, B closes it, LB/RB switch platforms.
+- Advisor and update notices use the non-activating toast path, one at a time, never over a running game's focus.

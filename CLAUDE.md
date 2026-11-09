@@ -58,3 +58,13 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
   - Commit as `Fitzy1590 <fitzy151290@hotmail.com>`.
   - Push to `main` (it publishes a release). No PRs unless asked.
 - Don't restyle the app wholesale. Visual rules are in `.claude/rules/windows-ui.md`.
+
+## Emulation Hub (see `SPEC.md`, stages in `FEATURE_PROGRESS.md` §4)
+
+- **Where it goes:** `Core/Emulation` (platform table, parsers, tuning planner, advisor rules, version compare: pure, tested), `Windows/Emulation` (discovery, download/extract, config file apply, process launch), `App` (`ViewModels/Emulation`, `Views/Emulation`). No new top-level project.
+- **No ROM content:** never download or read ROMs, BIOS, firmware or keys (`prod.keys`, `title.keys`). Work only on files the user points at. Tests use synthetic byte arrays, never real dumps.
+- **Emulator downloads** only from the emulator's own GitHub Releases (host allow-list, SHA-256 from the asset `digest` when present, extract with a zip-slip guard). Keep user data in a shared `data/` folder outside versioned folders.
+- **Config edits** are key-level patches (never whole-file rewrites), allow-listed per emulator and version, written temp-then-replace, with a backup and an `AppliedChange` record first. Unknown emulator version = preview only.
+- **Overlay:** reuse RTSS/ETW. No hooks or injection into emulators.
+- **Providers** (SteamGridDB, IGDB, ScreenScraper, GameBanana, Nexus): a missing key disables that provider with a settings hint, never an exception. Rate-limit per provider, cache on disk, keys DPAPI-encrypted.
+- **Token hygiene:** keep this file under 200 lines; use subagents for repo-wide searches; `/clear` at about 80% context and resume from `FEATURE_PROGRESS.md`.
