@@ -20,6 +20,8 @@
             <CheckBox Content="Clock" IsChecked="{Binding Clock}" Margin="0,4,16,4" />
             <CheckBox Content="TDP limit (Auto TDP)" IsChecked="{Binding Limit}" Margin="0,4,16,4" ToolTip="The power limit Auto TDP is holding, when it's on" />
         </WrapPanel>
+        <Button Content="Another overlay shows FPS and power: keep only the extras" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Command="{Binding ExtrasOnlyCommand}"
+                ToolTip="Fitz can only see counters shown through RTSS/Afterburner. If a counter from OneXConsole is also on screen, this turns off Fitz's FPS, power and GPU temperature and keeps CPU temperature, TDP and 1% low" />
         <CheckBox Content="One counter, not two: leave out numbers MSI Afterburner already shows on screen (FPS, power, temperature)" IsChecked="{Binding AvoidDuplicates}" Margin="0,6,0,0" />
         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
             <TextBlock Text="Left margin" VerticalAlignment="Center" Margin="0,0,8,0" />

@@ -243,3 +243,18 @@ public sealed class AutoTdpGovernor
         return new AutoTdpDecision(watts, $"{(watts > prev ? "+" : "−")}{Math.Abs(watts - prev)} W → {watts} W: {why}");
     }
 }
+
+/// <summary>Why Auto TDP can't run for a game: a plain-English reason, so it never fails silently.</summary>
+public static class AutoTdpGate
+{
+    /// <param name="requested">The mode chosen (per game, else the global one).</param>
+    public static string? WhyNot(AutoTdpMode requested, bool isHandheldApu, bool safeMode, bool powerManagedForGame, bool ryzenAdjFound)
+    {
+        if (requested == AutoTdpMode.Off) return null;
+        if (!isHandheldApu) return "this PC isn't a Ryzen APU handheld";
+        if (safeMode) return "the launcher is in safe mode";
+        if (!powerManagedForGame) return "power management is off for this game (game page → Power limit → tick Manage)";
+        if (!ryzenAdjFound) return "RyzenAdj isn't set up (Settings → Power limit → Browse… to ryzenadj.exe)";
+        return null;
+    }
+}

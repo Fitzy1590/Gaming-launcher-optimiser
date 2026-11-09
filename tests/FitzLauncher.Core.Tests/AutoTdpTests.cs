@@ -234,3 +234,16 @@ public class RecentStatsTests
         Assert.Equal((0, 0.0, 0.0), new FitzLauncher.Core.Fps.FrameTimeRecorder().RecentStats(10));
     }
 }
+
+public class AutoTdpGateTests
+{
+    [Theory]
+    [InlineData(AutoTdpMode.Off, true, false, true, true, null)]
+    [InlineData(AutoTdpMode.On, true, false, true, true, null)]
+    [InlineData(AutoTdpMode.On, false, false, true, true, "this PC isn't a Ryzen APU handheld")]
+    [InlineData(AutoTdpMode.On, true, true, true, true, "the launcher is in safe mode")]
+    [InlineData(AutoTdpMode.On, true, false, false, true, "power management is off for this game (game page → Power limit → tick Manage)")]
+    [InlineData(AutoTdpMode.Observe, true, false, true, false, "RyzenAdj isn't set up (Settings → Power limit → Browse… to ryzenadj.exe)")]
+    public void SaysWhyAutoTdpCannotRun(AutoTdpMode mode, bool apu, bool safe, bool managed, bool ryzenAdj, string? expected) =>
+        Assert.Equal(expected, AutoTdpGate.WhyNot(mode, apu, safe, managed, ryzenAdj));
+}

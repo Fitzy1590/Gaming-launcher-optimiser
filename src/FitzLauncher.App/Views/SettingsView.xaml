@@ -177,6 +177,15 @@
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
                     <TextBlock Text="The in-game overlay shows what it's doing as &quot;TDP 45 W&quot; (the limit it holds; &quot;watching&quot; means nothing is changed in Watch only mode). If the game doesn't use all its power limit, for example because it is CPU-limited, the limit is trimmed to just above what it draws."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
+                    <TextBlock Style="{StaticResource Wrap}" Margin="0,8,0,0" Visibility="{Binding S.AutoTdpLastNote, Converter={StaticResource HasValue}}">
+                        <Run Text="Last game: " Foreground="{StaticResource Muted}" /><Run Text="{Binding S.AutoTdpLastNote, Mode=OneWay}" />
+                    </TextBlock>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <Button Content="Check Auto TDP works on this device" Style="{StaticResource GhostButton}" Command="{Binding CheckAutoTdpCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="{Binding AutoTdpCheck}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" Visibility="{Binding AutoTdpCheck, Converter={StaticResource HasValue}}" />
+                    <TextBlock Text="What it works with: Auto TDP uses RyzenAdj to set the limit, so RyzenAdj must be set up (it doesn't conflict, it's required). While Auto TDP is on for a game it replaces the older 'tune live' power learning for that game, and a manual change with PS + power up/down pauses it for the session. OneXConsole's per-game TDP is the one thing that can fight it; Fitz tells you if the limit keeps being changed back. Without an FPS target on the game it holds your default target. The thermal guard still protects temperatures: Auto TDP lowers power first."
+                               Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
                     <Button Content="Open the log folder" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding OpenAutoTdpFolderCommand}" />
                     <TextBlock Text="OneXConsole also sets power per game. Turn its per-game TDP off for games Fitz manages, or the two will fight; Fitz checks every few seconds and tells you if something keeps changing the limit."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />

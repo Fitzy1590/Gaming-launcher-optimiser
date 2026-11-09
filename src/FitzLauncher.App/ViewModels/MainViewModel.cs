@@ -60,6 +60,11 @@ public sealed partial class MainViewModel : ObservableObject
             game.PowerByTarget[target] = p.Typical;
             game.PowerWatts = p.Typical;
         }
+        if (session.AutoTdpReport is { } report)
+        {
+            _s.Settings.AutoTdpLastNote = $"{game.Name}: {report}";
+            _s.SaveSettings();
+        }
         return session.AutoTdpReport;
     }
 
@@ -430,10 +435,13 @@ public sealed partial class MainViewModel : ObservableObject
         var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto
             ? autoTdp != AutoTdpMode.Off && RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is { } autoPath ? new RyzenAdjClient(autoPath, _s.Paths) : _s.RyzenAdj
             : null;
-        if (ryzenAdj is null) autoTdp = AutoTdpMode.Off;
+        var autoRequested = _s.Hardware?.IsApu == true && !SafeMode ? game.AutoTdp ?? _s.Settings.AutoTdp : AutoTdpMode.Off;
+        var autoWhyNot = AutoTdpGate.WhyNot(autoRequested, _s.Hardware?.IsApu == true, SafeMode, game.PowerAuto, ryzenAdj is not null);
+        if (ryzenAdj is null || autoWhyNot is not null) autoTdp = AutoTdpMode.Off;
+        if (autoWhyNot is not null) ShowToast($"Auto TDP isn't running: {autoWhyNot}.");
         var autoMin = Math.Clamp(_s.Settings.AutoTdpMinWatts, 10, 120);
         var autoMax = Math.Clamp(Math.Max(_s.Settings.AutoTdpMaxWatts, autoMin), autoMin, 120);
-        var autoTarget = sessionCap ?? game.FpsTarget;
+        var autoTarget = sessionCap ?? game.FpsTarget ?? _s.Settings.DefaultFpsTarget;
         // Where auto TDP starts: what held this target last time (a little above), else the learned/default power.
         var autoStart = autoTarget is { } at && game.AutoTdpProfiles.TryGetValue(at, out var known) && known.Typical > 0
             ? (int)Math.Round(known.Typical * 1.08)
@@ -463,6 +471,7 @@ public sealed partial class MainViewModel : ObservableObject
                 : autoTdp == AutoTdpMode.On ? autoStart
                 : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
             AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
+            AutoTdpFallbackTarget = _s.Settings.DefaultFpsTarget, AutoTdpWhyNot = autoWhyNot,
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
@@ -490,6 +499,13 @@ public sealed partial class MainViewModel : ObservableObject
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Trace += line => _s.Log.Write($"[{vm.Name}] {line}");
+        // What Auto TDP is doing (or why it isn't), kept for Settings.
+        session.Status += line =>
+        {
+            if (!line.StartsWith("Auto TDP", StringComparison.Ordinal) && !line.StartsWith("Something else keeps changing", StringComparison.Ordinal)) return;
+            _s.Settings.AutoTdpLastNote = $"{vm.Name}: {line}";
+            _s.SaveSettings();
+        };
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
         session.Alert += a => Ui(() => TempAlertRaised?.Invoke(a));
         // Trainer: started a little after the game, closed with it.

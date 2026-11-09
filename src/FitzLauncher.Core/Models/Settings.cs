@@ -123,6 +123,8 @@ public sealed class LauncherSettings
     public FitzLauncher.Core.Optimization.AutoTdpMode AutoTdp { get; set; }
     /// <summary>Where Auto TDP starts for a game it hasn't learned yet (a known-good middle: it then goes up or down from here).</summary>
     public int AutoTdpStartWatts { get; set; } = 45;
+    /// <summary>What Auto TDP last did, in plain English (shown in Settings so "why isn't it working?" has an answer).</summary>
+    public string? AutoTdpLastNote { get; set; }
     public int AutoTdpMinWatts { get; set; } = 25;
     public int AutoTdpMaxWatts { get; set; } = 60;
     /// <summary>Starting point for a game with nothing learned yet.</summary>

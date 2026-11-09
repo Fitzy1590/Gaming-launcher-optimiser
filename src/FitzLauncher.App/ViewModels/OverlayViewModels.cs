@@ -1,5 +1,6 @@
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Optimization;
 
@@ -41,6 +42,16 @@ public sealed partial class OverlayEditorViewModel : ObservableObject
     public bool Limit { get => O.Limit; set => Set(() => O.Limit = value); }
     public bool AvoidDuplicates { get => O.AvoidDuplicates; set => Set(() => O.AvoidDuplicates = value); }
     public int LeftMargin { get => O.LeftMargin; set => Set(() => O.LeftMargin = Math.Clamp(value, 0, 12)); }
+    /// <summary>Another overlay (OneXConsole's, which Fitz can't see) already shows FPS, power and GPU temperature: keep only what it doesn't.</summary>
+    [RelayCommand]
+    private void ExtrasOnly()
+    {
+        O.Fps = false; O.Watts = false; O.GpuTemp = false;
+        O.CpuTemp = true; O.Limit = true; O.OnePercentLow = true;
+        _saveTimer.Stop(); _saveTimer.Start();
+        OnPropertyChanged(string.Empty);
+    }
+
     public bool Coloured { get => O.Coloured; set => Set(() => O.Coloured = value); }
     public int SizePercent { get => O.SizePercent; set => Set(() => O.SizePercent = value); }
 

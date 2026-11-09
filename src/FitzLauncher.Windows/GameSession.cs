@@ -64,6 +64,12 @@ public sealed class GameSession(
     public string? AutoTdpReport { get; private set; }
     /// <summary>Decisions and explanations, for the log (not shown on screen).</summary>
     public event Action<string>? Trace;
+    /// <summary>The FPS Auto TDP holds when the game has no target of its own (your default target).</summary>
+    public int AutoTdpFallbackTarget { get; init; } = 117;
+    /// <summary>Set when Auto TDP was asked for but can't run (shown on screen and logged).</summary>
+    public string? AutoTdpWhyNot { get; init; }
+    /// <summary>What Auto TDP did at the start of this session, for Settings.</summary>
+    public string? AutoTdpStartNote { get; private set; }
     private AutoTdpGovernor? _auto;
     private bool _autoSimulated;
     private StreamWriter? _autoCsv;
@@ -457,15 +463,29 @@ public sealed class GameSession(
             Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
         }
         if (powerSet) lock (_capLock) _livePower = PowerWatts;
-        if (AutoTdp != AutoTdpMode.Off && Cap is > 0 and { } autoTarget && (powerSet || AutoTdp == AutoTdpMode.Observe))
+        if (AutoTdpWhyNot is { } blocked)
         {
+            AutoTdpStartNote = $"Auto TDP isn't running: {blocked}.";
+            Status?.Invoke(AutoTdpStartNote);
+            Note(AutoTdpStartNote, 12);
+        }
+        else if (AutoTdp == AutoTdpMode.On && !powerSet)
+        {
+            AutoTdpStartNote = "Auto TDP isn't running: RyzenAdj couldn't set the power limit on this device (Settings → Power limit → Test). If OneXConsole locks the limit, turn off its TDP control.";
+            Status?.Invoke(AutoTdpStartNote);
+            Note("Auto TDP isn't running: couldn't set the power limit", 12);
+        }
+        if (AutoTdpWhyNot is null && AutoTdp != AutoTdpMode.Off && (powerSet || AutoTdp == AutoTdpMode.Observe) && (Cap is > 0 ? Cap : AutoTdpFallbackTarget) is { } autoTarget and > 0)
+        {
+            if (Cap is not > 0) Status?.Invoke($"Auto TDP: this game has no FPS target, so it holds your default ({autoTarget} FPS) or better");
             _autoSimulated = AutoTdp == AutoTdpMode.Observe;
             var startWatts = _autoSimulated ? (int)Math.Round(RyzenAdj?.Read()?.StapmW ?? 45) : PowerWatts!.Value;
             _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated, thermalTriggerC: GuardTriggerC);
             AutoTdpTarget = autoTarget;
-            Status?.Invoke(_autoSimulated
+            AutoTdpStartNote = _autoSimulated
                 ? $"Auto TDP is watching (not changing anything): it logs the power it would use to hold {autoTarget} FPS"
-                : $"Auto TDP on: holding {autoTarget} FPS with the least power ({AutoTdpMinWatts}–{AutoTdpMaxWatts} W), starting at {_auto.Current} W");
+                : $"Auto TDP on: holding {autoTarget} FPS with the least power ({AutoTdpMinWatts}–{AutoTdpMaxWatts} W), starting at {_auto.Current} W";
+            Status?.Invoke(AutoTdpStartNote);
             OpenAutoCsv();
         }
         else if (powerSet && LivePowerTuning && Cap is > 0 and { } powerTarget)

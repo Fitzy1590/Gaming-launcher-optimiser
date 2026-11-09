@@ -232,6 +232,27 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>Auto TDP is for handhelds (Ryzen APUs): the section only shows there.</summary>
     public bool ShowAutoTdp => _s.Hardware?.IsApu == true;
 
+    /// <summary>Checks that RyzenAdj can read AND set this device's power limit (the thing Auto TDP depends on).</summary>
+    [RelayCommand]
+    private async Task CheckAutoTdpAsync()
+    {
+        if (RyzenAdjClient.Find(S.RyzenAdjPath) is not { } path)
+        {
+            AutoTdpCheck = "RyzenAdj isn't set up. Download it from github.com/FlyGoat/RyzenAdj (releases), unzip it, then Browse… to ryzenadj.exe under Power limit above.";
+            return;
+        }
+        AutoTdpCheck = "Checking…";
+        var client = new RyzenAdjClient(path, _s.Paths);
+        var limits = await Task.Run(client.Read);
+        if (limits is null) { AutoTdpCheck = "RyzenAdj runs but can't read the power limits on this device, so Auto TDP can't work here. Try the newest RyzenAdj build."; return; }
+        var set = await Task.Run(() => client.Apply(limits)); // sets the same values back: changes nothing if it works
+        AutoTdpCheck = set
+            ? $"Working: RyzenAdj can read and set the power limit (now {limits.Text}). Auto TDP can run on this device."
+            : $"RyzenAdj can read the limits ({limits.Text}) but not set them here, so Auto TDP can't change power. If OneXConsole locks the limit, turn off its TDP control and try again.";
+    }
+
+    [ObservableProperty] private string _autoTdpCheck = "";
+
     [RelayCommand]
     private void OpenAutoTdpFolder()
     {
