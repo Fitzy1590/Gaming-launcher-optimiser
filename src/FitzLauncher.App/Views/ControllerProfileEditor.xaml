@@ -15,26 +15,38 @@
                         <Ellipse Width="16" Height="16" Stroke="{DynamicResource Accent}" StrokeThickness="2" Canvas.Left="{Binding LeftOutX}" Canvas.Top="{Binding LeftOutY}" />
                         <Ellipse Width="12" Height="12" Fill="{StaticResource Text}" Canvas.Left="{Binding LeftRawX}" Canvas.Top="{Binding LeftRawY}" />
                     </Canvas>
-                <DockPanel Margin="0,0,0,4" ToolTip="Stops drift: movement inside this is ignored">
-                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftInner, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="40" Value="{Binding LeftInner}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4" ToolTip="Full output before the edge of the stick">
-                    <TextBlock DockPanel.Dock="Left" Text="Outer deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftOuter, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="30" Value="{Binding LeftOuter}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4" ToolTip="Counter the game's own deadzone so small movements register">
-                    <TextBlock DockPanel.Dock="Left" Text="Anti-deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftAnti, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="40" Value="{Binding LeftAnti}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4">
-                    <TextBlock DockPanel.Dock="Left" Text="Sensitivity" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding LeftSensitivity, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="50" Maximum="150" Value="{Binding LeftSensitivity}" />
-                </DockPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Stops drift: movement inside this is ignored">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding LeftInner, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-90)" AutomationProperties.Name="Deadzone percent" />
+                        <TextBlock Text="Deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="90" Value="{Binding LeftInner}" AutomationProperties.Name="Deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Full output before the edge of the stick">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding LeftOuter, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-50)" AutomationProperties.Name="Outer deadzone percent" />
+                        <TextBlock Text="Outer deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="50" Value="{Binding LeftOuter}" AutomationProperties.Name="Outer deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Counter the game's own deadzone so small movements register">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding LeftAnti, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-50)" AutomationProperties.Name="Anti-deadzone percent" />
+                        <TextBlock Text="Anti-deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="50" Value="{Binding LeftAnti}" AutomationProperties.Name="Anti-deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding LeftSensitivity, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (50-150)" AutomationProperties.Name="Sensitivity percent" />
+                        <TextBlock Text="Sensitivity" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="50" Maximum="150" Value="{Binding LeftSensitivity}" AutomationProperties.Name="Sensitivity" />
+                </StackPanel>
                     <WrapPanel Margin="0,4,0,0">
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Linear" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Linear}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="Leftcurve" Content="Smooth" IsChecked="{Binding LeftCurve, Converter={StaticResource Eq}, ConverterParameter=Smooth}" />
@@ -53,26 +65,38 @@
                         <Ellipse Width="16" Height="16" Stroke="{DynamicResource Accent}" StrokeThickness="2" Canvas.Left="{Binding RightOutX}" Canvas.Top="{Binding RightOutY}" />
                         <Ellipse Width="12" Height="12" Fill="{StaticResource Text}" Canvas.Left="{Binding RightRawX}" Canvas.Top="{Binding RightRawY}" />
                     </Canvas>
-                <DockPanel Margin="0,0,0,4" ToolTip="Stops drift: movement inside this is ignored">
-                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightInner, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="40" Value="{Binding RightInner}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4" ToolTip="Full output before the edge of the stick">
-                    <TextBlock DockPanel.Dock="Left" Text="Outer deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightOuter, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="30" Value="{Binding RightOuter}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4" ToolTip="Counter the game's own deadzone so small movements register">
-                    <TextBlock DockPanel.Dock="Left" Text="Anti-deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightAnti, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="40" Value="{Binding RightAnti}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4">
-                    <TextBlock DockPanel.Dock="Left" Text="Sensitivity" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding RightSensitivity, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="50" Maximum="150" Value="{Binding RightSensitivity}" />
-                </DockPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Stops drift: movement inside this is ignored">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding RightInner, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-90)" AutomationProperties.Name="Deadzone percent" />
+                        <TextBlock Text="Deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="90" Value="{Binding RightInner}" AutomationProperties.Name="Deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Full output before the edge of the stick">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding RightOuter, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-50)" AutomationProperties.Name="Outer deadzone percent" />
+                        <TextBlock Text="Outer deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="50" Value="{Binding RightOuter}" AutomationProperties.Name="Outer deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Counter the game's own deadzone so small movements register">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding RightAnti, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-50)" AutomationProperties.Name="Anti-deadzone percent" />
+                        <TextBlock Text="Anti-deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="50" Value="{Binding RightAnti}" AutomationProperties.Name="Anti-deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding RightSensitivity, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (50-150)" AutomationProperties.Name="Sensitivity percent" />
+                        <TextBlock Text="Sensitivity" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="50" Maximum="150" Value="{Binding RightSensitivity}" AutomationProperties.Name="Sensitivity" />
+                </StackPanel>
                     <WrapPanel Margin="0,4,0,0">
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Linear" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Linear}" />
                         <RadioButton Style="{StaticResource ChipToggle}" GroupName="Rightcurve" Content="Smooth" IsChecked="{Binding RightCurve, Converter={StaticResource Eq}, ConverterParameter=Smooth}" />
@@ -86,16 +110,22 @@
         <Border Style="{StaticResource Card}">
             <StackPanel>
                 <TextBlock Text="Triggers" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,0,0,8" />
-                <DockPanel Margin="0,0,0,4" ToolTip="Light presses below this are ignored">
-                    <TextBlock DockPanel.Dock="Left" Text="Deadzone" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding TriggerDeadzone, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="0" Maximum="40" Value="{Binding TriggerDeadzone}" />
-                </DockPanel>
-                <DockPanel Margin="0,0,0,4" ToolTip="Lower = hair trigger: full output from a partial press">
-                    <TextBlock DockPanel.Dock="Left" Text="Full press at" Width="120" VerticalAlignment="Center" />
-                    <TextBlock DockPanel.Dock="Right" Text="{Binding TriggerMax, StringFormat={}{0}%}" Width="48" TextAlignment="Right" VerticalAlignment="Center" Style="{StaticResource Figure}" FontSize="12" />
-                    <Slider Minimum="50" Maximum="100" Value="{Binding TriggerMax}" />
-                </DockPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Light presses below this are ignored">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding TriggerDeadzone, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (0-90)" AutomationProperties.Name="Deadzone percent" />
+                        <TextBlock Text="Deadzone" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="0" Maximum="90" Value="{Binding TriggerDeadzone}" AutomationProperties.Name="Deadzone" />
+                </StackPanel>
+                <StackPanel Margin="0,0,0,10" ToolTip="Lower = hair trigger: full output from a partial press">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="%" VerticalAlignment="Center" Margin="4,0,0,0" />
+                        <TextBox DockPanel.Dock="Right" Width="56" TextAlignment="Right" Text="{Binding TriggerMax, UpdateSourceTrigger=PropertyChanged}" ToolTip="Type an exact value (10-100)" AutomationProperties.Name="Full press at percent" />
+                        <TextBlock Text="Full press at" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <Slider Minimum="10" Maximum="100" Value="{Binding TriggerMax}" AutomationProperties.Name="Full press at" />
+                </StackPanel>
                 <DockPanel Margin="0,4,0,0">
                     <TextBlock DockPanel.Dock="Left" Text="Live" Width="120" Style="{StaticResource MutedText}" />
                     <ProgressBar Value="{Binding LeftTriggerOut, Mode=OneWay}" Maximum="100" Height="4" Width="120" Margin="0,0,12,0" />

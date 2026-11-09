@@ -49,21 +49,21 @@ public sealed partial class ControllerProfileViewModel : ObservableObject
     }
 
     public bool Enabled { get => Profile.Enabled; set => Set(() => Profile.Enabled = value); }
-    public int LeftInner { get => Profile.LeftStick.InnerDeadzone; set => Set(() => Profile.LeftStick.InnerDeadzone = value); }
-    public int LeftOuter { get => Profile.LeftStick.OuterDeadzone; set => Set(() => Profile.LeftStick.OuterDeadzone = value); }
-    public int LeftAnti { get => Profile.LeftStick.AntiDeadzone; set => Set(() => Profile.LeftStick.AntiDeadzone = value); }
-    public int LeftSensitivity { get => Profile.LeftStick.Sensitivity; set => Set(() => Profile.LeftStick.Sensitivity = value); }
+    public int LeftInner { get => Profile.LeftStick.InnerDeadzone; set => Set(() => Profile.LeftStick.InnerDeadzone = Math.Clamp(value, 0, 90)); }
+    public int LeftOuter { get => Profile.LeftStick.OuterDeadzone; set => Set(() => Profile.LeftStick.OuterDeadzone = Math.Clamp(value, 0, 50)); }
+    public int LeftAnti { get => Profile.LeftStick.AntiDeadzone; set => Set(() => Profile.LeftStick.AntiDeadzone = Math.Clamp(value, 0, 50)); }
+    public int LeftSensitivity { get => Profile.LeftStick.Sensitivity; set => Set(() => Profile.LeftStick.Sensitivity = Math.Clamp(value, 50, 150)); }
     public StickCurve LeftCurve { get => Profile.LeftStick.Curve; set => Set(() => Profile.LeftStick.Curve = value); }
     public bool LeftInvert { get => Profile.LeftStick.InvertY; set => Set(() => Profile.LeftStick.InvertY = value); }
-    public int RightInner { get => Profile.RightStick.InnerDeadzone; set => Set(() => Profile.RightStick.InnerDeadzone = value); }
-    public int RightOuter { get => Profile.RightStick.OuterDeadzone; set => Set(() => Profile.RightStick.OuterDeadzone = value); }
-    public int RightAnti { get => Profile.RightStick.AntiDeadzone; set => Set(() => Profile.RightStick.AntiDeadzone = value); }
-    public int RightSensitivity { get => Profile.RightStick.Sensitivity; set => Set(() => Profile.RightStick.Sensitivity = value); }
+    public int RightInner { get => Profile.RightStick.InnerDeadzone; set => Set(() => Profile.RightStick.InnerDeadzone = Math.Clamp(value, 0, 90)); }
+    public int RightOuter { get => Profile.RightStick.OuterDeadzone; set => Set(() => Profile.RightStick.OuterDeadzone = Math.Clamp(value, 0, 50)); }
+    public int RightAnti { get => Profile.RightStick.AntiDeadzone; set => Set(() => Profile.RightStick.AntiDeadzone = Math.Clamp(value, 0, 50)); }
+    public int RightSensitivity { get => Profile.RightStick.Sensitivity; set => Set(() => Profile.RightStick.Sensitivity = Math.Clamp(value, 50, 150)); }
     public StickCurve RightCurve { get => Profile.RightStick.Curve; set => Set(() => Profile.RightStick.Curve = value); }
     public bool RightInvert { get => Profile.RightStick.InvertY; set => Set(() => Profile.RightStick.InvertY = value); }
-    public int TriggerDeadzone { get => Profile.TriggerDeadzone; set => Set(() => Profile.TriggerDeadzone = value); }
-    public int TriggerMax { get => Profile.TriggerMax; set => Set(() => Profile.TriggerMax = value); }
-    public int Vibration { get => Profile.Vibration; set => Set(() => Profile.Vibration = value); }
+    public int TriggerDeadzone { get => Profile.TriggerDeadzone; set => Set(() => Profile.TriggerDeadzone = Math.Clamp(value, 0, 90)); }
+    public int TriggerMax { get => Profile.TriggerMax; set => Set(() => Profile.TriggerMax = Math.Clamp(value, 10, 100)); }
+    public int Vibration { get => Profile.Vibration; set => Set(() => Profile.Vibration = Math.Clamp(value, 0, 200)); }
     public bool SwapFace { get => Profile.SwapFaceButtons; set => Set(() => Profile.SwapFaceButtons = value); }
 
     public string Summary =>
