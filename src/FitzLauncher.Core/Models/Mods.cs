@@ -74,6 +74,10 @@ public sealed class TrainerConfig
     /// <summary>Seconds after the game starts before the trainer is opened (it attaches to the running game).</summary>
     public int DelaySeconds { get; set; } = 10;
     public bool CloseWithGame { get; set; } = true;
+    /// <summary>Seconds to let the trainer find the game before its options are switched on.</summary>
+    public int ApplyDelaySeconds { get; set; } = 3;
+    /// <summary>After switching your options on, go back to the game (otherwise the trainer stays in front).</summary>
+    public bool ReturnToGameAfterApply { get; set; } = true;
     /// <summary>The trainer's cheats and hotkeys; the ones ticked are "your usual" shown at launch.</summary>
     public List<TrainerCheat> Cheats { get; set; } = [];
     public string? Notes { get; set; }
@@ -85,6 +89,8 @@ public sealed class TrainerCheat
     public string Hotkey { get; set; } = "";
     public string Name { get; set; } = "";
     public bool Favourite { get; set; }
+    /// <summary>Press this option's hotkey for you at launch, once the trainer has attached to the game (on/off options only).</summary>
+    public bool OnAtLaunch { get; set; }
 }
 
 /// <summary>A reference to another mod by its Nexus id.</summary>

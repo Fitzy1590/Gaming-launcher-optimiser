@@ -501,7 +501,9 @@ public sealed partial class MainViewModel : ObservableObject
             else session.Launched += () => _ = Task.Run(async () =>
             {
                 trainer = await _s.Trainers.StartAsync(t, () => session.GamePids, line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); }, trainerCts.Token);
-                if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
+                if (trainer is null) return;
+                if (t.Cheats.Where(c => c.OnAtLaunch).Select(c => c.Name).ToList() is { Count: > 0 } on) session.ShowNote($"Trainer on: {string.Join(", ", on)}", 8);
+                else if (FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
             });
         }
         // PS shortcuts and the wheel can step the FPS target and power limit of this game.

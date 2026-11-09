@@ -564,19 +564,25 @@
                             <TextBox Text="{Binding TrainerDelay}" Width="48" Margin="8,0" />
                             <TextBlock Text="seconds after the game window appears" VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock Text="The trainer opens in front so you can tick your options; then go back to the game with PS + R3, Alt+Tab or a click. PS + R3 switches between them any time."
+                        <TextBlock Text="With no options ticked below, the trainer opens in front so you can pick them yourself; then go back to the game with PS + R3, Alt+Tab or a click. PS + R3 switches between them any time."
                                    Style="{StaticResource Wrap}" FontSize="12" Margin="24,4,0,0" />
                         <CheckBox Content="Close it when the game closes" IsChecked="{Binding TrainerCloseWithGame}" Margin="0,8,0,0" />
-                        <TextBlock Text="Your usual cheats (shown in the overlay when the trainer opens)" Style="{StaticResource MutedText}" Margin="0,12,0,4" />
+                        <TextBlock Text="Your cheats" Style="{StaticResource MutedText}" Margin="0,12,0,4" />
+                        <TextBlock Text="Tick &quot;On at launch&quot; for the on/off options you always use: once the trainer has found the game, Fitz presses their hotkeys for you. Don't tick one-shot actions (add experience, teleport, save location): they'd run at every launch. Favourites are shown in the overlay when the trainer opens."
+                                   Style="{StaticResource Wrap}" FontSize="12" Margin="0,0,0,6" />
+                        <CheckBox Content="After switching them on, go back to the game (otherwise the trainer stays in front)" IsChecked="{Binding TrainerReturnToGame}" Margin="0,0,0,6" />
                         <ItemsControl ItemsSource="{Binding Cheats}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <CheckBox IsChecked="{Binding Favourite}" Margin="0,0,0,4">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Border Style="{StaticResource Keycap}"><TextBlock Text="{Binding Hotkey}" Style="{StaticResource Figure}" FontSize="12" /></Border>
-                                            <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
-                                        </StackPanel>
-                                    </CheckBox>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <CheckBox DockPanel.Dock="Right" Content="On at launch" IsChecked="{Binding OnAtLaunch}" IsEnabled="{Binding CanSend}" Margin="12,0,0,0" ToolTip="Fitz presses this hotkey for you after launch" />
+                                        <CheckBox IsChecked="{Binding Favourite}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Border Style="{StaticResource Keycap}"><TextBlock Text="{Binding Hotkey}" Style="{StaticResource Figure}" FontSize="12" /></Border>
+                                                <TextBlock Text="{Binding Name}" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                        </CheckBox>
+                                    </DockPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -5,7 +5,7 @@ public enum PadAction
 {
     None, VolumeUp, VolumeDown, Mute, BrightnessUp, BrightnessDown, PlayPause, NextTrack, PreviousTrack,
     Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame, ToggleOverlay, Sleep, GameHelp, GameHelpAsk,
-    TargetUp, TargetDown, PowerUp, PowerDown,
+    TargetUp, TargetDown, PowerUp, PowerDown, SwitchWindowBack,
 }
 
 /// <summary>One PS + button combo.</summary>

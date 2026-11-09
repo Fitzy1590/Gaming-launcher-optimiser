@@ -76,6 +76,7 @@ public sealed class ConsoleBridge : IDisposable
         _run = false;
         _thread?.Join(500);
         if (ReferenceEquals(s_active, _combos)) s_active = null;
+        WindowsActions.EndAltTab();
         DisconnectPad();
         PlayStationPads.Shared.Stop();
     }
@@ -97,6 +98,7 @@ public sealed class ConsoleBridge : IDisposable
                 }
                 catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log($"PS button ({action}): " + e.Message); }
             }
+            if (!_combos.Chording && WindowsActions.AltTabActive) WindowsActions.EndAltTab(); // PS let go: pick the highlighted window
             var wheel = _combos.Wheel;
             if (wheel != _lastWheel) { _lastWheel = wheel; WheelChanged?.Invoke(wheel); }
             if (s is { } raw) s = _combos.GameView(raw); // OneXConsole sees the same as a game: no PS, no shortcut presses

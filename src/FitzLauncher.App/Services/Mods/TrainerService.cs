@@ -142,14 +142,35 @@ public sealed class TrainerService(AppServices s)
             if (p is null) { status("Couldn't start the trainer."); return null; }
         }
 
-        // 3. In front, so you can tick options before playing.
+        // 3. In front, so its hotkeys are the only thing that sees the key presses, and so you can see what happens.
         var window = await FitzLauncher.Windows.ForegroundWindow.WaitForWindowAsync(p, TimeSpan.FromSeconds(20), ct);
-        if (window is { } w)
+        if (window is not { } w) { status($"Trainer started ({t.Name}) but its window didn't appear; check the taskbar."); return p; }
+        FitzLauncher.Windows.ForegroundWindow.Activate(w);
+
+        // 4. Your saved options: press each one's hotkey once the trainer has found the game.
+        var auto = t.Cheats.Where(c => c.OnAtLaunch).ToList();
+        if (auto.Count == 0)
         {
-            FitzLauncher.Windows.ForegroundWindow.Activate(w);
             status($"Trainer open: {t.Name}. Set your options, then switch back to the game (PS + R3, Alt+Tab or click the game).");
+            return p;
         }
-        else status($"Trainer started ({t.Name}) but its window didn't appear; check the taskbar.");
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(t.ApplyDelaySeconds, 1, 30)), ct); // it needs a moment to attach to the game
+            var done = new List<string>();
+            foreach (var cheat in auto)
+            {
+                var chord = FitzLauncher.Core.Input.HotkeyParser.Parse(cheat.Hotkey);
+                if (chord is null || FitzLauncher.Core.Input.HotkeyParser.IsTrainerMasterSwitch(chord)) { status($"Trainer: couldn't send the hotkey for {cheat.Name} ({cheat.Hotkey})"); continue; }
+                await FitzLauncher.Windows.KeyInjector.SendAsync(chord.Steps(), 40, ct);
+                done.Add(cheat.Name);
+                await Task.Delay(250, ct);
+            }
+            status(done.Count == 0 ? "Trainer: none of your options could be switched on." : $"Trainer: switched on {string.Join(", ", done)}.");
+        }
+        catch (TaskCanceledException) { return p; }
+        if (t.ReturnToGameAfterApply && FitzLauncher.Windows.ForegroundWindow.Find(gamePids()) is var gw and not 0)
+            FitzLauncher.Windows.ForegroundWindow.Activate(gw);
         return p;
     }
 

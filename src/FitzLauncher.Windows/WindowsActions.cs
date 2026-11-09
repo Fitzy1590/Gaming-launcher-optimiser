@@ -46,7 +46,8 @@ public static class WindowsActions
             case PadAction.GameBar: Keys(VK_LWIN, VK_G); break;
             case PadAction.ShowDesktop: Keys(VK_LWIN, VK_D); break;
             case PadAction.TaskManager: Keys(VK_CONTROL, VK_SHIFT, VK_ESCAPE); break;
-            case PadAction.SwitchWindow: Keys(VK_MENU, VK_TAB); break;
+            case PadAction.SwitchWindow: AltTab(back: false); break;
+            case PadAction.SwitchWindowBack: AltTab(back: true); break;
             case PadAction.BrightnessUp: Brightness(+10); break;
             case PadAction.BrightnessDown: Brightness(-10); break;
             case PadAction.OnScreenKeyboard: TouchKeyboard(); break;
@@ -75,6 +76,37 @@ public static class WindowsActions
         if (TrainerAndGame?.Invoke() is not { Trainer: { } trainer } ctx) return;
         if (ForegroundWindow.IsForeground([trainer])) ForegroundWindow.Activate(ForegroundWindow.Find(ctx.Game));
         else ForegroundWindow.Activate(ForegroundWindow.Find([trainer]));
+    }
+
+    private static readonly AltTabHold s_altTab = new();
+    private static readonly Lock s_altLock = new();
+    private static int s_exitHooked;
+
+    /// <summary>True while Alt is being held for window switching (PS still held).</summary>
+    public static bool AltTabActive { get { lock (s_altLock) return s_altTab.Held; } }
+
+    /// <summary>
+    /// Like holding Alt on a keyboard: the first press holds Alt and taps Tab (the switcher opens), each further press taps
+    /// Tab again to move along, and <see cref="EndAltTab"/> (PS let go) releases Alt, which picks the highlighted window.
+    /// </summary>
+    private static void AltTab(bool back)
+    {
+        lock (s_altLock)
+        {
+            if (!s_altTab.Held && Interlocked.Exchange(ref s_exitHooked, 1) == 0)
+                AppDomain.CurrentDomain.ProcessExit += (_, _) => EndAltTab(); // never leave Alt stuck down
+            var first = !s_altTab.Held;
+            var steps = s_altTab.Press(back);
+            KeyInjector.Send(steps.Take(first ? 1 : 0));
+            if (first) Thread.Sleep(30); // let Windows see Alt before Tab
+            KeyInjector.Send(steps.Skip(first ? 1 : 0));
+        }
+    }
+
+    /// <summary>Lets go of Alt if window switching is in progress (switches to the highlighted window).</summary>
+    public static void EndAltTab()
+    {
+        lock (s_altLock) KeyInjector.Send(s_altTab.Release());
     }
 
     /// <summary>Presses the keys in order and releases them in reverse (a chord).</summary>

@@ -13,6 +13,9 @@ public sealed partial class CheatRow(TrainerCheat c, Action save) : ObservableOb
     public string Hotkey => c.Hotkey;
     public string Name => c.Name;
     public bool Favourite { get => c.Favourite; set { c.Favourite = value; save(); OnPropertyChanged(); } }
+    public bool OnAtLaunch { get => c.OnAtLaunch; set { c.OnAtLaunch = value; save(); OnPropertyChanged(); } }
+    /// <summary>Only keys Fitz can press: shown greyed out otherwise.</summary>
+    public bool CanSend => FitzLauncher.Core.Input.HotkeyParser.Parse(c.Hotkey) is { } k && !FitzLauncher.Core.Input.HotkeyParser.IsTrainerMasterSwitch(k);
 }
 
 public sealed class TrainerResultRow(TrainerSearchResult r, GameDetailsViewModel owner)
@@ -74,6 +77,7 @@ public sealed partial class GameDetailsViewModel
         }
     }
 
+    public bool TrainerReturnToGame { get => Game.Trainer?.ReturnToGameAfterApply ?? true; set { if (Game.Trainer is { } t) { t.ReturnToGameAfterApply = value; _s.SaveLibrary(); } } }
     public bool TrainerLaunchWithGame { get => Game.Trainer?.LaunchWithGame ?? false; set { if (Game.Trainer is { } t) { t.LaunchWithGame = value; _s.SaveLibrary(); } } }
     public bool TrainerCloseWithGame { get => Game.Trainer?.CloseWithGame ?? true; set { if (Game.Trainer is { } t) { t.CloseWithGame = value; _s.SaveLibrary(); } } }
     public int TrainerDelay { get => Game.Trainer?.DelaySeconds ?? 10; set { if (Game.Trainer is { } t) { t.DelaySeconds = Math.Clamp(value, 0, 300); _s.SaveLibrary(); } } }
@@ -154,7 +158,11 @@ public sealed partial class GameDetailsViewModel
             Notes = _trainerPage?.Notes, LaunchWithGame = old?.LaunchWithGame ?? true, DelaySeconds = old?.DelaySeconds ?? 10, CloseWithGame = old?.CloseWithGame ?? true,
         };
         // Keep favourites ticked before an update.
-        foreach (var ch in Game.Trainer.Cheats) ch.Favourite = ch.Favourite || old?.Cheats.Any(o => o.Favourite && o.Hotkey == ch.Hotkey) == true;
+        foreach (var ch in Game.Trainer.Cheats)
+        {
+            ch.Favourite = ch.Favourite || old?.Cheats.Any(o => o.Favourite && o.Hotkey == ch.Hotkey) == true;
+            ch.OnAtLaunch = ch.OnAtLaunch || old?.Cheats.Any(o => o.OnAtLaunch && o.Hotkey == ch.Hotkey && o.Name == ch.Name) == true; // keep your options across trainer updates
+        }
         _s.SaveLibrary();
         IsFindingTrainer = false;
         LoadTrainer();
