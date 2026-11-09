@@ -99,6 +99,11 @@ public partial class App : Application
         if (!CrashReporter.SafeMode) _ = FitzLauncher.App.Services.Mods.NxmHandler.ListenAsync(link => Dispatcher.BeginInvoke(() => _ = vm.HandleNxmAsync(link)), _nxmStop.Token);
         var window = new MainWindow(vm);
         MainWindow = window;
+        FitzLauncher.Windows.WindowsActions.OpenLauncher = () => Dispatcher.BeginInvoke(() =>
+        {
+            if (window.WindowState == WindowState.Minimized) window.WindowState = window.IsFullScreen ? WindowState.Maximized : WindowState.Normal;
+            window.Activate();
+        });
         window.Show();
         // Started by the "start with Windows" task: stay out of the way.
         if (e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase)) window.WindowState = WindowState.Minimized;

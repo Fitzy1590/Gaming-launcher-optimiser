@@ -6,7 +6,7 @@ namespace FitzLauncher.Core.Optimization;
 /// <summary>The numbers the overlay can show at one moment.</summary>
 public readonly record struct OverlayValues(
     double Fps, double OnePercentLow, double? Watts, double? CpuTempC, double? GpuTempC, double? GpuLoad, int? Cap,
-    bool ThermalThrottling = false, bool Stabilised = false, int? BenchmarkSecondsLeft = null, string? Note = null, DateTime? Now = null);
+    bool ThermalThrottling = false, int? BenchmarkSecondsLeft = null, string? Note = null, DateTime? Now = null);
 
 /// <summary>
 /// Builds the launcher's RTSS overlay text from <see cref="OverlaySettings"/>: a single tidy row
@@ -27,7 +27,7 @@ public static class OverlayFormatter
         if (o.CpuTemp && v.CpuTempC is { } c) items.Add(("CPU", c.ToString("0", ci) + "°"));
         if (o.GpuTemp && v.GpuTempC is { } g) items.Add(("GPU", g.ToString("0", ci) + "°"));
         if (o.GpuLoad && v.GpuLoad is { } l) items.Add(("GPU", l.ToString("0", ci) + "%"));
-        if (o.Cap && v.Cap is { } cap and > 0) items.Add(("cap", cap.ToString(ci) + (v.Stabilised ? " (steady)" : "")));
+        if (o.Cap && v.Cap is { } cap and > 0) items.Add(("cap", cap.ToString(ci)));
         if (o.Clock && v.Now is { } now) items.Add((now.ToString("HH:mm", ci), ""));
 
         var extras = new List<string>();

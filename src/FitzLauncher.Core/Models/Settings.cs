@@ -33,10 +33,6 @@ public sealed class LauncherSettings
     /// <summary>Overlay layout and items for games without their own (null: built from the old style setting).</summary>
     public OverlaySettings? OverlayLayout { get; set; }
     public OverlaySettings EffectiveOverlay => OverlayLayout ??= OverlaySettings.FromLegacy(RtssOverlay, Overlay);
-    /// <summary>Smoothness mode (FPS stabiliser) for games that haven't chosen.</summary>
-    public bool StabiliseByDefault { get; set; }
-    /// <summary>The screen runs FreeSync/G-Sync/VRR in games; smoothness mode may then use any cap, not just refresh divisors.</summary>
-    public bool VariableRefresh { get; set; }
     /// <summary>Use MSI Afterburner's sensor readings when it's running, so two tools don't poll the same sensors.</summary>
     public bool PreferAfterburnerSensors { get; set; } = true;
     public bool AutoTuneNewGames { get; set; } = true;
@@ -75,6 +71,8 @@ public sealed class LauncherSettings
     public string? ConsoleAppPath { get; set; }
     /// <summary>While OneXConsole is in front, mirror the Sony pad as an Xbox controller so it can drive it.</summary>
     public bool ConsolePadMirror { get; set; } = true;
+    /// <summary>Hold PS + a button for Windows actions (volume, brightness, screenshot…).</summary>
+    public FitzLauncher.Core.Input.PadComboSettings PadCombos { get; set; } = new();
 
     // ---- game updates
     /// <summary>Check official sources for game updates on the first launch of each day.</summary>

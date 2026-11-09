@@ -111,3 +111,49 @@ public class PadMergeTests
         Assert.Equal(default, PadMerge.Combine(null, null));
     }
 }
+
+public class PadComboTests
+{
+    private static PadSnapshot P(ushort buttons) => new(buttons, 0, 0, 0, 0, 0, 0);
+
+    [Fact]
+    public void PsPlusUpRaisesVolumeAndRepeatsWhileHeld()
+    {
+        var e = new PadComboEngine(() => new PadComboSettings());
+        var t = new DateTime(2026, 1, 1);
+        Assert.Empty(e.Update(P(PadSnapshot.Guide), t));
+        Assert.True(e.Chording);
+        Assert.Equal([PadAction.VolumeUp], e.Update(P(PadSnapshot.Guide | PadSnapshot.Up), t = t.AddMilliseconds(50)));
+        Assert.Empty(e.Update(P(PadSnapshot.Guide | PadSnapshot.Up), t = t.AddMilliseconds(200)));
+        Assert.Equal([PadAction.VolumeUp], e.Update(P(PadSnapshot.Guide | PadSnapshot.Up), t = t.AddMilliseconds(300))); // repeat
+        Assert.Equal([PadAction.VolumeDown], e.Update(P(PadSnapshot.Guide | PadSnapshot.Down), t = t.AddMilliseconds(20)));
+        Assert.Empty(e.Update(P(0), t.AddMilliseconds(20))); // release after a combo: no tap
+    }
+
+    [Fact]
+    public void QuickPsTapOnItsOwnIsATap()
+    {
+        var e = new PadComboEngine(() => new PadComboSettings());
+        var t = DateTime.UtcNow;
+        e.Update(P(PadSnapshot.Guide), t);
+        Assert.Equal([PadComboEngine.Tap], e.Update(P(0), t.AddMilliseconds(150)));
+        // A long hold isn't a tap.
+        e.Update(P(PadSnapshot.Guide), t = t.AddSeconds(1));
+        Assert.Empty(e.Update(P(0), t.AddSeconds(2)));
+    }
+
+    [Fact]
+    public void NonRepeatingActionsFireOnceAndDisabledFiresNothing()
+    {
+        var e = new PadComboEngine(() => new PadComboSettings());
+        var t = DateTime.UtcNow;
+        e.Update(P(PadSnapshot.Guide), t);
+        Assert.Equal([PadAction.Screenshot], e.Update(P(PadSnapshot.Guide | PadSnapshot.Back), t = t.AddMilliseconds(30)));
+        Assert.Empty(e.Update(P(PadSnapshot.Guide | PadSnapshot.Back), t.AddSeconds(2)));
+
+        var off = new PadComboEngine(() => new PadComboSettings { Enabled = false });
+        off.Update(P(PadSnapshot.Guide), t);
+        Assert.Empty(off.Update(P(PadSnapshot.Guide | PadSnapshot.Up), t.AddMilliseconds(30)));
+        Assert.Empty(off.Update(P(0), t.AddMilliseconds(60))); // pressing a button still cancels the tap
+    }
+}

@@ -185,12 +185,13 @@ public sealed class AppServices : IDisposable
 
     /// <summary>PS button → OneXConsole (and driving it with the Sony pad).</summary>
     public FitzLauncher.Windows.ConsoleBridge ConsoleButton => _console ??=
-        new FitzLauncher.Windows.ConsoleBridge(() => Settings.ConsoleAppPath, () => Settings.ConsolePadMirror, Log.Write);
+        new FitzLauncher.Windows.ConsoleBridge(() => Settings.ConsoleAppPath, () => Settings.ConsolePadMirror, Log.Write,
+            () => Settings.PsButtonOpensConsole, () => Settings.PadCombos);
 
     /// <summary>Starts or stops the PS button watcher to match the setting.</summary>
     public void ApplyConsoleButton()
     {
-        if (Settings.PsButtonOpensConsole) ConsoleButton.Start();
+        if (Settings.PsButtonOpensConsole || Settings.PadCombos.Enabled) ConsoleButton.Start();
         else _console?.Stop();
     }
 

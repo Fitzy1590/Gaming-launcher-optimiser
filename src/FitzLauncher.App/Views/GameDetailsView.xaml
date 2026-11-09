@@ -230,8 +230,6 @@
                 </ItemsControl>
                 <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
                 <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,8,0,0" />
-                <CheckBox Content="Smoothness mode: settle the cap where this game holds steady FPS, climb back when there's headroom" IsChecked="{Binding SmoothOn}" Margin="0,8,0,0"
-                          ToolTip="An even frame rate feels smoother than a higher one that keeps dipping. Never goes above your cap." />
                 <CheckBox Content="Pause this game while the device sleeps (turn off for online games)" IsChecked="{Binding PauseOnSleepOn}" Margin="0,8,0,0" />
 
                 <TextBlock Text="{Binding LimiterText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" Visibility="{Binding LimiterText, Converter={StaticResource HasValue}}" />

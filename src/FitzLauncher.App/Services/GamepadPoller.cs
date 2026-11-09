@@ -69,7 +69,8 @@ public sealed class GamepadPoller : IDisposable
             if (connected) Add(down, state.Pad.Buttons, state.Pad.LX, state.Pad.LY, state.Pad.RY);
         }
         // DualShock / DualSense (merged, so a pad seen both ways doesn't double-press).
-        if (FitzLauncher.Windows.PlayStationPads.Shared.Current is { } ps) Add(down, ps.Buttons, ps.LX, ps.LY, ps.RY);
+        // While PS is held the buttons belong to a PS combo (volume etc.), not the menus.
+        if (FitzLauncher.Windows.PlayStationPads.Shared.Current is { } ps && !ps.Has(FitzLauncher.Core.Input.PadSnapshot.Guide)) Add(down, ps.Buttons, ps.LX, ps.LY, ps.RY);
 
         var now = DateTime.UtcNow;
         foreach (var b in down)

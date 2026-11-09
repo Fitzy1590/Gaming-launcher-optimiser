@@ -228,7 +228,6 @@ public sealed partial class GameDetailsViewModel
 
     public bool ThermalGuardOn { get => Game.ThermalGuard; set { Game.ThermalGuard = value; _s.SaveLibrary(); } }
     public bool PauseOnSleepOn { get => Game.PauseOnSleep; set { Game.PauseOnSleep = value; _s.SaveLibrary(); } }
-    public bool SmoothOn { get => Game.Stabilise ?? _s.Settings.StabiliseByDefault; set { Game.Stabilise = value; _s.SaveLibrary(); } }
 
     // ------------------------------------------------------------------ in-game overlay
 

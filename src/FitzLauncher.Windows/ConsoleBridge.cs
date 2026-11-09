@@ -28,11 +28,20 @@ public sealed class ConsoleBridge : IDisposable
     private bool _viGEmMissing;
     private ushort _lastKeys;
 
-    public ConsoleBridge(Func<string?> pathOverride, Func<bool> mirrorEnabled, Action<string> log)
+    private readonly Func<bool> _consoleEnabled;
+    private readonly PadComboEngine _combos;
+
+    /// <summary>True while PS is held (its combo buttons shouldn't reach games or menus).</summary>
+    public static bool Chording { get; private set; }
+
+    public ConsoleBridge(Func<string?> pathOverride, Func<bool> mirrorEnabled, Action<string> log, Func<bool>? consoleEnabled = null, Func<PadComboSettings>? combos = null)
     {
         _pathOverride = pathOverride;
         _mirrorEnabled = mirrorEnabled;
         _log = log;
+        _consoleEnabled = consoleEnabled ?? (() => true);
+        var c = combos ?? (() => new PadComboSettings { Enabled = false });
+        _combos = new PadComboEngine(c);
     }
 
     public bool Running => _run;
@@ -57,19 +66,23 @@ public sealed class ConsoleBridge : IDisposable
 
     private void Loop()
     {
-        var psDown = false;
         var lastForegroundCheck = DateTime.MinValue;
         var consoleInFront = false;
         while (_run)
         {
             var s = PlayStationPads.Shared.Current;
-            var ps = s?.Has(PadSnapshot.Guide) == true;
-            if (ps && !psDown)
+            // PS tap → OneXConsole; PS held + a button → that button's Windows action.
+            foreach (var action in _combos.Update(s, DateTime.UtcNow))
             {
-                try { Toggle(); }
-                catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log("OneXConsole: " + e.Message); }
+                try
+                {
+                    if (action == PadComboEngine.Tap) { if (_consoleEnabled()) Toggle(); }
+                    else WindowsActions.Run(action);
+                }
+                catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log($"PS button ({action}): " + e.Message); }
             }
-            psDown = ps;
+            Chording = _combos.Chording;
+            if (Chording && s is { } held) s = held with { Buttons = 0 }; // the combo isn't also a press in OneXConsole
 
             if (DateTime.UtcNow - lastForegroundCheck > TimeSpan.FromMilliseconds(250))
             {
@@ -80,6 +93,7 @@ public sealed class ConsoleBridge : IDisposable
             else if (_pad is not null || _lastKeys != 0) { DisconnectPad(); _lastKeys = 0; }
             Thread.Sleep(consoleInFront ? 4 : 16);
         }
+        Chording = false;
     }
 
     // ------------------------------------------------------------------ open / go back

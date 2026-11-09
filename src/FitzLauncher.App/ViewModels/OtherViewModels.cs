@@ -227,7 +227,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         HibernateText = await Task.Run(() => FitzLauncher.Windows.LowPowerSleep.SetHibernateAfter(minutes));
     }
 
-    public bool StabiliseByDefault { get => _s.Settings.StabiliseByDefault; set { _s.Settings.StabiliseByDefault = value; _s.SaveSettings(); OnPropertyChanged(); } }
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
     public int[] Targets => LauncherSettings.FpsTargets;

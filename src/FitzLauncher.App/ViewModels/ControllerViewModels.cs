@@ -162,6 +162,25 @@ public sealed partial class ControllersViewModel : ObservableObject
         }
     }
 
+    // ---- PS + button shortcuts
+    public bool CombosEnabled
+    {
+        get => _s.Settings.PadCombos.Enabled;
+        set { _s.Settings.PadCombos.Enabled = value; _s.SaveSettings(); _s.ApplyConsoleButton(); OnPropertyChanged(); }
+    }
+
+    private List<PadComboRow>? _comboRows;
+    public List<PadComboRow> ComboRows => _comboRows ??= [.. FitzLauncher.Core.Input.PadComboSettings.Buttons.Select(b => new PadComboRow(b.Button, b.Name, _s))];
+
+    [RelayCommand]
+    private void ResetCombos()
+    {
+        _s.Settings.PadCombos.Combos = FitzLauncher.Core.Input.PadComboSettings.Defaults();
+        _s.SaveSettings();
+        _comboRows = null;
+        OnPropertyChanged(nameof(ComboRows));
+    }
+
     public bool ConsolePadMirror { get => _s.Settings.ConsolePadMirror; set { _s.Settings.ConsolePadMirror = value; _s.SaveSettings(); OnPropertyChanged(); } }
 
     [ObservableProperty] private string _consoleText = "";
@@ -214,4 +233,43 @@ public sealed partial class ControllersViewModel : ObservableObject
 
     [RelayCommand] private static void GetViGEm() => ModsViewModel.Open("https://github.com/nefarius/ViGEmBus/releases");
     [RelayCommand] private static void GetHidHide() => ModsViewModel.Open("https://github.com/nefarius/HidHide/releases");
+}
+
+/// <summary>One "PS + button" row in Settings → Controllers.</summary>
+public sealed partial class PadComboRow(ushort button, string name, Services.AppServices s) : ObservableObject
+{
+    public string Name { get; } = "PS + " + name;
+
+    public static IReadOnlyList<KeyValuePair<FitzLauncher.Core.Input.PadAction, string>> Choices { get; } =
+    [
+        new(FitzLauncher.Core.Input.PadAction.None, "Nothing"),
+        new(FitzLauncher.Core.Input.PadAction.VolumeUp, "Volume up"),
+        new(FitzLauncher.Core.Input.PadAction.VolumeDown, "Volume down"),
+        new(FitzLauncher.Core.Input.PadAction.Mute, "Mute / unmute"),
+        new(FitzLauncher.Core.Input.PadAction.BrightnessUp, "Brightness up"),
+        new(FitzLauncher.Core.Input.PadAction.BrightnessDown, "Brightness down"),
+        new(FitzLauncher.Core.Input.PadAction.PlayPause, "Play / pause media"),
+        new(FitzLauncher.Core.Input.PadAction.NextTrack, "Next track"),
+        new(FitzLauncher.Core.Input.PadAction.PreviousTrack, "Previous track"),
+        new(FitzLauncher.Core.Input.PadAction.Screenshot, "Screenshot (Win+PrtScn)"),
+        new(FitzLauncher.Core.Input.PadAction.GameBar, "Xbox Game Bar"),
+        new(FitzLauncher.Core.Input.PadAction.OnScreenKeyboard, "On-screen keyboard"),
+        new(FitzLauncher.Core.Input.PadAction.SwitchWindow, "Switch window (Alt+Tab)"),
+        new(FitzLauncher.Core.Input.PadAction.ShowDesktop, "Show desktop"),
+        new(FitzLauncher.Core.Input.PadAction.TaskManager, "Task Manager"),
+        new(FitzLauncher.Core.Input.PadAction.OpenLauncher, "Open Fitz Launcher"),
+    ];
+
+    public FitzLauncher.Core.Input.PadAction Action
+    {
+        get => s.Settings.PadCombos.ActionFor(button);
+        set
+        {
+            var list = s.Settings.PadCombos.Combos;
+            list.RemoveAll(c => c.Button == button);
+            if (value != FitzLauncher.Core.Input.PadAction.None) list.Add(new FitzLauncher.Core.Input.PadCombo { Button = button, Action = value });
+            s.SaveSettings();
+            OnPropertyChanged();
+        }
+    }
 }

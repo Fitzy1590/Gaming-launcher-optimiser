@@ -233,6 +233,22 @@
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
 
                     <TextBlock Text="PS button" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,16,0,4" />
+                    <CheckBox Content="PS button shortcuts: hold PS and press a button for a Windows action (a quick PS tap on its own still opens OneXConsole)" IsChecked="{Binding CombosEnabled}" />
+                    <StackPanel Margin="26,6,0,8" Visibility="{Binding CombosEnabled, Converter={StaticResource Vis}}">
+                        <ItemsControl ItemsSource="{Binding ComboRows}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,16,6">
+                                        <TextBlock DockPanel.Dock="Left" Text="{Binding Name}" Width="150" VerticalAlignment="Center" />
+                                        <ComboBox ItemsSource="{Binding Choices}" DisplayMemberPath="Value" SelectedValuePath="Key" SelectedValue="{Binding Action}" AutomationProperties.Name="{Binding Name}" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Volume and brightness repeat while held. Combo buttons aren't passed to the game or OneXConsole while PS is held. Brightness works on the built-in screen only." Style="{StaticResource Wrap}" FontSize="12" />
+                        <Button Content="Reset to defaults" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Command="{Binding ResetCombosCommand}" />
+                    </StackPanel>
                     <CheckBox Content="PS button opens OneXConsole (press again to go back to the game), in games too" IsChecked="{Binding PsButtonOpensConsole}" />
                     <StackPanel Margin="26,4,0,0" Visibility="{Binding PsButtonOpensConsole, Converter={StaticResource Vis}}">
                         <CheckBox Content="Drive OneXConsole with the DualShock while it's open (acts as an Xbox controller; uses ViGEmBus, otherwise arrow keys, Enter and Esc)" IsChecked="{Binding ConsolePadMirror}" />
@@ -335,16 +351,6 @@
                     <TextBlock Text="Other ways to keep it cool" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,12,0,4" />
                     <TextBlock Style="{StaticResource Wrap}"
                                Text="• Lower FPS cap or power limit: the biggest single difference to heat and fan noise.&#x0a;• Keep vents clear: not on a bed, sofa or lap; a stand or the case kickstand helps airflow a lot.&#x0a;• A clip-on cooler or a small desk fan behind a handheld can take 5–10°C off.&#x0a;• Clean dust from vents every few months; heat at low load is the sign it's needed.&#x0a;• Set a more aggressive fan curve in the device's own app (OneXConsole on OneXPlayer) for long sessions.&#x0a;• A cooler room helps: every degree of room temperature shows up in the chip.&#x0a;• Charging while playing adds heat; play on battery or let it charge first for long sessions." />
-                </StackPanel>
-            </Border>
-
-            <TextBlock Text="Smoothness mode" Style="{StaticResource H2}" />
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <CheckBox Content="Stabilise FPS in every game unless the game says otherwise" IsChecked="{Binding StabiliseByDefault}" />
-                    <CheckBox Content="My screen uses FreeSync / VRR in games (lets smoothness mode use in-between caps like 100 or 90)" IsChecked="{Binding S.VariableRefresh}" Margin="0,4,0,0" />
-                    <TextBlock Text="An even frame rate feels smoother than a higher one that keeps dipping. When a game can't hold its cap (a heavy area, heat), the cap drops to a level it holds steadily, e.g. 117 → 60 on a 120 Hz screen (or 117 → 100 with FreeSync), and climbs back when there's headroom, never above your cap. Uses RTSS to change the cap live."
-                               Style="{StaticResource Wrap}" Margin="0,8,0,0" />
                 </StackPanel>
             </Border>
 
