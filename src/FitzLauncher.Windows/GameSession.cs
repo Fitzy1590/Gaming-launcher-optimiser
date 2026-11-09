@@ -132,6 +132,8 @@ public sealed class GameSession(
     private readonly SleepPauseTracker _sleep = new();
     private GameFreezer? _freezer;
     private volatile IReadOnlyCollection<int> _gamePids = [];
+    /// <summary>The game's processes right now (empty until it has started).</summary>
+    public IReadOnlyCollection<int> GamePids => _gamePids;
     private nint _gameWindow;
 
     private void OnPowerEvent(PowerEvent e)

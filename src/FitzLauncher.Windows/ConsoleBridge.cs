@@ -275,21 +275,7 @@ public sealed class ConsoleBridge : IDisposable
 
     // ------------------------------------------------------------------ win32
 
-    /// <summary>Brings a window forward even while a game has the foreground (by joining its input queue).</summary>
-    private static void Activate(nint hwnd)
-    {
-        var fg = GetForegroundWindow();
-        var fgThread = GetWindowThreadProcessId(fg, out _);
-        var me = GetCurrentThreadId();
-        var attached = fgThread != 0 && fgThread != me && AttachThreadInput(me, fgThread, true);
-        try
-        {
-            if (IsIconic(hwnd)) ShowWindow(hwnd, 9);
-            BringWindowToTop(hwnd);
-            SetForegroundWindow(hwnd);
-        }
-        finally { if (attached) AttachThreadInput(me, fgThread, false); }
-    }
+    private static void Activate(nint hwnd) => ForegroundWindow.Activate(hwnd);
 
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hwnd, out uint pid);

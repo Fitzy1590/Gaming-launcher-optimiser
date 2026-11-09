@@ -4,7 +4,7 @@ namespace FitzLauncher.Core.Input;
 public enum PadAction
 {
     None, VolumeUp, VolumeDown, Mute, BrightnessUp, BrightnessDown, PlayPause, NextTrack, PreviousTrack,
-    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher,
+    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame,
 }
 
 /// <summary>One PS + button combo.</summary>
@@ -34,6 +34,7 @@ public sealed class PadComboSettings
         new() { Button = PadSnapshot.RightShoulder, Action = PadAction.NextTrack },
         new() { Button = PadSnapshot.Back, Action = PadAction.Screenshot },
         new() { Button = PadSnapshot.Start, Action = PadAction.PlayPause },
+        new() { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame },
     ];
 
     /// <summary>Every button that can be combined with PS, with its DualShock name.</summary>
@@ -44,6 +45,13 @@ public sealed class PadComboSettings
         (PadSnapshot.LeftShoulder, "L1"), (PadSnapshot.RightShoulder, "R1"), (PadSnapshot.Back, "Share / Create"), (PadSnapshot.Start, "Options"),
         (PadSnapshot.LeftThumb, "L3"), (PadSnapshot.RightThumb, "R3"),
     ];
+
+    /// <summary>Adds combos introduced in later versions to saved settings, without touching the user's choices.</summary>
+    public void AddNewDefaults()
+    {
+        if (Combos.All(c => c.Action != PadAction.TrainerOrGame) && Combos.All(c => c.Button != PadSnapshot.RightThumb))
+            Combos.Add(new PadCombo { Button = PadSnapshot.RightThumb, Action = PadAction.TrainerOrGame });
+    }
 
     public PadAction ActionFor(ushort button) => Combos.FirstOrDefault(c => c.Button == button)?.Action ?? PadAction.None;
 }

@@ -554,8 +554,10 @@
                         <StackPanel Orientation="Horizontal" Margin="24,4,0,0" IsEnabled="{Binding TrainerLaunchWithGame}">
                             <TextBlock Text="after" VerticalAlignment="Center" />
                             <TextBox Text="{Binding TrainerDelay}" Width="48" Margin="8,0" />
-                            <TextBlock Text="seconds (once the game has loaded)" VerticalAlignment="Center" />
+                            <TextBlock Text="seconds after the game window appears" VerticalAlignment="Center" />
                         </StackPanel>
+                        <TextBlock Text="The trainer opens in front so you can tick your options; then go back to the game with PS + R3, Alt+Tab or a click. PS + R3 switches between them any time."
+                                   Style="{StaticResource Wrap}" FontSize="12" Margin="24,4,0,0" />
                         <CheckBox Content="Close it when the game closes" IsChecked="{Binding TrainerCloseWithGame}" Margin="0,8,0,0" />
                         <TextBlock Text="Your usual cheats (shown in the overlay when the trainer opens)" Style="{StaticResource MutedText}" Margin="0,12,0,4" />
                         <ItemsControl ItemsSource="{Binding Cheats}">

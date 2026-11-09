@@ -191,6 +191,7 @@ public sealed class AppServices : IDisposable
     /// <summary>Starts or stops the PS button watcher to match the setting.</summary>
     public void ApplyConsoleButton()
     {
+        Settings.PadCombos.AddNewDefaults();
         if (Settings.PsButtonOpensConsole || Settings.PadCombos.Enabled) ConsoleButton.Start();
         else _console?.Stop();
     }

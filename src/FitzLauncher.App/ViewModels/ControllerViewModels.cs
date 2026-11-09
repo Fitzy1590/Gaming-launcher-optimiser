@@ -258,6 +258,7 @@ public sealed partial class PadComboRow(ushort button, string name, Services.App
         new(FitzLauncher.Core.Input.PadAction.ShowDesktop, "Show desktop"),
         new(FitzLauncher.Core.Input.PadAction.TaskManager, "Task Manager"),
         new(FitzLauncher.Core.Input.PadAction.OpenLauncher, "Open Fitz Launcher"),
+        new(FitzLauncher.Core.Input.PadAction.TrainerOrGame, "Switch trainer ↔ game"),
     ];
 
     public FitzLauncher.Core.Input.PadAction Action

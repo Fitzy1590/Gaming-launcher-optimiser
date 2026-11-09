@@ -437,12 +437,16 @@ public sealed partial class MainViewModel : ObservableObject
         // Trainer: started a little after the game, closed with it.
         System.Diagnostics.Process? trainer = null;
         var trainerCts = new CancellationTokenSource();
-        if (game.Trainer is { LaunchWithGame: true } t && File.Exists(t.ExePath))
-            session.Launched += () => _ = Task.Run(async () =>
+        if (game.Trainer is { LaunchWithGame: true } t)
+        {
+            if (!File.Exists(t.ExePath)) ShowToast($"Trainer not found at {t.ExePath}. Set it up again on the game page.");
+            else session.Launched += () => _ = Task.Run(async () =>
             {
-                trainer = await _s.Trainers.StartAsync(t, line => Ui(() => Activity = line), trainerCts.Token);
+                trainer = await _s.Trainers.StartAsync(t, () => session.GamePids, line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); }, trainerCts.Token);
                 if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
             });
+        }
+        FitzLauncher.Windows.WindowsActions.TrainerAndGame = () => (trainer is { HasExited: false } tp ? tp.Id : null, session.GamePids);
         if (abTest is not null)
             session.BenchmarkCompleted += b => Ui(() =>
             {
@@ -490,6 +494,7 @@ public sealed partial class MainViewModel : ObservableObject
         finally
         {
             trainerCts.Cancel();
+            FitzLauncher.Windows.WindowsActions.TrainerAndGame = null;
             if (game.Trainer is { CloseWithGame: true }) FitzLauncher.App.Services.Mods.TrainerService.Stop(trainer);
             _session = null;
             IsPlaying = false;

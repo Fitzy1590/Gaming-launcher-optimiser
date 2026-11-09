@@ -106,22 +106,63 @@ public sealed class TrainerService(AppServices s)
     // ------------------------------------------------------------------ with the game
 
     /// <summary>Starts the trainer after the configured delay; returns the process so it can be closed with the game.</summary>
-    public async Task<Process?> StartAsync(TrainerConfig t, Action<string> status, CancellationToken ct)
+    /// <summary>
+    /// Opens the trainer once the game is really running (its window exists; trainers attach to the game's process
+    /// and engine), after the set delay, and brings it to the front so options can be picked; switch back with
+    /// PS + R3, Alt+Tab, or by clicking the game. Reuses a copy that's already open.
+    /// </summary>
+    public async Task<Process?> StartAsync(TrainerConfig t, Func<IReadOnlyCollection<int>> gamePids, Action<string> status, CancellationToken ct)
     {
         if (!File.Exists(t.ExePath)) { status($"Trainer not found: {t.ExePath}"); return null; }
-        try { await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(t.DelaySeconds, 0, 300)), ct); }
-        catch (TaskCanceledException) { return null; }
         try
         {
-            var p = Process.Start(new ProcessStartInfo(t.ExePath) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(t.ExePath)! });
-            status($"Trainer started: {t.Name}");
-            return p;
+            // 1. Wait for the game's window (launcher stubs and splash processes come first), up to 5 minutes.
+            status($"Trainer: waiting for {Path.GetFileName(t.ExePath)}'s game window…");
+            var until = DateTime.UtcNow.AddMinutes(5);
+            while (DateTime.UtcNow < until && FitzLauncher.Windows.ForegroundWindow.Find(gamePids()) == 0) await Task.Delay(1000, ct);
+            if (FitzLauncher.Windows.ForegroundWindow.Find(gamePids()) == 0) { status("Trainer: the game window never appeared, so the trainer wasn't opened."); return null; }
+
+            // 2. Let the engine initialise before the trainer looks for it.
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(t.DelaySeconds, 0, 300)), ct);
         }
-        catch (System.ComponentModel.Win32Exception e)
+        catch (TaskCanceledException) { return null; }
+
+        Process? p = Running(t.ExePath);
+        if (p is null)
         {
-            status(e.NativeErrorCode == 225 ? AntivirusMessage : $"Couldn't start the trainer: {e.Message}");
-            return null;
+            try
+            {
+                p = Process.Start(new ProcessStartInfo(t.ExePath) { UseShellExecute = true, WorkingDirectory = Path.GetDirectoryName(t.ExePath)! });
+            }
+            catch (System.ComponentModel.Win32Exception e)
+            {
+                status(e.NativeErrorCode == 225 ? AntivirusMessage : $"Couldn't start the trainer: {e.Message}");
+                return null;
+            }
+            if (p is null) { status("Couldn't start the trainer."); return null; }
         }
+
+        // 3. In front, so you can tick options before playing.
+        var window = await FitzLauncher.Windows.ForegroundWindow.WaitForWindowAsync(p, TimeSpan.FromSeconds(20), ct);
+        if (window is { } w)
+        {
+            FitzLauncher.Windows.ForegroundWindow.Activate(w);
+            status($"Trainer open: {t.Name}. Set your options, then switch back to the game (PS + R3, Alt+Tab or click the game).");
+        }
+        else status($"Trainer started ({t.Name}) but its window didn't appear; check the taskbar.");
+        return p;
+    }
+
+    /// <summary>A copy of this trainer that's already running (e.g. opened by hand), or null.</summary>
+    private static Process? Running(string exePath)
+    {
+        foreach (var p in Process.GetProcessesByName(Path.GetFileNameWithoutExtension(exePath)))
+        {
+            try { if (string.Equals(p.MainModule?.FileName, exePath, StringComparison.OrdinalIgnoreCase)) return p; }
+            catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+            p.Dispose();
+        }
+        return null;
     }
 
     public static void Stop(Process? p)

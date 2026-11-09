@@ -19,6 +19,9 @@ public static class WindowsActions
     /// <summary>Called for <see cref="PadAction.OpenLauncher"/> (set by the app).</summary>
     public static Action? OpenLauncher { get; set; }
 
+    /// <summary>The running trainer and game processes, for <see cref="PadAction.TrainerOrGame"/> (set by the app).</summary>
+    public static Func<(int? Trainer, IReadOnlyCollection<int> Game)>? TrainerAndGame { get; set; }
+
     public static void Run(PadAction action)
     {
         switch (action)
@@ -38,7 +41,16 @@ public static class WindowsActions
             case PadAction.BrightnessDown: Brightness(-10); break;
             case PadAction.OnScreenKeyboard: TouchKeyboard(); break;
             case PadAction.OpenLauncher: OpenLauncher?.Invoke(); break;
+            case PadAction.TrainerOrGame: SwitchTrainerAndGame(); break;
         }
+    }
+
+    /// <summary>Trainer in front → back to the game; otherwise bring the trainer forward.</summary>
+    private static void SwitchTrainerAndGame()
+    {
+        if (TrainerAndGame?.Invoke() is not { Trainer: { } trainer } ctx) return;
+        if (ForegroundWindow.IsForeground([trainer])) ForegroundWindow.Activate(ForegroundWindow.Find(ctx.Game));
+        else ForegroundWindow.Activate(ForegroundWindow.Find([trainer]));
     }
 
     /// <summary>Presses the keys in order and releases them in reverse (a chord).</summary>
