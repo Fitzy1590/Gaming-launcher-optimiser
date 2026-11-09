@@ -22,6 +22,17 @@ public sealed class Game
     public string? HeroPath { get; set; }
     public int? SteamAppId { get; set; }
 
+    // ---- Emulation Hub (null/empty for PC games)
+    public FitzLauncher.Core.Emulation.EmuPlatform? Platform { get; set; }
+    public string? EmulatorId { get; set; }
+    /// <summary>The ROM / disc image / game folder the emulator opens.</summary>
+    public string? RomPath { get; set; }
+    /// <summary>Serial or title ID read from the dump (matching and mods).</summary>
+    public string? TitleId { get; set; }
+    public List<string> Collections { get; set; } = [];
+    /// <summary>Tuning preset last applied to this game's emulator settings.</summary>
+    public string? TuningPreset { get; set; }
+
     /// <summary>FPS target chosen for this game (90/100/110/117), or null for "uncapped".</summary>
     public int? FpsTarget { get; set; }
     public bool UseGameMode { get; set; } = true;

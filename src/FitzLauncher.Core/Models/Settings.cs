@@ -53,6 +53,9 @@ public sealed class LauncherSettings
     // ---- mods
     /// <summary>Nexus Mods personal API key, encrypted with Windows DPAPI for this user.</summary>
     public string? NexusApiKeyProtected { get; set; }
+
+    /// <summary>Emulation Hub settings (folders, update checks, metadata provider keys).</summary>
+    public EmulationSettings Emulation { get; set; } = new();
     public string? ModIoApiKeyProtected { get; set; }
     /// <summary>Open Nexus "Mod Manager Download" (nxm://) links in the launcher.</summary>
     public bool NxmHandler { get; set; }
@@ -260,4 +263,20 @@ public sealed class GameModeOptions
         "Spotify.exe", "Teams.exe", "ms-teams.exe", "SearchHost.exe", "OneDrive.Sync.Service.exe",
         "steamwebhelper.exe", "EpicWebHelper.exe",
     ];
+}
+
+public sealed class EmulationSettings
+{
+    /// <summary>Where downloaded emulators live (versions\, data\, mods-library\). Empty = the launcher's data folder.</summary>
+    public string EmuRoot { get; set; } = "";
+    public List<string> ScanFolders { get; set; } = [];
+    public int CheckIntervalHours { get; set; } = 6;
+    /// <summary>"stable" or "nightly" per emulator id; missing = stable.</summary>
+    public Dictionary<string, string> Channels { get; set; } = [];
+    // Keys are DPAPI-encrypted like the Nexus key.
+    public string? SteamGridDbKeyProtected { get; set; }
+    public string? IgdbClientId { get; set; }
+    public string? IgdbClientSecretProtected { get; set; }
+    public string? ScreenScraperUser { get; set; }
+    public string? ScreenScraperPasswordProtected { get; set; }
 }

@@ -157,8 +157,9 @@ Unknown emulator version: show the planned edits as a preview, apply only on con
 - Files under `%AppData%\FitzLauncher`: `emu-art\`, `emu-restore\`, `emu-versions.json`, `emulator-sources.json`.
 - Process launch: `UseShellExecute = false`, `CreateNoWindow` where the emulator has a console, timeouts on helper tools. Background threads never throw out.
 
-## 9. Open decisions
+## 9. Decisions (answered)
 
-1. Online version source for Switch and PS2 updates (see §4).
-2. Which Switch emulator (VERIFY the maintained fork) and which N64 emulator.
-3. Whether to ship 7-Zip support (adds one dependency) or only support `.zip` assets.
+1. Online version info: local detection plus emulator-native sources only (§4). No third-party catalogues.
+2. Switch: Ryujinx fork (Ryubing) and Yuzu-style forks. Repos and asset patterns are chosen and verified at the Switch stage; until then their `source.type` is `manual` (user points at the exe).
+3. N64: RMG and Project64 both.
+4. Archives: `.zip` and `.7z` (SharpCompress; check licence before adding).

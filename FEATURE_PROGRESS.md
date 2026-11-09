@@ -54,7 +54,7 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 
 ## 4. Emulation Hub (approved scope: everything voted; spec in `SPEC.md`)
 Order matters: each stage builds on the one before. Tick a stage only when its Verify line passes (B1, B2 always). Nothing built yet. Values marked VERIFY in `SPEC.md` are checked in the stage that uses them.
-- [ ] **E0 Foundation**: `Core/Emulation` platform table, `EmulatorSource` model + `emulator-sources.json`, library fields (`Platform`, `EmulatorId`, `RomPath`, `TitleId`, `Collections`, `TuningPreset`), `LauncherSettings.Emulation`. Verify: `--filter EmulationModelTests` (round-trip, defaults, old library still loads)
+- [x] **E0 Foundation**: `Core/Emulation` platform table, `EmulatorSource` model + `emulator-sources.json`, library fields (`Platform`, `EmulatorId`, `RomPath`, `TitleId`, `Collections`, `TuningPreset`), `LauncherSettings.Emulation`. Done: `Core/Emulation/Platforms.cs`, `EmulatorSources.cs` (defaults all `Verified=false`), Game/Settings fields. Verify: `--filter EmulationModelTests` (round-trip, defaults, old library still loads)
 - [ ] **E1 Discovery**: scan default paths + chosen folders, read exe version, portable marker. Verify: `--filter EmulatorDiscoveryTests` (temp folder tree); on device, installed emulators listed with versions
 - [ ] **E2 GitHub updater** (1B, 1C, 1D): releases client with ETag cache, asset pattern + version compare (Core), versioned install with shared `data\` junctions, SHA check, rollback, stable/nightly. Verify: `--filter ReleaseParserTests|VersionCompareTests|ZipSlipTests`; "Test sources" button reports each repo's asset pattern matches live JSON; update then rollback leaves saves untouched
 - [ ] **E3 Hub UI** (7A, 7B): platform drawer, virtualised poster grid, pad/keyboard navigation, add ROM folders per platform. Verify: B1; on device, grid scrolls smoothly with 500 placeholder tiles and the pad reaches every control
@@ -66,4 +66,4 @@ Order matters: each stage builds on the one before. Tick a stage only when its V
 - [ ] **E9 Overlay + advisor** (6A-6D): emulator process tracking on the existing RTSS/ETW overlay, advisor rule engine, toasts with Apply, learning, stutter detective on emulator sessions. Verify: `--filter AdvisorRuleTests`; on device, a forced low-FPS run shows one toast and Apply changes the key
 - [ ] **E10 Polish** (7D, 7C): game detail drawer, Settings → Emulation page, light theme tokens. Verify: B1; every action reachable by pad; XAML key sets of both themes match
 
-Open decisions (from `SPEC.md` §9): online version source for Switch/PS2 updates; which Switch and N64 emulators; ship `.7z` support or `.zip` only.
+Decisions (`SPEC.md` §9): local + emulator-native update info only; Switch = Ryubing + Yuzu-style forks (sources verified at that stage); N64 = RMG + Project64; archives = .zip + .7z.
