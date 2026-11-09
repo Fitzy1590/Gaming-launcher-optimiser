@@ -107,12 +107,26 @@
                 </ItemsControl>
             </ScrollViewer>
 
+            <!-- IGDB keys (Emulators tab) -->
+            <Border Grid.Column="1" VerticalAlignment="Bottom" Style="{StaticResource Card}" Margin="0,0,16,0" Visibility="{Binding ShowEmulators, Converter={StaticResource Vis}}">
+                <StackPanel>
+                    <TextBlock Text="Game descriptions (IGDB)" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                    <TextBlock Style="{StaticResource Wrap}" FontSize="12" Margin="0,2,0,8"
+                               Text="Free: create an app at dev.twitch.tv (IGDB uses Twitch sign-in) and paste its client ID and secret. The secret is stored encrypted on this PC." />
+                    <DockPanel Margin="0,0,0,6"><TextBlock Text="Client ID" Width="90" VerticalAlignment="Center" /><TextBox Text="{Binding IgdbIdInput, UpdateSourceTrigger=PropertyChanged}" /></DockPanel>
+                    <DockPanel Margin="0,0,0,6"><TextBlock Text="Secret" Width="90" VerticalAlignment="Center" /><TextBox Text="{Binding IgdbSecretInput, UpdateSourceTrigger=PropertyChanged}" /></DockPanel>
+                    <Button Content="Save keys" Style="{StaticResource GhostButton}" Command="{Binding SaveIgdbCommand}" HorizontalAlignment="Left" />
+                    <TextBlock Text="{Binding IgdbStatus}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+
             <!-- Selected game -->
             <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" Visibility="{Binding HasSelection, Converter={StaticResource Vis}}">
                 <Border Style="{StaticResource Card}">
                     <StackPanel>
                         <TextBlock Text="{Binding SelectedGame.Name}" Style="{StaticResource H2}" TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding DetailInfo}" Style="{StaticResource Wrap}" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding DetailInfo}" Style="{StaticResource Wrap}" Margin="0,0,0,8" />
+                        <TextBlock Text="{Binding MetaText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,0,0,12" Visibility="{Binding MetaText, Converter={StaticResource HasValue}}" />
 
                         <Border Background="{StaticResource Surface2}" CornerRadius="6" Padding="12" Margin="0,0,0,12" Visibility="{Binding HasSuggestion, Converter={StaticResource Vis}}">
                             <StackPanel>
@@ -157,6 +171,31 @@
 
                         <TextBlock Text="Quality" Style="{StaticResource MutedText}" />
                         <TextBlock Text="{Binding TuningText}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,4,0,12" />
+
+                        <TextBlock Text="Mods, textures and patches" Style="{StaticResource MutedText}" />
+                        <ItemsControl ItemsSource="{Binding ModRows}" Margin="0,4,0,4">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource GhostButton}" Command="{Binding RemoveCommand}" Margin="6,0,0,0" />
+                                        <Button DockPanel.Dock="Right" Content="{Binding ToggleLabel}" Style="{StaticResource GhostButton}" Command="{Binding ToggleCommand}" />
+                                        <TextBlock Style="{StaticResource Wrap}" VerticalAlignment="Center"><Run Text="{Binding Name, Mode=OneWay}" Foreground="{StaticResource Text}" /><Run Text="{Binding Kind, Mode=OneWay, StringFormat=' · {0}'}" /></TextBlock>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <WrapPanel Margin="0,0,0,4">
+                            <ItemsControl ItemsSource="{Binding ModKinds}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate><Button Content="{Binding Label}" Style="{StaticResource GhostButton}" Command="{Binding PickCommand}" Margin="0,0,6,4" /></DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="Find mods online" Style="{StaticResource GhostButton}" Command="{Binding FindModsCommand}" Margin="0,0,6,4"
+                                    ToolTip="Opens a GameBanana search for this game in your browser. Download a mod, then use Add above to install it in the right folder" />
+                            <Button Content="Get description" Style="{StaticResource GhostButton}" Command="{Binding FetchMetaCommand}" Margin="0,0,6,4" />
+                        </WrapPanel>
+                        <TextBlock Text="{Binding ModsStatus}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,0,0,12" Visibility="{Binding ModsStatus, Converter={StaticResource HasValue}}" />
 
                         <TextBlock Text="How it has run, per emulator" Style="{StaticResource MutedText}" />
                         <ItemsControl ItemsSource="{Binding PerfLines}" Margin="0,4,0,12">

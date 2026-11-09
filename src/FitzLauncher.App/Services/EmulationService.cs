@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using FitzLauncher.Core.Emulation;
 using FitzLauncher.Core.Models;
@@ -194,6 +196,127 @@ public sealed class EmulationService(AppServices s)
             return TitleRelations.Summarise(rom, files).Text;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    // ------------------------------------------------------------------ game IDs, descriptions, mods
+
+    /// <summary>Reads the game's own ID (serial / title ID) from the file's header, once.</summary>
+    public void Identify(Game game)
+    {
+        if (game.Platform is not { } p || game.RomPath is not { } rom || !string.IsNullOrEmpty(game.TitleId)) return;
+        if (p == EmuPlatform.Switch) { game.TitleId = TitleRelations.Parse(rom)?.TitleId; return; }
+        if (RomHeaders.Identify(p, rom) is { } id) game.TitleId = id.TitleId;
+    }
+
+    public static string? Protect(string? plain) => string.IsNullOrWhiteSpace(plain) ? null
+        : Convert.ToBase64String(ProtectedData.Protect(System.Text.Encoding.UTF8.GetBytes(plain.Trim()), null, DataProtectionScope.CurrentUser));
+
+    private static string? Unprotect(string? protectedText)
+    {
+        if (string.IsNullOrEmpty(protectedText)) return null;
+        try { return System.Text.Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(protectedText), null, DataProtectionScope.CurrentUser)); }
+        catch (Exception e) when (e is CryptographicException or FormatException) { return null; }
+    }
+
+    public bool HasIgdbKeys => !string.IsNullOrWhiteSpace(s.Settings.Emulation.IgdbClientId) && Unprotect(s.Settings.Emulation.IgdbClientSecretProtected) is not null;
+
+    private string? _igdbToken;
+    private DateTimeOffset _igdbTokenUntil;
+    private static readonly HttpClient Web = new() { Timeout = TimeSpan.FromSeconds(20) };
+
+    /// <returns>A message when it couldn't (no keys, offline, no match), null when the description was saved.</returns>
+    public async Task<string?> FetchMetaAsync(Game game, CancellationToken ct = default)
+    {
+        if (game.Platform is not { } platform) return null;
+        var id = s.Settings.Emulation.IgdbClientId;
+        var secret = Unprotect(s.Settings.Emulation.IgdbClientSecretProtected);
+        if (string.IsNullOrWhiteSpace(id) || secret is null) return "Add your IGDB keys on the Emulators tab to get descriptions.";
+        try
+        {
+            if (_igdbToken is null || DateTimeOffset.Now >= _igdbTokenUntil)
+            {
+                using var tr = await Web.PostAsync(Igdb.TokenUrl + Igdb.TokenQuery(id, secret), null, ct).ConfigureAwait(false);
+                if (!tr.IsSuccessStatusCode) return "IGDB didn't accept the keys. Check the client ID and secret.";
+                using var doc = System.Text.Json.JsonDocument.Parse(await tr.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
+                _igdbToken = doc.RootElement.GetProperty("access_token").GetString();
+                _igdbTokenUntil = DateTimeOffset.Now.AddSeconds(Math.Max(60, doc.RootElement.GetProperty("expires_in").GetInt32() - 300));
+            }
+            using var req = new HttpRequestMessage(HttpMethod.Post, Igdb.GamesUrl) { Content = new StringContent(Igdb.SearchBody(game.Name, Platforms.Get(platform).IgdbPlatformId), System.Text.Encoding.UTF8, "text/plain") };
+            req.Headers.Add("Client-ID", id);
+            req.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _igdbToken);
+            using var resp = await Web.SendAsync(req, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode) return $"IGDB answered {(int)resp.StatusCode}.";
+            var meta = Igdb.BestMatch(Igdb.Parse(await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false)), game.Name);
+            if (meta is null) return "IGDB has no clear match for this title.";
+            game.Meta = meta;
+            s.SaveLibrary();
+            return null;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException or System.Text.Json.JsonException or KeyNotFoundException)
+        {
+            s.Log.Write($"IGDB lookup failed for {game.Name}: {e.Message}");
+            return "Couldn't reach IGDB.";
+        }
+    }
+
+    /// <summary>The emulator's user folder (where mods, textures and patches live), found from its settings file; null until the emulator has run once.</summary>
+    public string? UserDir(string emulatorId)
+    {
+        var map = EmuTuneMaps.For(emulatorId);
+        var exe = ExePath(emulatorId);
+        if (map is null || exe is null) return null;
+        var spec = map.Files.Values.First();
+        var cfg = EmuTuneMaps.Locate(spec, Path.GetDirectoryName(exe)!, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), File.Exists);
+        if (cfg is null) return null;
+        var dir = Path.GetDirectoryName(cfg)!;
+        return emulatorId switch
+        {
+            "ppsspp" => Directory.GetParent(Directory.GetParent(dir)!.FullName)?.FullName,
+            "xenia-canary" or "ryubing" => dir,
+            _ => Directory.GetParent(dir)?.FullName,
+        };
+    }
+
+    public string AddMod(Game game, string source, EmuModKind kind, string name)
+    {
+        if (game.EmulatorId is not { } emu) return "This game isn't linked to an emulator.";
+        Identify(game);
+        var rel = ModDestinations.For(emu, kind, game.TitleId, name, out var why);
+        if (rel is null) return why;
+        var user = UserDir(emu);
+        if (user is null) return $"Open {Source(emu)?.Name} once and close it, so it creates its folders, then add the mod again.";
+        var mod = new EmuModEntry { Name = name, Kind = kind };
+        mod.LibraryDir = Path.Combine(s.Paths.Root, "emu-mods", emu, game.Id.ToString("N"), mod.Id);
+        try { EmuModStore.Import(source, mod.LibraryDir); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException) { return $"Couldn't unpack it: {e.Message}"; }
+        game.EmuMods.Add(mod);
+        var r = EmuModStore.Enable(mod, Path.Combine(user, rel));
+        if (!r.Ok) { game.EmuMods.Remove(mod); try { Directory.Delete(mod.LibraryDir, true); } catch (IOException) { } }
+        s.SaveLibrary();
+        return r.Ok ? $"{name}: {r.Message}" : r.Message + (r.Conflicts.Count > 0 ? $" ({string.Join(", ", r.Conflicts.Take(3))})" : "");
+    }
+
+    public string ToggleMod(Game game, EmuModEntry mod)
+    {
+        if (mod.Enabled) { var off = EmuModStore.Disable(mod); s.SaveLibrary(); return off.Message; }
+        if (game.EmulatorId is not { } emu) return "This game isn't linked to an emulator.";
+        var rel = ModDestinations.For(emu, mod.Kind, game.TitleId, mod.Name, out var why);
+        var user = UserDir(emu);
+        if (rel is null) return why;
+        if (user is null) return "Open the emulator once so it creates its folders.";
+        var r = EmuModStore.Enable(mod, Path.Combine(user, rel));
+        s.SaveLibrary();
+        return r.Message;
+    }
+
+    public string RemoveMod(Game game, EmuModEntry mod)
+    {
+        if (mod.Enabled) EmuModStore.Disable(mod);
+        try { if (Directory.Exists(mod.LibraryDir)) Directory.Delete(mod.LibraryDir, true); } catch (IOException) { }
+        game.EmuMods.Remove(mod);
+        s.SaveLibrary();
+        return $"{mod.Name} removed.";
     }
 
     // ------------------------------------------------------------------ learning

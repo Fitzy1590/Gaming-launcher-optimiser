@@ -30,6 +30,9 @@ public sealed class Game
     /// <summary>Serial or title ID read from the dump (matching and mods).</summary>
     public string? TitleId { get; set; }
     public List<string> Collections { get; set; } = [];
+    public List<FitzLauncher.Core.Emulation.EmuModEntry> EmuMods { get; set; } = [];
+    /// <summary>Description, release date, genres and rating from IGDB (emulator games).</summary>
+    public GameMeta? Meta { get; set; }
     /// <summary>How this game has run on each emulator (key = emulator id).</summary>
     public Dictionary<string, FitzLauncher.Core.Emulation.EmuPerfRecord> EmuPerf { get; set; } = [];
     public FitzLauncher.Core.Emulation.EmuTuningState EmuTuning { get; set; } = new();
@@ -216,4 +219,14 @@ public sealed class AutoTuneStep
     public double? ResultLow { get; set; }
     public double? ResultAtTarget { get; set; }
     public AutoTuneOutcome Outcome { get; set; }
+}
+
+public sealed class GameMeta
+{
+    public string? Summary { get; set; }
+    public string? Released { get; set; }
+    public List<string> Genres { get; set; } = [];
+    public string? Developer { get; set; }
+    public double? Rating { get; set; }
+    public DateTimeOffset FetchedAt { get; set; }
 }

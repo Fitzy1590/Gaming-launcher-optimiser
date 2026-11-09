@@ -46,6 +46,17 @@ public sealed partial class ChoiceChip(string label, bool selected, Action pick)
     public IRelayCommand PickCommand { get; } = new RelayCommand(pick);
 }
 
+public sealed partial class EmuModRow(EmuModEntry mod, EmulationViewModel owner) : ObservableObject
+{
+    public EmuModEntry Mod { get; } = mod;
+    public string Name => Mod.Name;
+    public string Kind => Mod.Kind switch { EmuModKind.Textures => "Texture pack", EmuModKind.Patch => "Patch", _ => "Mod" };
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(ToggleLabel))] private bool _on = mod.Enabled;
+    public string ToggleLabel => On ? "Turn off" : "Turn on";
+    [RelayCommand] private void Toggle() { owner.ToggleMod(this); On = Mod.Enabled; }
+    [RelayCommand] private void Remove() => owner.RemoveMod(this);
+}
+
 /// <summary>The Emulation Hub page: consoles on the left, games in the middle, the selected game's controls on the right.</summary>
 public sealed partial class EmulationViewModel : ObservableObject
 {
@@ -59,6 +70,8 @@ public sealed partial class EmulationViewModel : ObservableObject
     public ObservableCollection<ChoiceChip> TargetChips { get; } = [];
     public ObservableCollection<ChoiceChip> EmulatorChips { get; } = [];
     public ObservableCollection<string> PerfLines { get; } = [];
+    public ObservableCollection<EmuModRow> ModRows { get; } = [];
+    public ObservableCollection<ChoiceChip> ModKinds { get; } = [];
 
     [ObservableProperty] private PlatformRow? _selectedPlatform;
     [ObservableProperty] [NotifyPropertyChangedFor(nameof(HasSelection))] private GameViewModel? _selectedGame;
@@ -69,6 +82,11 @@ public sealed partial class EmulationViewModel : ObservableObject
     [ObservableProperty] private string _suggestionText = "";
     [ObservableProperty] private bool _hasSuggestion;
     [ObservableProperty] private string _titleInfo = "";
+    [ObservableProperty] private string _metaText = "";
+    [ObservableProperty] private string _modsStatus = "";
+    [ObservableProperty] private string _igdbIdInput = "";
+    [ObservableProperty] private string _igdbSecretInput = "";
+    [ObservableProperty] private string _igdbStatus = "";
     private EmulatorSuggestion? _suggestion;
 
     public bool HasSelection => SelectedGame is not null;
@@ -144,9 +162,67 @@ public sealed partial class EmulationViewModel : ObservableObject
 
         TitleInfo = "";
         if (platform == EmuPlatform.Switch) _ = LoadTitleInfoAsync(game);
+        MetaText = game.Meta is { } m ? string.Join("\n", new[] { m.Summary, string.Join(" · ", new[] { m.Released, m.Genres.Count > 0 ? string.Join(", ", m.Genres.Take(3)) : null, m.Developer, m.Rating is { } rt ? $"{rt:0}/100" : null }.Where(x => !string.IsNullOrEmpty(x))) }.Where(x => !string.IsNullOrEmpty(x))) : "";
+        _ = IdentifyAsync(game);
+        ModRows.Clear();
+        foreach (var mod in game.EmuMods) ModRows.Add(new EmuModRow(mod, this));
+        ModKinds.Clear();
+        if (game.EmulatorId is { } eid)
+            foreach (var k in ModDestinations.KindsFor(eid))
+                ModKinds.Add(new ChoiceChip(k switch { EmuModKind.Textures => "Add texture pack…", EmuModKind.Patch => "Add patch…", _ => "Add mod…" }, false, () => AddMod(game, k)));
         _suggestion = Service.Suggestion(game);
         HasSuggestion = _suggestion is not null;
         SuggestionText = _suggestion?.Message ?? "";
+    }
+
+    private async Task IdentifyAsync(Game game)
+    {
+        if (!string.IsNullOrEmpty(game.TitleId)) return;
+        await Task.Run(() => Service.Identify(game));
+        if (!string.IsNullOrEmpty(game.TitleId)) _s.SaveLibrary();
+    }
+
+    private void AddMod(Game game, EmuModKind kind)
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Pick the downloaded mod (zip or 7z)", Filter = "Mod archives (*.zip;*.7z)|*.zip;*.7z|All files (*.*)|*.*" };
+        if (dlg.ShowDialog() != true) return;
+        var name = Path.GetFileNameWithoutExtension(dlg.FileName);
+        ModsStatus = "Adding…";
+        _ = Task.Run(() => Service.AddMod(game, dlg.FileName, kind, name)).ContinueWith(t =>
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() => { ModsStatus = t.Result; LoadDetail(); }));
+    }
+
+    internal void ToggleMod(EmuModRow row) { if (SelectedGame?.Game is { } g) ModsStatus = Service.ToggleMod(g, row.Mod); }
+    internal void RemoveMod(EmuModRow row)
+    {
+        if (SelectedGame?.Game is not { } g) return;
+        ModsStatus = Service.RemoveMod(g, row.Mod);
+        ModRows.Remove(row);
+    }
+
+    [RelayCommand]
+    private void FindMods()
+    {
+        if (SelectedGame?.Game is { } g) ModsViewModel.Open("https://gamebanana.com/search?_sSearchString=" + Uri.EscapeDataString(g.Name));
+    }
+
+    [RelayCommand]
+    private async Task FetchMetaAsync()
+    {
+        if (SelectedGame?.Game is not { } g) return;
+        Status = "Looking up the description…";
+        Status = await Service.FetchMetaAsync(g) ?? "Description saved.";
+        LoadDetail();
+    }
+
+    [RelayCommand]
+    private void SaveIgdb()
+    {
+        _s.Settings.Emulation.IgdbClientId = IgdbIdInput.Trim();
+        _s.Settings.Emulation.IgdbClientSecretProtected = EmulationService.Protect(IgdbSecretInput);
+        _s.SaveSettings();
+        IgdbSecretInput = "";
+        IgdbStatus = Service.HasIgdbKeys ? "IGDB keys saved (the secret is stored encrypted)." : "Enter both the client ID and the secret.";
     }
 
     private async Task LoadTitleInfoAsync(Game game)
@@ -211,6 +287,7 @@ public sealed partial class EmulationViewModel : ObservableObject
             added += await _main.AddEmulationGamesAsync(fresh);
         }
         Reload();
+        if (added > 0 && Service.HasIgdbKeys) _ = FetchMetaForNewAsync();
         Status = (added > 0 ? $"Added {added} game(s). " : "No new games found. ") +
                  (problems.Count > 0 ? $"No emulator set up for {string.Join(", ", problems)} yet (Emulators tab)." : "");
     }
@@ -251,6 +328,14 @@ public sealed partial class EmulationViewModel : ObservableObject
         Status = "Checking each emulator's releases on GitHub…";
         var lines = await Service.Installer.TestSourcesAsync();
         Status = string.Join("\n", lines);
+    }
+
+    /// <summary>Quietly gets descriptions for games that don't have one (one at a time, up to 30 per scan).</summary>
+    private async Task FetchMetaForNewAsync()
+    {
+        foreach (var g in _s.Library.Games.Where(g => g.Platform is not null && g.Meta is null).Take(30).ToList())
+            if (await Service.FetchMetaAsync(g) is not null) break;   // stop on the first problem (keys, offline)
+        if (SelectedGame is not null) LoadDetail();
     }
 
     internal void BrowseEmulator(EmulatorRow row)
