@@ -76,6 +76,12 @@ public sealed class LauncherSettings
     /// <summary>FPS counters hidden with PS + Right (FPS is still recorded).</summary>
     public bool OverlayHiddenByPad { get; set; }
 
+    // ---- mods
+    /// <summary>Check (and auto-repair) the mod setup before each launch.</summary>
+    public bool ModLaunchCheck { get; set; } = true;
+    /// <summary>Track mods on your Nexus account when Fitz installs them (update emails, "Tracked" list on Nexus).</summary>
+    public bool NexusTrackOnInstall { get; set; } = true;
+
     // ---- game help (AI Game Companion)
     /// <summary>Open AI Game Companion with every game.</summary>
     public bool GameHelpWithGames { get; set; }

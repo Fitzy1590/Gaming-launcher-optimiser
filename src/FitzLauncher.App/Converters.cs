@@ -70,3 +70,23 @@ public sealed class InvertBool : IValueConverter
     public object Convert(object value, Type t, object p, CultureInfo c) => value is not true;
     public object ConvertBack(object value, Type t, object p, CultureInfo c) => value is not true;
 }
+
+/// <summary>Compatibility verdict → Segoe Fluent icon (tick, info, warning).</summary>
+public sealed class VerdictIcon : IValueConverter
+{
+    public object Convert(object? value, Type t, object p, CultureInfo c) => value?.ToString() switch
+    {
+        "Good" => "\uE73E", "Check" => "\uE946", "Problem" => "\uE7BA", _ => "",
+    };
+    public object ConvertBack(object value, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}
+
+/// <summary>Compatibility verdict → status brush (text and icon always go together, never colour alone).</summary>
+public sealed class VerdictBrush : IValueConverter
+{
+    public object Convert(object? value, Type t, object p, CultureInfo c) => Application.Current.FindResource(value?.ToString() switch
+    {
+        "Good" => "Good", "Check" => "Warn", "Problem" => "Bad", _ => "Muted",
+    });
+    public object ConvertBack(object value, Type t, object p, CultureInfo c) => throw new NotSupportedException();
+}

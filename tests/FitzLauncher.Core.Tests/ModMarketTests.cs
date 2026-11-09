@@ -74,3 +74,34 @@ public class ModMarketTests
         Assert.Equal(CompatVerdict.Problem, ModPreInstallCheck.Assess(new GameModLayout(), null, null, null, deprecated: true).Verdict);
     }
 }
+
+public class ModAutoFixTests
+{
+    [Fact]
+    public void FlagsRemovedFilesForRedeployAndDisabledRequirementsForEnabling()
+    {
+        using var t = new TestDir();
+        var root = t.Dir("game");
+        t.File("stage/main/plugins/Main.dll", "x");
+        t.File("stage/lib/plugins/Lib.dll", "x");
+        t.File("game/plugins/Lib.dll", "x"); // lib deployed; main's file was removed by a game update
+        var lib = new FitzLauncher.Core.Models.InstalledMod { Name = "Lib", Source = FitzLauncher.Core.Models.ModSource.Nexus, SourceId = "20", Files = ["plugins/Lib.dll"], Enabled = false };
+        var main = new FitzLauncher.Core.Models.InstalledMod
+        {
+            Name = "Main", Source = FitzLauncher.Core.Models.ModSource.Nexus, SourceId = "10", Files = ["plugins/Main.dll"],
+            NexusRequirements = [new(20, "Lib"), new(30, "Missing Lib")],
+        };
+        var game = new FitzLauncher.Core.Models.Game { Name = "G", ExePath = Path.Combine(root, "g.exe") };
+        game.ModSetup.Mods.AddRange([lib, main]);
+
+        var issues = ModCompatibility.Check(new ModCheckContext
+        {
+            Game = game, Layout = new GameModLayout(), GameRoot = root,
+            StagedPath = (m, rel) => Path.Combine(t.Root, "stage", m.Name.ToLowerInvariant(), rel.Replace('/', Path.DirectorySeparatorChar)),
+        });
+
+        Assert.Contains(issues, i => i.AutoFix == AutoFix.Redeploy && i.FixModId == main.Id);
+        Assert.Contains(issues, i => i.AutoFix == AutoFix.EnableMod && i.FixModId == lib.Id);
+        Assert.Contains(issues, i => i.Title.Contains("Missing Lib") && i.AutoFix == AutoFix.None);
+    }
+}

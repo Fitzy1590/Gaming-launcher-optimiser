@@ -195,7 +195,9 @@
                         <TextBox Text="{Binding NexusKeyInput, UpdateSourceTrigger=PropertyChanged}" ToolTip="Paste the key and Save. Save with the box empty to remove it." />
                     </DockPanel>
                     <TextBlock Text="A Nexus key is saved." Style="{StaticResource MutedText}" Margin="110,0,0,8" Visibility="{Binding HasNexusKey, Converter={StaticResource Vis}}" />
-                    <CheckBox Content="Open Nexus &quot;Mod Manager Download&quot; links in Fitz Launcher (your previous mod manager gets them back if you turn this off)" IsChecked="{Binding NxmHandler}" Margin="0,0,0,12" />
+                    <CheckBox Content="Open Nexus &quot;Mod Manager Download&quot; links in Fitz Launcher (your previous mod manager gets them back if you turn this off)" IsChecked="{Binding NxmHandler}" Margin="0,0,0,4" />
+                    <CheckBox Content="Track mods on my Nexus account when Fitz installs them (their updates show on Nexus too)" IsChecked="{Binding S.NexusTrackOnInstall}" Margin="0,0,0,4" />
+                    <CheckBox Content="Check mods before each launch: put back missing mod files and turn required mods back on automatically; warn about anything else" IsChecked="{Binding S.ModLaunchCheck}" Margin="0,0,0,12" />
                     <DockPanel Margin="0,0,0,8">
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                             <Button Content="Save" Margin="8,0,0,0" Command="{Binding SaveModIoKeyCommand}" />

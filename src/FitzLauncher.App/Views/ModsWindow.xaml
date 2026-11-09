@@ -98,6 +98,7 @@
                                             <Button Style="{StaticResource GhostButton}" Command="{Binding UpCommand}" ToolTip="Earlier (loses conflicts)"><TextBlock Style="{StaticResource Icon}" Text="&#xE70E;" FontSize="12" /></Button>
                                             <Button Style="{StaticResource GhostButton}" Command="{Binding DownCommand}" ToolTip="Later (wins conflicts)"><TextBlock Style="{StaticResource Icon}" Text="&#xE70D;" FontSize="12" /></Button>
                                             <Button Style="{StaticResource PrimaryButton}" Content="{Binding UpdateLabel}" Command="{Binding UpdateCommand}" Margin="0,0,8,0" Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" />
+                                            <Button Style="{StaticResource GhostButton}" Content="Endorse" Command="{Binding EndorseCommand}" Margin="0,0,8,0" Visibility="{Binding IsNexus, Converter={StaticResource Vis}}" ToolTip="Endorse this mod on Nexus (thanks the author)" />
                                             <Button Style="{StaticResource GhostButton}" Content="Page" Command="{Binding OpenPageCommand}" />
                                             <Button Style="{StaticResource GhostButton}" Content="Remove" Command="{Binding RemoveCommand}" />
                                         </StackPanel>
@@ -129,6 +130,22 @@
                 <Button DockPanel.Dock="Right" Style="{StaticResource PlayButton}" Padding="24,8" FontSize="14" Margin="8,0,0,0" Command="{Binding SearchCommand}" IsDefault="True">Search</Button>
                 <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" ToolTip="Leave empty for the most popular mods" />
             </DockPanel>
+            <!-- Nexus rankings and your account -->
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8" Visibility="{Binding Source, Converter={StaticResource PageVis}, ConverterParameter=Nexus}">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="My tracked mods" Style="{StaticResource GhostButton}" Command="{Binding ShowTrackedCommand}" ToolTip="Mods you track on your Nexus account, for this game" />
+                    <Button Content="Track installed" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding TrackInstalledCommand}" ToolTip="Track every Nexus mod installed here on your Nexus account" />
+                </StackPanel>
+                <ItemsControl ItemsSource="{Binding Rankings}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <RadioButton Style="{StaticResource ChipToggle}" GroupName="ranking" Content="{Binding Value}" Margin="0,0,4,4"
+                                         Command="{Binding DataContext.SetRankingCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding Key}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
             <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
                 <Button DockPanel.Dock="Right" Content="Link stores" Style="{StaticResource GhostButton}" Command="{Binding LinkStoresCommand}" ToolTip="Match this game on Nexus, Thunderstore and mod.io again" />
                 <TextBlock Text="{Binding StoreText}" Style="{StaticResource MutedText}" VerticalAlignment="Center" />
@@ -156,6 +173,7 @@
                 </DockPanel>
             </Border>
 
+            <Button DockPanel.Dock="Bottom" Content="Load more" Style="{StaticResource GhostButton}" HorizontalAlignment="Center" Margin="0,8,0,0" Command="{Binding LoadMoreCommand}" Visibility="{Binding CanLoadMore, Converter={StaticResource Vis}}" />
             <ListBox ItemsSource="{Binding Results}" Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
                 <ListBox.ItemContainerStyle>
                     <Style TargetType="ListBoxItem">
@@ -184,13 +202,20 @@
                             </Border>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                                 <TextBlock Text="Installed" Foreground="{StaticResource Good}" VerticalAlignment="Center" Margin="0,0,12,0" Visibility="{Binding IsInstalled, Converter={StaticResource Vis}}" />
+                                <Button Content="Check" Style="{StaticResource GhostButton}" Command="{Binding CheckCommand}" Margin="0,0,8,0" Visibility="{Binding IsNexus, Converter={StaticResource Vis}}" ToolTip="Requirements, DLC, anti-cheat and game-version check for this install" />
                                 <Button Content="Page" Style="{StaticResource GhostButton}" Command="{Binding OpenPageCommand}" />
-                                <Button Content="{Binding InstallLabel}" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Command="{Binding InstallCommand}" />
+                                <Button Content="{Binding InstallLabel}" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding InstallCommand}" ToolTip="Pick a specific file" />
+                                <Button Content="Install" Style="{StaticResource PrimaryButton}" Margin="8,0,0,0" Command="{Binding InstallAllCommand}" Visibility="{Binding IsNexus, Converter={StaticResource Vis}}" ToolTip="Main file plus every required mod, in the right order" />
                             </StackPanel>
                             <StackPanel VerticalAlignment="Center" Margin="0,0,16,0">
                                 <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" Foreground="{StaticResource Text}" />
                                 <TextBlock Text="{Binding Meta}" Style="{StaticResource MutedText}" Margin="0,2,0,0" />
                                 <TextBlock Text="{Binding Summary}" Foreground="{StaticResource Secondary}" FontSize="13" TextWrapping="Wrap" MaxHeight="36" Margin="0,4,0,0" />
+                                <StackPanel Orientation="Horizontal" Margin="0,6,0,0" Visibility="{Binding HasCompat, Converter={StaticResource Vis}}">
+                                    <TextBlock Style="{StaticResource Icon}" FontSize="13" VerticalAlignment="Center" Margin="0,0,6,0" Text="{Binding Verdict, Converter={StaticResource VerdictIcon}}" Foreground="{Binding Verdict, Converter={StaticResource VerdictBrush}}" />
+                                    <TextBlock Text="{Binding CompatText}" FontWeight="SemiBold" Foreground="{Binding Verdict, Converter={StaticResource VerdictBrush}}" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding CompatDetail}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,2,0,0" Visibility="{Binding HasCompat, Converter={StaticResource Vis}}" />
                             </StackPanel>
                         </DockPanel>
                     </DataTemplate>

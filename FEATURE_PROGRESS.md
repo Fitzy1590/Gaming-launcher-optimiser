@@ -35,6 +35,9 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 - [x] **Graphics/resolution advisor** (`GraphicsAdvisor`): GPU-bound → in-game resolution / render scale; CPU-bound → CPU-heavy settings. Shown on the game page. Verify: `--filter BaselineAndPowerTests`
 - [x] **Handheld wattage** (`PowerGovernor`, `Game.PowerByTarget`): Optimise turns on power control on APUs, W per target applied at launch, tuned live (+3/−2 W), learned minimum saved, original restored at exit. Not yet confirmed on device. Verify: `--filter BaselineAndPowerTests`; on Windows, `ryzenadj --info` before = after the session
 
+- [x] Mods marketplace (Nexus): rankings (most downloaded / endorsed / popular this month / recently updated / newest), load more, per-mod compatibility check, one-click install with recursive requirements (Premium direct; free via Mod Manager Download pages), tracked mods + track installed + endorse, pre-launch check with auto-repair. Not yet confirmed on device. Verify: `--filter ModMarketTests`; on Windows, Find mods → Nexus → Install on a mod with requirements installs them first
+- [ ] Nexus SSO login (needs an application slug from Nexus support; personal API key used meanwhile)
+
 ## 3. Backlog
 - [ ] Fluent layout contracts per `.claude/rules/windows-ui.md` (4 px spacing grid, 32 px minimum touch targets, `AutomationProperties.Name` on icon buttons). Verify: B1; `grep -rn 'Background="#' src/FitzLauncher.App/Views` → only preview mock-ups; Accessibility Insights FastPass shows 0 failures
 - [ ] Process elevation controls: run the app as `asInvoker` with an elevated helper for RyzenAdj/powercfg/HidHide, and launch games un-elevated by default. Verify: B1; `app.manifest` level = `asInvoker`; power, cooling and controller features still work (session log has no "needs admin" lines)

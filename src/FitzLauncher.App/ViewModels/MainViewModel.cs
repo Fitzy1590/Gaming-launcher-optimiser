@@ -372,6 +372,20 @@ public sealed partial class MainViewModel : ObservableObject
         if (IsPlaying) { ShowToast("A game is already running."); return; }
         if (!File.Exists(vm.Game.ExePath)) { ShowToast($"Can't find {vm.Game.ExePath}. Use Edit to fix the path."); return; }
 
+        // Mods: repair what can be repaired, then ask before launching with problems left.
+        if (!SafeMode && _s.Settings.ModLaunchCheck && vm.Game.ModSetup.Mods.Any(m => m.Enabled))
+        {
+            var (fixedCount, problems) = await Task.Run(() => _s.Mods.PreLaunchCheck(vm.Game));
+            if (fixedCount > 0) ShowToast($"Mods: repaired {fixedCount} problem(s) before launch.");
+            if (problems.Count > 0 && Confirm is { } ask &&
+                !ask($"Mod problems in {vm.Name}:\n\n" + string.Join("\n", problems.Take(5).Select(p => $"• {p.Title}: {p.Detail}" + (p.Fix is { } f ? $" ({f})" : ""))) +
+                     (problems.Count > 5 ? $"\n…and {problems.Count - 5} more." : "") + "\n\nPlay anyway? Choose No to open the mods page."))
+            {
+                OpenMods(vm.Game);
+                return;
+            }
+        }
+
         var game = vm.Game;
         IsPlaying = true;
         vm.IsRunning = true;

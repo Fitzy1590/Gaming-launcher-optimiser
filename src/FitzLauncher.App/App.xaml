@@ -16,6 +16,8 @@
             <local:EqualsConverter x:Key="Eq" />
             <local:ImpactToBrush x:Key="ImpactBrush" />
             <local:EqualsToVisibility x:Key="PageVis" />
+            <local:VerdictIcon x:Key="VerdictIcon" />
+            <local:VerdictBrush x:Key="VerdictBrush" />
             <local:EmptyToVisibility x:Key="EmptyVis" />
             <local:InvertBool x:Key="InvertBool" />
 

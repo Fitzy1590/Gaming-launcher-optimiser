@@ -209,6 +209,30 @@ public sealed class ModService(AppServices s)
         });
     }
 
+    /// <summary>
+    /// Before a game starts: checks the mod setup, repairs what can be repaired without asking (turns required mods
+    /// back on, puts back mod files a game update or file check removed), and returns the problems left (errors only).
+    /// </summary>
+    public (int Fixed, List<ModIssue> Remaining) PreLaunchCheck(Game g)
+    {
+        var fixedCount = 0;
+        foreach (var issue in Check(g).Where(i => i.AutoFix != AutoFix.None))
+        {
+            if (g.ModSetup.Mods.FirstOrDefault(m => m.Id == issue.FixModId) is not { } mod) continue;
+            try
+            {
+                if (issue.AutoFix == AutoFix.EnableMod && !mod.Enabled) { SetEnabled(g, mod, true); fixedCount++; }
+                else if (issue.AutoFix == AutoFix.Redeploy)
+                {
+                    lock (_lock) { if (Deployer(g).Deploy(mod, g.ModSetup.Mods).Count == 0) fixedCount++; }
+                }
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { s.Log.Write($"[{g.Name}] auto-fix {issue.Title}: {e.Message}"); }
+        }
+        if (fixedCount > 0) s.SaveLibrary();
+        return (fixedCount, Check(g).Where(i => i.Severity == IssueSeverity.Error).ToList());
+    }
+
     public List<LogFile> Logs(Game g)
     {
         var since = (g.LastCrash?.When ?? g.LastPlayed ?? DateTimeOffset.Now.AddDays(-1)).UtcDateTime.AddHours(-3);

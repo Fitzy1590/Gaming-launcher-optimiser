@@ -34,6 +34,8 @@ public sealed partial class ModRow(InstalledMod mod, ModsViewModel owner) : Obse
     [RelayCommand] private Task DownAsync() => owner.MoveAsync(this, +1);
     [RelayCommand] private Task RemoveAsync() => owner.RemoveAsync(this);
     [RelayCommand] private void OpenPage() { if (Mod.PageUrl is { } u) ModsViewModel.Open(u); }
+    public bool IsNexus => Mod.Source == ModSource.Nexus;
+    [RelayCommand] private Task EndorseAsync() => owner.EndorseAsync(this);
 }
 
 public sealed partial class ModResultRow(ModSearchResult r, ModsViewModel owner) : ObservableObject
@@ -53,6 +55,16 @@ public sealed partial class ModResultRow(ModSearchResult r, ModsViewModel owner)
     public string InstallLabel => Result.Source == ModSource.Nexus ? "Files" : IsInstalled ? "Reinstall" : "Install";
     [RelayCommand] private Task InstallAsync() => owner.InstallResultAsync(this);
     [RelayCommand] private void OpenPage() => ModsViewModel.Open(Result.PageUrl);
+
+    // ---- compatibility and one-click install with requirements (Nexus)
+    public bool IsNexus => Result.Source == ModSource.Nexus;
+    [ObservableProperty] private string _compatText = "";
+    [ObservableProperty] private string _compatDetail = "";
+    [ObservableProperty] private FitzLauncher.Core.Mods.CompatVerdict? _verdict;
+    public bool HasCompat => CompatText.Length > 0;
+    partial void OnCompatTextChanged(string value) => OnPropertyChanged(nameof(HasCompat));
+    [RelayCommand] private Task CheckAsync() => owner.CheckCompatAsync(this);
+    [RelayCommand] private Task InstallAllAsync() => owner.InstallWithRequirementsAsync(this);
 
     private static string Fmt(long n) => n >= 1_000_000 ? $"{n / 1e6:0.#}M" : n >= 1000 ? $"{n / 1e3:0.#}K" : n.ToString();
 }
@@ -250,7 +262,7 @@ public sealed partial class ModsViewModel : ObservableObject
             case ModSource.Nexus:
                 if (_s.Nexus is not { } nx) throw new StoreException("Add your Nexus API key in Settings → Mods first (free account).");
                 if (Game.ModSetup.NexusDomain is not { } domain) throw new StoreException("This game isn't on Nexus Mods (or wasn't matched). Use Link stores.");
-                found = await nx.SearchAsync(domain, Query);
+                found = await NexusPageAsync(more: false);
                 break;
             case ModSource.ModIo:
                 if (_s.ModIo is not { } io) throw new StoreException("Add a mod.io API key in Settings → Mods first (free).");
@@ -264,7 +276,8 @@ public sealed partial class ModsViewModel : ObservableObject
                 break;
         }
         foreach (var r in found) Results.Add(new ModResultRow(r, this) { IsInstalled = IsInstalled(r) });
-        Status = found.Count == 0 ? "Nothing found." : $"{found.Count} result(s).";
+        if (Source != ModSource.Nexus) CanLoadMore = false;
+        Status = found.Count == 0 ? "Nothing found." : Source == ModSource.Nexus ? $"{found.Count} of {_total} · {FitzLauncher.Core.Mods.NexusQuery.Label(Ranking)}" : $"{found.Count} result(s).";
         foreach (var row in Results.Take(30)) _ = LoadImageAsync(row);
     });
 
@@ -389,6 +402,7 @@ public sealed partial class ModsViewModel : ObservableObject
             if (answer != MessageBoxResult.Yes) { Status = "Cancelled."; return; }
         }
         var installed = await Task.Run(() => _s.Mods.Install(Game, path, plan, meta));
+        if (installed.Source == ModSource.Nexus) _ = AfterNexusInstallAsync(installed);
         if (!wasEnabled) await Task.Run(() => _s.Mods.SetEnabled(Game, installed, false)); // an update keeps a mod off if it was off
         Reload();
         var issues = await Task.Run(() => _s.Mods.Check(Game));
