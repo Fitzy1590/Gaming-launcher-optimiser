@@ -60,3 +60,35 @@ public class KeyStepsTests
         Assert.Equal(3, a.Press().Count);                                                                                 // a fresh hold starts again with Alt down
     }
 }
+
+public class TrainerOptionsTests
+{
+    private static List<FitzLauncher.Core.Models.TrainerCheat> L(params (string key, string name, bool on, bool manual)[] items) =>
+        [.. items.Select(i => new FitzLauncher.Core.Models.TrainerCheat { Hotkey = i.key, Name = i.name, OnAtLaunch = i.on, Manual = i.manual })];
+
+    [Fact]
+    public void RefreshKeepsTicksAndHandAddedOptions()
+    {
+        var old = L(("Num 2", "Infinite Stamina", true, false), ("Num 9", "Mine", true, true), ("Num 5", "Infinite Oxygen", false, false));
+        var fresh = L(("Num 2", "Infinite Stamina", false, false), ("Num 3", "Infinite Adrenaline", false, false), ("Num 5", "Infinite Oxygen (new name)", false, false));
+        var merged = FitzLauncher.Core.Trainers.TrainerOptions.Merge(old, fresh);
+        Assert.True(merged.Single(c => c.Hotkey == "Num 2").OnAtLaunch);                 // tick kept
+        Assert.False(merged.Single(c => c.Hotkey == "Num 3").OnAtLaunch);                // new option: not ticked
+        Assert.Equal("Infinite Oxygen (new name)", merged.Single(c => c.Hotkey == "Num 5").Name); // reworded: matched by hotkey
+        Assert.Contains(merged, c => c.Name == "Mine" && c.Manual && c.OnAtLaunch);       // hand-added one survives
+    }
+
+    [Fact]
+    public void ManualOptionsAreValidated()
+    {
+        var list = new List<FitzLauncher.Core.Models.TrainerCheat>();
+        Assert.Null(FitzLauncher.Core.Trainers.TrainerOptions.AddManual(list, "  Ctrl+Num   5 ", "Zero Weight"));
+        Assert.Equal("Ctrl+Num 5", list.Single().Hotkey);
+        Assert.True(list.Single().OnAtLaunch && list.Single().Manual);
+        Assert.NotNull(FitzLauncher.Core.Trainers.TrainerOptions.AddManual(list, "Ctrl+Num 5", "Zero Weight"));   // duplicate
+        Assert.NotNull(FitzLauncher.Core.Trainers.TrainerOptions.AddManual(list, "Ctrl+Shift+Home", "Master"));   // master switch
+        Assert.NotNull(FitzLauncher.Core.Trainers.TrainerOptions.AddManual(list, "Banana", "Nothing"));            // not a hotkey
+        Assert.NotNull(FitzLauncher.Core.Trainers.TrainerOptions.AddManual(list, "Num 1", " "));                   // no name
+        Assert.Single(list);
+    }
+}

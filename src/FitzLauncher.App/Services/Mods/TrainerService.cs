@@ -128,6 +128,7 @@ public sealed class TrainerService(AppServices s)
         catch (TaskCanceledException) { return null; }
 
         Process? p = Running(t.ExePath);
+        var reused = p is not null; // already open: its switches could be in any state
         if (p is null)
         {
             try
@@ -149,6 +150,11 @@ public sealed class TrainerService(AppServices s)
 
         // 4. Your saved options: press each one's hotkey once the trainer has found the game.
         var auto = t.Cheats.Where(c => c.OnAtLaunch).ToList();
+        if (reused && auto.Count > 0)
+        {
+            status("Trainer was already open, so Fitz left its switches alone (pressing the hotkeys again could turn them off). Close the trainer and relaunch to apply your options.");
+            return p;
+        }
         if (auto.Count == 0)
         {
             status($"Trainer open: {t.Name}. Set your options, then switch back to the game (PS + R3, Alt+Tab or click the game).");

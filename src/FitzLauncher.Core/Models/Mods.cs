@@ -91,6 +91,8 @@ public sealed class TrainerCheat
     public bool Favourite { get; set; }
     /// <summary>Press this option's hotkey for you at launch, once the trainer has attached to the game (on/off options only).</summary>
     public bool OnAtLaunch { get; set; }
+    /// <summary>Added by hand rather than read from the FLiNG page (kept when the list is refreshed).</summary>
+    public bool Manual { get; set; }
 }
 
 /// <summary>A reference to another mod by its Nexus id.</summary>

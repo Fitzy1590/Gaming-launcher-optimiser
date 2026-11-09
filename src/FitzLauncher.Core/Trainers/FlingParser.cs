@@ -124,3 +124,39 @@ public static partial class FlingParser
     [GeneratedRegex(@"^(?<key>(?:(?:Ctrl|Alt|Shift)\s*\+\s*)*(?:Num(?:pad)?\s*[0-9.+\-*/]|F\d{1,2}|Home|End|Insert|Delete|PageUp|PageDown|Page Up|Page Down))\s*[–\-:]\s*(?<name>.+)$", RegexOptions.IgnoreCase)]
     private static partial Regex CheatLine();
 }
+
+
+/// <summary>Keeping your ticks when a trainer's option list is refreshed or you add options by hand.</summary>
+public static class TrainerOptions
+{
+    private static string Key(TrainerCheat c) => (c.Hotkey.Replace(" ", "") + "|" + c.Name).ToLowerInvariant();
+
+    /// <summary>
+    /// The freshly read list, carrying over Favourite and On-at-launch ticks (matched by hotkey and name, or by hotkey alone when the
+    /// name was reworded), plus the options you added by hand that the page doesn't list.
+    /// </summary>
+    public static List<TrainerCheat> Merge(IReadOnlyList<TrainerCheat> existing, IReadOnlyList<TrainerCheat> fresh)
+    {
+        var result = new List<TrainerCheat>();
+        foreach (var f in fresh)
+        {
+            var old = existing.FirstOrDefault(e => Key(e) == Key(f)) ?? existing.FirstOrDefault(e => e.Hotkey.Replace(" ", "").Equals(f.Hotkey.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
+            result.Add(new TrainerCheat { Hotkey = f.Hotkey, Name = f.Name, Favourite = old?.Favourite == true, OnAtLaunch = old?.OnAtLaunch == true });
+        }
+        foreach (var m in existing.Where(e => e.Manual && result.All(r => Key(r) != Key(e)))) result.Add(m);
+        return result;
+    }
+
+    /// <summary>Adds an option by hand. Returns an error message, or null when it was added.</summary>
+    public static string? AddManual(List<TrainerCheat> list, string hotkey, string name)
+    {
+        hotkey = System.Text.RegularExpressions.Regex.Replace(hotkey.Trim(), @"\s+", " ");
+        name = name.Trim();
+        if (name.Length == 0) return "Give the option a name (for example Infinite Stamina).";
+        if (Input.HotkeyParser.Parse(hotkey) is not { } chord) return $"\"{hotkey}\" isn't a hotkey Fitz can press. Use the form the trainer shows, like Num 2 or Ctrl+Num 1.";
+        if (Input.HotkeyParser.IsTrainerMasterSwitch(chord)) return "Ctrl+Shift+Home switches all of the trainer's hotkeys off, so it can't be added.";
+        if (list.Any(c => Key(c) == (hotkey.Replace(" ", "") + "|" + name).ToLowerInvariant())) return "That option is already in the list.";
+        list.Add(new TrainerCheat { Hotkey = hotkey, Name = name, Manual = true, OnAtLaunch = true });
+        return null;
+    }
+}

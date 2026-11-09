@@ -571,10 +571,15 @@
                         <TextBlock Text="Tick &quot;On at launch&quot; for the on/off options you always use: once the trainer has found the game, Fitz presses their hotkeys for you. Don't tick one-shot actions (add experience, teleport, save location): they'd run at every launch. Favourites are shown in the overlay when the trainer opens."
                                    Style="{StaticResource Wrap}" FontSize="12" Margin="0,0,0,6" />
                         <CheckBox Content="After switching them on, go back to the game (otherwise the trainer stays in front)" IsChecked="{Binding TrainerReturnToGame}" Margin="0,0,0,6" />
+                        <Button Content="Read the option list from FLiNG" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,0,0,6" Command="{Binding RefreshCheatsCommand}"
+                                ToolTip="Fills in the list from the trainer's page, keeping the options you've ticked" />
                         <ItemsControl ItemsSource="{Binding Cheats}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <DockPanel Margin="0,0,0,4">
+                                        <Button DockPanel.Dock="Right" Content="Remove" Style="{StaticResource GhostButton}" Margin="8,0,0,0"
+                                                Command="{Binding DataContext.RemoveCheatCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"
+                                                Visibility="{Binding Manual, Converter={StaticResource Vis}}" AutomationProperties.Name="Remove this option" />
                                         <CheckBox DockPanel.Dock="Right" Content="On at launch" IsChecked="{Binding OnAtLaunch}" IsEnabled="{Binding CanSend}" Margin="12,0,0,0" ToolTip="Fitz presses this hotkey for you after launch" />
                                         <CheckBox IsChecked="{Binding Favourite}">
                                             <StackPanel Orientation="Horizontal">
@@ -586,6 +591,12 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <TextBlock Text="Add an option by hand" Style="{StaticResource MutedText}" Margin="0,10,0,4" />
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Add" Style="{StaticResource GhostButton}" Margin="8,0,0,0" Command="{Binding AddCheatCommand}" />
+                            <TextBox DockPanel.Dock="Left" Width="150" Text="{Binding NewCheatHotkey, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Hotkey, for example Num 2" ToolTip="The hotkey as the trainer shows it: Num 2, Ctrl+Num 5, Alt+Num 1" />
+                            <TextBox Margin="8,0,0,0" Text="{Binding NewCheatName, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Option name, for example Infinite Stamina" ToolTip="Any name you like, for example Infinite Stamina" />
+                        </DockPanel>
                     </StackPanel>
                 </Border>
 

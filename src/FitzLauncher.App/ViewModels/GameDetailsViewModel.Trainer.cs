@@ -15,6 +15,8 @@ public sealed partial class CheatRow(TrainerCheat c, Action save) : ObservableOb
     public bool Favourite { get => c.Favourite; set { c.Favourite = value; save(); OnPropertyChanged(); } }
     public bool OnAtLaunch { get => c.OnAtLaunch; set { c.OnAtLaunch = value; save(); OnPropertyChanged(); } }
     /// <summary>Only keys Fitz can press: shown greyed out otherwise.</summary>
+    public bool Manual => c.Manual;
+    public TrainerCheat Cheat => c;
     public bool CanSend => FitzLauncher.Core.Input.HotkeyParser.Parse(c.Hotkey) is { } k && !FitzLauncher.Core.Input.HotkeyParser.IsTrainerMasterSwitch(k);
 }
 
@@ -95,6 +97,56 @@ public sealed partial class GameDetailsViewModel
         OnPropertyChanged(nameof(TrainerDelay));
         OnPropertyChanged(nameof(ModsSummary));
     }
+
+    [ObservableProperty] private string _newCheatHotkey = "";
+    [ObservableProperty] private string _newCheatName = "";
+
+    /// <summary>Adds an option by hand (a hotkey and a name), ticked to switch on at launch.</summary>
+    [RelayCommand]
+    private void AddCheat()
+    {
+        if (Game.Trainer is not { } t) return;
+        if (TrainerOptions.AddManual(t.Cheats, NewCheatHotkey, NewCheatName) is { } problem) { Status = problem; return; }
+        _s.SaveLibrary();
+        Status = $"Added {NewCheatName.Trim()}: it will be switched on at launch.";
+        NewCheatHotkey = NewCheatName = "";
+        ReloadCheats();
+    }
+
+    [RelayCommand]
+    private void RemoveCheat(CheatRow row)
+    {
+        if (Game.Trainer is not { } t) return;
+        t.Cheats.Remove(row.Cheat);
+        _s.SaveLibrary();
+        ReloadCheats();
+    }
+
+    private void ReloadCheats()
+    {
+        Cheats.Clear();
+        foreach (var c in Game.Trainer?.Cheats ?? []) Cheats.Add(new CheatRow(c, _s.SaveLibrary));
+    }
+
+    /// <summary>Reads the option list again from the trainer's FLiNG page (found by name if it wasn't set up from the page), keeping your ticks.</summary>
+    [RelayCommand]
+    private Task RefreshCheatsAsync() => TrainerWork("Reading the option list from FLiNG…", async () =>
+    {
+        if (Game.Trainer is not { } t) return;
+        var url = t.PageUrl;
+        if (url is null)
+        {
+            var found = await _s.Trainers.SearchAsync(Game.Name);
+            url = found.FirstOrDefault()?.Url ?? throw new StoreException("Couldn't find this game's trainer page on FLiNG. Add the options by hand below.");
+        }
+        var page = await _s.Trainers.PageAsync(url);
+        if (page.Cheats.Count == 0) throw new StoreException("That FLiNG page doesn't list the options in a way Fitz can read. Add them by hand below.");
+        t.PageUrl ??= url;
+        t.Cheats = TrainerOptions.Merge(t.Cheats, page.Cheats);
+        _s.SaveLibrary();
+        ReloadCheats();
+        Status = $"{t.Cheats.Count} options listed. Tick \"On at launch\" for the on/off ones you always use.";
+    });
 
     private async Task TrainerWork(string busy, Func<Task> work)
     {
