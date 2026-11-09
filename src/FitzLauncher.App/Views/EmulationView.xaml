@@ -18,7 +18,9 @@
             <Button Content="Find emulators" Style="{StaticResource GhostButton}" Command="{Binding FindEmulatorsCommand}" Margin="0,0,8,0" />
             <Button Content="Add game folder" Style="{StaticResource GhostButton}" Command="{Binding AddFolderCommand}" Margin="0,0,8,0"
                     ToolTip="Pick the folder holding games for the console selected on the left" />
-            <Button Content="Rescan folders" Style="{StaticResource GhostButton}" Command="{Binding RescanCommand}" Margin="0,0,16,0" />
+            <Button Content="Rescan folders" Style="{StaticResource GhostButton}" Command="{Binding RescanCommand}" Margin="0,0,8,0" />
+            <Button Content="Test emulator sources" Style="{StaticResource GhostButton}" Command="{Binding TestSourcesCommand}" Margin="0,0,16,0"
+                    ToolTip="Checks what Fitz would download for each emulator, so a wrong download pattern shows up" />
             <RadioButton Style="{StaticResource ChipToggle}" GroupName="emuTab" Content="Games" IsChecked="{Binding ShowGames, Mode=OneWay}" Click="ShowGames_Click" />
             <RadioButton Style="{StaticResource ChipToggle}" GroupName="emuTab" Content="Emulators" IsChecked="{Binding ShowEmulators, Mode=OneWay}" Click="ShowEmulators_Click" />
             <TextBlock Text="{Binding Status}" Style="{StaticResource Wrap}" VerticalAlignment="Center" Margin="16,0,0,0" MaxWidth="620" />
@@ -81,11 +83,21 @@
                             <Border Style="{StaticResource Card}" Margin="0,0,0,8">
                                 <StackPanel>
                                     <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="Browse…" Style="{StaticResource GhostButton}" Command="{Binding BrowseCommand}" />
+                                        <WrapPanel DockPanel.Dock="Right" HorizontalAlignment="Right">
+                                            <Button Content="Download / update" Style="{StaticResource PrimaryButton}" Command="{Binding InstallCommand}" IsEnabled="{Binding Idle}"
+                                                    Visibility="{Binding CanDownload, Converter={StaticResource Vis}}" Margin="0,0,6,0" />
+                                            <Button Content="Roll back" Style="{StaticResource GhostButton}" Command="{Binding RollbackCommand}"
+                                                    Visibility="{Binding CanDownload, Converter={StaticResource Vis}}" Margin="0,0,6,0" />
+                                            <Button Content="Open download page" Style="{StaticResource GhostButton}" Command="{Binding OpenPageCommand}"
+                                                    Visibility="{Binding IsWebsite, Converter={StaticResource Vis}}" Margin="0,0,6,0" />
+                                            <Button Content="Browse…" Style="{StaticResource GhostButton}" Command="{Binding BrowseCommand}" />
+                                        </WrapPanel>
                                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Text}" VerticalAlignment="Center" />
                                     </DockPanel>
                                     <TextBlock Text="{Binding Platforms}" Style="{StaticResource MutedText}" />
                                     <TextBlock Text="{Binding Status}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
+                                    <TextBlock Text="{Binding VersionText}" Style="{StaticResource Wrap}" FontSize="12" Visibility="{Binding VersionText, Converter={StaticResource HasValue}}" />
+                                    <TextBlock Text="{Binding UpdateText}" Style="{StaticResource Wrap}" FontSize="12" Foreground="{StaticResource Text}" Visibility="{Binding UpdateText, Converter={StaticResource HasValue}}" />
                                     <TextBlock Text="{Binding Note}" Style="{StaticResource Wrap}" FontSize="12" Foreground="{StaticResource Warn}"
                                                Visibility="{Binding HasNote, Converter={StaticResource Vis}}" />
                                 </StackPanel>
@@ -140,6 +152,8 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <TextBlock Text="{Binding TitleInfo}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,0,0,12" Visibility="{Binding TitleInfo, Converter={StaticResource HasValue}}" />
 
                         <TextBlock Text="Quality" Style="{StaticResource MutedText}" />
                         <TextBlock Text="{Binding TuningText}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,4,0,12" />

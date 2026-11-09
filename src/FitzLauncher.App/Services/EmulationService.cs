@@ -9,6 +9,9 @@ namespace FitzLauncher.App.Services;
 /// <summary>Emulation Hub work that touches the disk: finding emulators, writing quality settings before a game starts, learning from sessions.</summary>
 public sealed class EmulationService(AppServices s)
 {
+    private EmulatorInstaller? _installer;
+    public EmulatorInstaller Installer => _installer ??= new EmulatorInstaller(s, this);
+
     private string SourcesFile => Path.Combine(s.Paths.Root, "emulator-sources.json");
     private string RestoreDir(string id) => Path.Combine(s.Paths.Root, "emu-restore", id);
     private static readonly UTF8Encoding Utf8 = new(false);
@@ -175,6 +178,22 @@ public sealed class EmulationService(AppServices s)
         game.EmuTuning = new EmuTuningState();
         s.SaveLibrary();
         return done > 0 ? $"Restored {done} settings file(s) to how they were before Fitz changed them (this affects every game on that emulator)." : "Couldn't restore the settings file.";
+    }
+
+    /// <summary>Update and DLC files for a Switch game found in the user's own folders (names only; nothing is read from the files).</summary>
+    public string? TitleInfo(Game game)
+    {
+        if (game.Platform != EmuPlatform.Switch || game.RomPath is not { } rom || TitleRelations.Parse(rom) is not { } self) return null;
+        game.TitleId = self.TitleId;
+        try
+        {
+            var roots = s.Settings.Emulation.RomFolders.GetValueOrDefault(nameof(EmuPlatform.Switch)) ?? [];
+            var folder = roots.FirstOrDefault(r => rom.StartsWith(r, StringComparison.OrdinalIgnoreCase)) ?? Path.GetDirectoryName(rom);
+            if (folder is null || !Directory.Exists(folder)) return null;
+            var files = Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories).Take(20000);
+            return TitleRelations.Summarise(rom, files).Text;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return null; }
     }
 
     // ------------------------------------------------------------------ learning

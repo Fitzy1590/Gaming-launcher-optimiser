@@ -27,7 +27,16 @@ public sealed partial class EmulatorRow(EmulationViewModel owner, EmulatorSource
     public string Status => Path ?? "Not found yet. Use Find emulators or Browse.";
     public string? Note => Source.SupersededReason;
     public bool HasNote => Source.SupersededReason is not null;
+    public bool CanDownload => Source.Type == EmulatorSourceType.GitHub;
+    public bool IsWebsite => Source.Type == EmulatorSourceType.Website;
+    [ObservableProperty] private string _versionText = "";
+    [ObservableProperty] private string _updateText = "";
+    [ObservableProperty] [NotifyPropertyChangedFor(nameof(Idle))] private bool _busy;
+    public bool Idle => !Busy;
     [RelayCommand] private void Browse() => owner.BrowseEmulator(this);
+    [RelayCommand] private Task InstallAsync() => owner.InstallAsync(this);
+    [RelayCommand] private void Rollback() => owner.Rollback(this);
+    [RelayCommand] private void OpenPage() => ModsViewModel.Open("https://dolphin-emu.org/download/");
 }
 
 public sealed partial class ChoiceChip(string label, bool selected, Action pick) : ObservableObject
@@ -59,6 +68,7 @@ public sealed partial class EmulationViewModel : ObservableObject
     [ObservableProperty] private string _tuningText = "";
     [ObservableProperty] private string _suggestionText = "";
     [ObservableProperty] private bool _hasSuggestion;
+    [ObservableProperty] private string _titleInfo = "";
     private EmulatorSuggestion? _suggestion;
 
     public bool HasSelection => SelectedGame is not null;
@@ -99,7 +109,7 @@ public sealed partial class EmulationViewModel : ObservableObject
         SelectedGame = Games.FirstOrDefault(g => g.Game.Id == keep) ?? Games.FirstOrDefault();
 
         Emulators.Clear();
-        foreach (var src in Service.Sources) Emulators.Add(new EmulatorRow(this, src, Service.ExePath(src.Id)));
+        foreach (var src in Service.Sources) Emulators.Add(new EmulatorRow(this, src, Service.ExePath(src.Id)) { VersionText = VersionOf(src) });
         OnPropertyChanged(nameof(HasGames));
         OnPropertyChanged(nameof(EmptyText));
         LoadDetail();
@@ -132,9 +142,17 @@ public sealed partial class EmulationViewModel : ObservableObject
             PerfLines.Add($"{Service.Source(id)?.Name ?? id}: {rec.AvgFps:0} FPS average, 1% low {rec.OnePercentLow:0}, {rec.TimeAtTarget:P0} on target · {rec.Sessions} session(s), {rec.Seconds / 60:0} min");
         if (PerfLines.Count == 0) PerfLines.Add("No sessions recorded yet. Play a few minutes and the results appear here, per emulator.");
 
+        TitleInfo = "";
+        if (platform == EmuPlatform.Switch) _ = LoadTitleInfoAsync(game);
         _suggestion = Service.Suggestion(game);
         HasSuggestion = _suggestion is not null;
         SuggestionText = _suggestion?.Message ?? "";
+    }
+
+    private async Task LoadTitleInfoAsync(Game game)
+    {
+        var text = await Task.Run(() => Service.TitleInfo(game));
+        if (SelectedGame?.Game == game) TitleInfo = text ?? "";
     }
 
     private void SetTarget(Game game, int fps)
@@ -195,6 +213,44 @@ public sealed partial class EmulationViewModel : ObservableObject
         Reload();
         Status = (added > 0 ? $"Added {added} game(s). " : "No new games found. ") +
                  (problems.Count > 0 ? $"No emulator set up for {string.Join(", ", problems)} yet (Emulators tab)." : "");
+    }
+
+    private string VersionOf(EmulatorSource src) =>
+        Service.Installer.Installed(src.Id) is { } i ? $"Managed by Fitz: {i.Tag}{(i.Previous.Count > 0 ? $" (can roll back to {i.Previous[0]})" : "")}"
+        : Service.ExePath(src.Id) is not null ? "Your own copy (Fitz doesn't manage it)" : "";
+
+    internal async Task InstallAsync(EmulatorRow row)
+    {
+        if (row.Busy) return;
+        row.Busy = true;
+        try
+        {
+            row.UpdateText = "Checking GitHub…";
+            var (release, error) = await Service.Installer.LatestAsync(row.Source);
+            if (release is null) { row.UpdateText = error ?? "No release found."; return; }
+            var current = Service.Installer.Installed(row.Source.Id);
+            if (current is not null && !EmuReleaseCompare.IsNewer(current.Tag, current.PublishedAt, release)) { row.UpdateText = $"Up to date ({release.Tag})."; return; }
+            var progress = new Progress<EmulatorInstaller.Progress>(p => row.UpdateText = p.Text);
+            row.UpdateText = await Service.Installer.InstallAsync(row.Source, release, progress);
+            row.Path = Service.ExePath(row.Source.Id);
+            row.VersionText = VersionOf(row.Source);
+        }
+        finally { row.Busy = false; }
+    }
+
+    internal void Rollback(EmulatorRow row)
+    {
+        row.UpdateText = Service.Installer.Rollback(row.Source);
+        row.Path = Service.ExePath(row.Source.Id);
+        row.VersionText = VersionOf(row.Source);
+    }
+
+    [RelayCommand]
+    private async Task TestSourcesAsync()
+    {
+        Status = "Checking each emulator's releases on GitHub…";
+        var lines = await Service.Installer.TestSourcesAsync();
+        Status = string.Join("\n", lines);
     }
 
     internal void BrowseEmulator(EmulatorRow row)

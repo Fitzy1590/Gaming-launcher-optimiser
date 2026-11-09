@@ -537,6 +537,19 @@ public sealed partial class MainViewModel : ObservableObject
             _s.Settings.AutoTdpLastNote = $"{vm.Name}: {line}";
             _s.SaveSettings();
         };
+        // Emulator games: say why the frame rate is under target (overlay line now, full text after the session).
+        var emuAdviceLong = new List<string>();
+        if (game.Platform is not null)
+        {
+            var advisor = new FitzLauncher.Core.Emulation.EmuLiveAdvisor(Emulation.Service.TargetFor(game), game.EmuAutoTune);
+            session.Live += l =>
+            {
+                if (advisor.Evaluate(l.Fps, l.OnePercentLow, l.GpuLoad, l.Elapsed) is not { } advice) return;
+                session.ShowNote(advice.Short, 12);
+                emuAdviceLong.Add(advice.Long);
+                _s.Log.Write($"[{vm.Name}] {advice.Long}");
+            };
+        }
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
         session.Alert += a => Ui(() => TempAlertRaised?.Invoke(a));
         // Trainer: started a little after the game, closed with it.
@@ -580,7 +593,7 @@ public sealed partial class MainViewModel : ObservableObject
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
-            var emuNote = Emulation.Service.AfterSession(game, summary);
+            var emuNote = string.Join(" ", new[] { Emulation.Service.AfterSession(game, summary) }.Concat(emuAdviceLong).Where(t => !string.IsNullOrEmpty(t)));
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
                 autoTdp != AutoTdpMode.Off ? LearnAutoTdp(game, session, summary)
