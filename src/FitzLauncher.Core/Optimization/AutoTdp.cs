@@ -55,7 +55,7 @@ public sealed record AutoTdpDecision(int? Watts, string Reason);
 /// </summary>
 public sealed class AutoTdpGovernor
 {
-    private const double SmoothFloor = 0.90, AvgFloor = 0.95, RoomLow = 0.96, RoomAvg = 0.985;
+    private const double SmoothFloor = 0.90, AvgFloor = 0.95, RoomLow = 0.94, RoomAvg = 0.98;
 
     private int _target;
     private readonly int _min, _max;
@@ -171,7 +171,22 @@ public sealed class AutoTdpGovernor
         {
             _healthySince = null;
             if (warm || s.ThermalHold) return Note("dipping, but it's warm: not adding power");
-            if (!binding) return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W: more power won't help here (CPU or engine limited)");
+            if (!binding)
+            {
+                // The game isn't using its power limit (CPU- or engine-limited, e.g. lowering the resolution changes nothing):
+                // more power can't help, and a lower limit costs nothing. Trim it to just above what the game really draws.
+                if (peak60 is { } used && s.DrawnWatts is not null && (now - _lastChange).TotalSeconds >= 15)
+                {
+                    var want = Math.Max(_min, (int)Math.Ceiling(used + 4));
+                    if (Current - want >= 4)
+                    {
+                        var trim = Change(want, now, raised: false, $"the game isn't using its power limit (peak {used:0} W of {Current} W), so a lower limit costs nothing");
+                        _healthySince = null;
+                        return trim;
+                    }
+                }
+                return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W: more power won't help here (CPU or engine limited)");
+            }
             if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "holding here for a few minutes: more power either overheated it or didn't help");
             if ((now - _lastChange).TotalSeconds < 3) return null;
             var severe = !_simulated && s.LowFps < _target * 0.80;

@@ -69,6 +69,7 @@ public sealed class GameSession(
     private StreamWriter? _autoCsv;
     private int _autoOverrides;
     private bool _autoWarned;
+    private bool _osdReported;
     /// <summary>Find the lowest power limit that holds the target while playing.</summary>
     public bool LivePowerTuning { get; init; }
     /// <summary>Lowest power that held the target this session (live tuning), for next time.</summary>
@@ -681,7 +682,12 @@ public sealed class GameSession(
                     var other = overlayLayout.AvoidDuplicates ? OsdTextAnalyzer.Analyze(RtssClient.ReadOtherOsdText()) : (OtherOsd?)null;
                     RtssClient.SetOsdText(_hud ? HudLine(live, livePower) : OverlayFormatter.Format(overlayLayout,
                         new OverlayValues(live.Fps, live.OnePercentLow, r.Watts, r.CpuTempC, r.GpuTempC, r.GpuLoad, live.Cap, live.ThermalThrottling,
-                            live.BenchmarkSecondsLeft, live.Note, DateTime.Now, other, _auto is { } liveAuto && !_autoSimulated ? liveAuto.Current : null)));
+                            live.BenchmarkSecondsLeft, live.Note, DateTime.Now, other, _auto?.Current, _autoSimulated)));
+                    if (other is { } seen && !_osdReported && (seen.ShowsFps || seen.ShowsPower || seen.Temperatures > 0))
+                    {
+                        _osdReported = true;
+                        Trace?.Invoke($"Overlay: another on-screen display is showing {(seen.ShowsFps ? "FPS, " : "")}{(seen.ShowsPower ? "power, " : "")}{seen.Temperatures} temperature(s); Fitz leaves those out");
+                    }
                 }
                 Live?.Invoke(live);
             }

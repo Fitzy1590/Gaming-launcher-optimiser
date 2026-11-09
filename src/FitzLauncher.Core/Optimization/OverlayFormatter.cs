@@ -7,7 +7,7 @@ namespace FitzLauncher.Core.Optimization;
 public readonly record struct OverlayValues(
     double Fps, double OnePercentLow, double? Watts, double? CpuTempC, double? GpuTempC, double? GpuLoad, int? Cap,
     bool ThermalThrottling = false, int? BenchmarkSecondsLeft = null, string? Note = null, DateTime? Now = null,
-    OtherOsd? Other = null, int? LimitWatts = null);
+    OtherOsd? Other = null, int? LimitWatts = null, bool LimitIsWatchOnly = false);
 
 /// <summary>What another on-screen display (MSI Afterburner's lines in RTSS) is already showing.</summary>
 public readonly record struct OtherOsd(bool ShowsFps, bool ShowsPower, int Temperatures);
@@ -46,7 +46,7 @@ public static class OverlayFormatter
         if (o.Fps && v.Fps > 0 && !other.ShowsFps) items.Add((v.Fps.ToString("0", ci), "FPS"));
         if (o.OnePercentLow && v.OnePercentLow > 0) items.Add((v.OnePercentLow.ToString("0", ci), "1% low"));
         if (o.Watts && v.Watts is > 0 and { } w && !other.ShowsPower) items.Add((w.ToString("0", ci), "W"));
-        if (o.Limit && v.LimitWatts is { } lim) items.Add(("TDP", lim.ToString("0", ci) + " W"));
+        if (o.Limit && v.LimitWatts is { } lim) items.Add(("TDP", lim.ToString("0", ci) + (v.LimitIsWatchOnly ? " W (watching)" : " W")));
         if (o.CpuTemp && v.CpuTempC is { } c && other.Temperatures < 2) items.Add(("CPU", c.ToString("0", ci) + "°"));
         if (o.GpuTemp && v.GpuTempC is { } g && other.Temperatures < 1) items.Add(("GPU", g.ToString("0", ci) + "°"));
         if (o.GpuLoad && v.GpuLoad is { } l) items.Add(("GPU", l.ToString("0", ci) + "%"));

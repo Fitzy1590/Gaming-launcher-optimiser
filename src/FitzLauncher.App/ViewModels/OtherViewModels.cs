@@ -232,6 +232,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     /// <summary>Auto TDP is for handhelds (Ryzen APUs): the section only shows there.</summary>
     public bool ShowAutoTdp => _s.Hardware?.IsApu == true;
 
+    [RelayCommand]
+    private void OpenAutoTdpFolder()
+    {
+        var dir = Path.Combine(_s.Paths.Root, "auto-tdp");
+        Directory.CreateDirectory(dir);
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"\"{dir}\"") { UseShellExecute = true });
+    }
+
     public int HibernateMinutes
     {
         get => _s.Settings.HibernateAfterMinutes;

@@ -68,16 +68,25 @@ public class AutoTdpTests
     }
 
     [Fact]
-    public void DoesNotAddWattsWhenThePowerIsNotTheLimit()
+    public void DoesNotAddWattsButTrimsTheLimitWhenThePowerIsNotTheLimit()
     {
-        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 45);
-        for (var t = 0; t < 300; t += 2)
+        // Engine-bound: slow whatever the limit (110 of 117 FPS), and the chip draws only 45 W of its 60 W limit.
+        var g = new AutoTdpGovernor(Target, 25, 60, 60);
+        for (var t = 0; t < 400; t += 2)
         {
-            // Engine-bound: slow whatever the limit, and the chip draws only 25 W.
-            g.Update(new AutoTdpSample(500, 80, 70, 25), T0.AddSeconds(t));
-            Assert.True(g.Current <= 45);
+            g.Update(new AutoTdpSample(500, 110, 100, 45), T0.AddSeconds(t));
+            Assert.True(g.Current <= 60);
         }
-        Assert.Equal(45, g.Current);
+        Assert.InRange(g.Current, 49, 50); // 45 W drawn + 4 W: a lower limit costs nothing, a higher one would not help
+    }
+
+    [Fact]
+    public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, 45);
+        // 1% low at 95 % of target: smooth (floor 90 %) with some room. Draw sits at the limit, so it creeps down.
+        for (var t = 0; t < 200; t += 2) g.Update(new AutoTdpSample(500, 117, 111, g.Current), T0.AddSeconds(t));
+        Assert.True(g.Current < 45);
     }
 
     [Fact]

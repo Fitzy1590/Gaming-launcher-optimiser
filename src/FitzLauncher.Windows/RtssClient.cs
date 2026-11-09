@@ -211,7 +211,7 @@ public sealed class RtssClient(string rtssDirectory) : IDisposable
         var bytes = new byte[max];
         v.ReadArray(offset, bytes, 0, max);
         var end = Array.IndexOf(bytes, (byte)0);
-        return Encoding.ASCII.GetString(bytes, 0, end < 0 ? max : end);
+        return Encoding.Latin1.GetString(bytes, 0, end < 0 ? max : end); // RTSS text is ANSI: ° (0xB0) must survive for the temperature check
     }
 
     private static void WriteString(MemoryMappedViewAccessor v, long offset, int max, string s)

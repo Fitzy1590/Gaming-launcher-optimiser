@@ -175,6 +175,9 @@
                     </StackPanel>
                     <TextBlock Text="Smooth means the 1% low stays above 90% of your FPS target. When the chip reaches the thermal guard temperature (90°C unless your cooling mode lowers it), Auto TDP lowers power first and keeps the FPS target; the FPS cap only comes down if power is already at its minimum. Each game can choose its own mode on its page. Needs RyzenAdj (above) and an FPS target. Watch mode is the safe way to start: after a session, the launcher log and the auto-tdp folder in Fitz's data folder hold a line per two seconds (limit, FPS, 1% low, watts, temperature, decision)."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+                    <TextBlock Text="The in-game overlay shows what it's doing as &quot;TDP 45 W&quot; (the limit it holds; &quot;watching&quot; means nothing is changed in Watch only mode). If the game doesn't use all its power limit, for example because it is CPU-limited, the limit is trimmed to just above what it draws."
+                               Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
+                    <Button Content="Open the log folder" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,8,0,0" Command="{Binding OpenAutoTdpFolderCommand}" />
                     <TextBlock Text="OneXConsole also sets power per game. Turn its per-game TDP off for games Fitz manages, or the two will fight; Fitz checks every few seconds and tells you if something keeps changing the limit."
                                Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
                 </StackPanel>
