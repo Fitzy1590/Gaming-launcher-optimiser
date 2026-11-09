@@ -26,6 +26,7 @@ public sealed class OptimizationPlanner
 
         AddFrameCap(plan, game, scan, hw, target);
         AddWindowsPerGame(plan, game, hw, scan);
+        AddDisplayMode(plan, game, hw, scan);
 
         var isUnreal = scan.Engine is GameEngine.Unreal4 or GameEngine.Unreal5 or GameEngine.UnrealUnknownVersion;
         if (isUnreal) AddUnreal(plan, scan, hw, belowTarget, stuttery);
@@ -138,6 +139,69 @@ public sealed class OptimizationPlanner
                 Actions = DxPrefs(game, scan, "SwapEffectUpgradeEnable", "1"),
             });
         }
+    }
+
+    // ---------------------------------------------------------------- display mode
+
+    public const string DisplayModeId = "display-mode";
+
+    /// <summary>
+    /// Borderless vs exclusive fullscreen. DirectX 12 and Vulkan games (and DirectX 10/11 on Windows 11 with the
+    /// windowed-game optimisation) present the same way in borderless as in fullscreen: same FPS and latency,
+    /// VRR still works, and switching to a trainer or overlay is instant. DirectX 9 / OpenGL games, and DirectX 11
+    /// on Windows 10, still run better in exclusive fullscreen. Set automatically for Unreal (ini) and Unity
+    /// (launch option); a short in-game step otherwise.
+    /// </summary>
+    public static (bool Borderless, string Why) RecommendDisplayMode(GameScanResult scan, HardwareProfile? hw)
+    {
+        if ((scan.UsesDx9 || scan.UsesOpenGl) && !scan.UsesDx12 && !scan.UsesVulkan)
+            return (false, $"This game uses {(scan.UsesDx9 ? "DirectX 9" : "OpenGL")}, which still gets lower latency and steadier frame pacing in exclusive fullscreen.");
+        if (scan.UsesDx12 || scan.UsesVulkan)
+            return (true, $"{(scan.UsesDx12 ? "DirectX 12" : "Vulkan")} games run identically in borderless (same FPS, latency and FreeSync), and switching to the trainer or other apps is instant.");
+        if (hw?.IsWindows11 == true)
+            return (true, "With Windows 11's optimisations for windowed games (also applied by Optimise), DirectX 11 runs as fast in borderless as in fullscreen, with instant switching.");
+        return (false, "On Windows 10, DirectX 11 games have less input lag in exclusive fullscreen.");
+    }
+
+    private static void AddDisplayMode(OptimizationPlan plan, Game game, HardwareProfile? hw, GameScanResult scan)
+    {
+        var (borderless, why) = RecommendDisplayMode(scan, hw);
+        var mode = borderless ? "Borderless (windowed fullscreen)" : "Fullscreen (exclusive)";
+        var actions = new List<TweakAction>();
+        var engine = scan.Engine;
+        if ((engine is GameEngine.Unreal4 or GameEngine.Unreal5 or GameEngine.UnrealUnknownVersion) && UnrealConfigDir(scan) is { } dir)
+        {
+            var gus = Path.Combine(dir, "GameUserSettings.ini");
+            var value = borderless ? "1" : "0"; // 0 fullscreen, 1 windowed fullscreen, 2 windowed
+            foreach (var key in new[] { "FullscreenMode", "PreferredFullscreenMode", "LastConfirmedFullscreenMode" })
+                actions.Add(new IniSetAction { FilePath = gus, Section = UnrealKeys.GameUserSettingsSection, Key = key, Value = value, CreateIfMissing = false });
+        }
+        else if (engine == GameEngine.Unity)
+        {
+            actions.Add(new LaunchArgumentAction { Arguments = borderless ? "-screen-fullscreen 1 -window-mode borderless" : "-screen-fullscreen 1 -window-mode exclusive" });
+        }
+        else
+        {
+            actions.Add(new ManualStepAction
+            {
+                Instructions = $"In the game's video/display settings set the display mode to {(borderless ? "Borderless window (sometimes called Windowed fullscreen or Fullscreen windowed)" : "Fullscreen")}.",
+            });
+        }
+        var trainerNote = game.Trainer is not null
+            ? borderless ? " With your trainer, borderless lets you switch to it and back without the game minimising." : " Switching to your trainer will minimise the game briefly; that's normal in exclusive fullscreen."
+            : "";
+        plan.Tweaks.Add(new Tweak
+        {
+            Id = DisplayModeId,
+            Title = $"Display mode: {mode}",
+            Description = why + trainerNote,
+            Category = TweakCategory.Latency,
+            VisualImpact = VisualImpact.None,
+            Risk = TweakRisk.Safe,
+            ExpectedGain = borderless ? "Same FPS, instant Alt+Tab / trainer switching" : "Lowest input lag, steadiest pacing",
+            Recommended = true,
+            Actions = actions,
+        });
     }
 
     /// <summary>Exe name RTSS/driver profiles must use: the process that renders, not a bootstrap launcher.</summary>

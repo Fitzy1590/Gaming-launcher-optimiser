@@ -87,3 +87,21 @@ public class BaselineAndPowerTests
         Assert.Equal(65, PowerGovernor.Estimate(new Dictionary<int, int>(), 117, 65));
     }
 }
+
+public class DisplayModeTests
+{
+    private static HardwareProfile Hw(bool win11) => new() { OsBuild = win11 ? 26100 : 19045 };
+
+    [Theory]
+    [InlineData(true, false, false, false, true, true)]   // DX12 → borderless
+    [InlineData(false, true, false, false, false, true)]  // Vulkan on Win10 → borderless
+    [InlineData(false, false, true, false, true, false)]  // DX9 → fullscreen
+    [InlineData(false, false, false, true, true, false)]  // OpenGL → fullscreen
+    [InlineData(false, false, false, false, true, true)]  // DX11 on Win11 → borderless
+    [InlineData(false, false, false, false, false, false)]// DX11 on Win10 → fullscreen
+    public void RecommendsByApi(bool dx12, bool vulkan, bool dx9, bool gl, bool win11, bool borderless)
+    {
+        var scan = new GameScanResult { UsesDx12 = dx12, UsesVulkan = vulkan, UsesDx9 = dx9, UsesOpenGl = gl };
+        Assert.Equal(borderless, OptimizationPlanner.RecommendDisplayMode(scan, Hw(win11)).Borderless);
+    }
+}

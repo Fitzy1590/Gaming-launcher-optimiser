@@ -39,6 +39,8 @@ public sealed class GameScanResult
     public List<string> Injectors { get; set; } = [];
     public bool UsesVulkan { get; set; }
     public bool UsesDx12 { get; set; }
+    public bool UsesDx9 { get; set; }
+    public bool UsesOpenGl { get; set; }
     public long TotalBytes { get; set; }
     public int FileCount { get; set; }
     /// <summary>Current values read from known config files (key → value), used to tailor suggestions.</summary>

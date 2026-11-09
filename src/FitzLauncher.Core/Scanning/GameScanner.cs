@@ -278,6 +278,8 @@ public sealed class GameScanner(ScanContext context, Func<string, string?>? vers
         var imports = PeImports.Read(exePath);
         r.UsesVulkan = imports.Contains("vulkan-1.dll");
         r.UsesDx12 = imports.Contains("d3d12.dll") || names.Contains("D3D12Core.dll");
+        r.UsesDx9 = imports.Contains("d3d9.dll");
+        r.UsesOpenGl = imports.Contains("opengl32.dll");
     }
 
     private void LocateConfig(string root, Game game, List<string> files, GameScanResult r)
