@@ -128,7 +128,7 @@ public sealed class LauncherSettings
     public bool BackgroundLimiter { get; set; } = true;
     /// <summary>Lower the cap when there's no input for a while (menus, cutscenes, AFK), like Radeon Chill.</summary>
     public bool AdaptiveCap { get; set; } = true;
-    public int AdaptiveIdleSeconds { get; set; } = 12;
+    public int AdaptiveIdleSeconds { get; set; } = 20;
     public int AdaptiveIdleCap { get; set; } = 60;
     /// <summary>Hold View + LB in-game for the quick HUD (D-pad: target up/down, power left/right).</summary>
     public bool QuickMenu { get; set; } = true;
@@ -166,13 +166,14 @@ public enum OverlayStyle { Off, FpsAndTemps, Detailed }
 public sealed class ThermalGuardOptions
 {
     public bool Enabled { get; set; } = true;
-    /// <summary>Step the cap down when within this many degrees of the alert limit.</summary>
-    public double MarginC { get; set; } = 2;
-    public int StepDownAfterSeconds { get; set; } = 15;
-    /// <summary>Step back up once this far below the limit…</summary>
-    public double RecoverMarginC { get; set; } = 8;
+    /// <summary>The guard only acts once the hotter of CPU/GPU reaches this (°C). Cooler modes lower it.</summary>
+    public double TriggerC { get; set; } = 90;
+    /// <summary>It steps back up once this many degrees below the trigger…</summary>
+    public double ReleaseBelowC { get; set; } = 5;
     /// <summary>…for this long.</summary>
-    public int RecoverAfterSeconds { get; set; } = 90;
+    public int RecoverAfterSeconds { get; set; } = 45;
+    /// <summary>Seconds at or above the trigger before each step down.</summary>
+    public int StepDownAfterSeconds { get; set; } = 15;
     public int MinimumCap { get; set; } = 60;
 }
 

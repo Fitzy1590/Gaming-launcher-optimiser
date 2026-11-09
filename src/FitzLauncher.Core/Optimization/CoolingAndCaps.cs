@@ -13,21 +13,25 @@ public sealed record CoolingPlan(
     double PowerScale,
     /// <summary>How many targets lower the FPS cap goes (e.g. 110 → 100).</summary>
     int CapSteps,
-    /// <summary>Extra °C of margin so the thermal guard acts earlier.</summary>
+    /// <summary>How many °C below the thermal guard's trigger this mode starts it.</summary>
     int GuardExtraMarginC,
     /// <summary>The thermal guard also trims power (APUs) when it steps the cap down.</summary>
     bool GuardLowersPower,
     string Description)
 {
+    /// <summary>
+    /// Every mode is reactive: nothing changes until the chip gets hot. Cooler modes just start the thermal guard
+    /// at a lower temperature (and let it trim APU power too); Coolest also makes the CPU boost less eagerly.
+    /// </summary>
     public static CoolingPlan For(CoolingMode mode) => mode switch
     {
-        CoolingMode.Balanced => new(mode, 3, 1.0, 0, 2, false,
-            "CPU boost set to efficient: the CPU still boosts, but less eagerly. Usually 3–8°C cooler with almost no FPS change."),
-        CoolingMode.Cool => new(mode, 0, 0.9, 0, 4, true,
-            "CPU boost off and power limit −10%: much cooler and quieter. GPU-bound games barely change; CPU-heavy games can lose a few FPS. The thermal guard steps in earlier and also trims power."),
-        CoolingMode.Coolest => new(mode, 0, 0.8, 1, 6, true,
-            "CPU boost off, power −20% and the FPS cap one step lower (e.g. 110 → 100): the coolest and quietest setting, for long sessions, warm rooms or playing on your lap."),
-        _ => new(CoolingMode.Off, null, 1.0, 0, 0, false, "No cooling changes: full performance."),
+        CoolingMode.Balanced => new(mode, null, 1.0, 0, 3, false,
+            "Full performance until the chip reaches about 87°C, then the FPS cap eases down a step at a time until temperatures level out, and comes back as they drop."),
+        CoolingMode.Cool => new(mode, null, 1.0, 0, 5, true,
+            "Full performance until about 85°C; then the cap eases down a step at a time and the APU power limit is trimmed too, both coming back as it cools."),
+        CoolingMode.Coolest => new(mode, 3, 1.0, 0, 10, true,
+            "CPU boost set to efficient (quieter, usually no FPS change), and the guard starts at about 80°C, trimming the cap and power until things level out. For long sessions or warm rooms."),
+        _ => new(CoolingMode.Off, null, 1.0, 0, 0, false, "Full performance. The thermal guard still eases the cap a step if the chip reaches 90°C (Settings → Thermal guard)."),
     };
 
     /// <summary>The cap <paramref name="steps"/> targets lower on the 60/90/100/110/117 ladder.</summary>

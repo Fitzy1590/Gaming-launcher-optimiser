@@ -68,14 +68,9 @@ public sealed class GameSession(
     /// <summary>Cooling mode for this session (CPU boost, earlier thermal guard, guard trims power).</summary>
     public CoolingPlan? Cooling { get; init; }
 
-    private ThermalGuardOptions GuardOptions => Cooling is { GuardExtraMarginC: > 0 } c
-        ? new ThermalGuardOptions
-        {
-            Enabled = settings.ThermalGuard.Enabled, MarginC = settings.ThermalGuard.MarginC + c.GuardExtraMarginC,
-            StepDownAfterSeconds = settings.ThermalGuard.StepDownAfterSeconds, MinimumCap = settings.ThermalGuard.MinimumCap,
-            RecoverMarginC = settings.ThermalGuard.RecoverMarginC + c.GuardExtraMarginC, RecoverAfterSeconds = settings.ThermalGuard.RecoverAfterSeconds,
-        }
-        : settings.ThermalGuard;
+    private ThermalGuardOptions GuardOptions => settings.ThermalGuard;
+    /// <summary>The guard's start temperature: the setting, lowered by cooler modes.</summary>
+    private double GuardTriggerC => settings.ThermalGuard.TriggerC - (Cooling?.GuardExtraMarginC ?? 0);
 
     /// <summary>Controller tuning for this session (virtual controller via ViGEmBus + HidHide), or null.</summary>
     public ControllerProfile? Controller { get; init; }
@@ -122,7 +117,7 @@ public sealed class GameSession(
             if (next == current) { Note($"Target {current}"); return; }
             if (!_rtss.SetFramerateLimit(_renderExe, next)) { Note("Couldn't change the cap"); return; }
             _quickCap = next;
-            if (_guard is not null) _guard = new ThermalGovernor(next, GuardOptions, settings.CpuTempAlertC, settings.GpuTempAlertC);
+            if (_guard is not null) _guard = new ThermalGovernor(next, GuardOptions, GuardTriggerC);
             Note($"Target {next}");
             Status?.Invoke($"FPS target changed to {next} in-game");
         }
@@ -347,7 +342,7 @@ public sealed class GameSession(
         var capChanged = rtss is not null && EffectiveCap is { } ec && ec != game.FpsTarget && rtss.SetFramerateLimit(renderExe, ec);
         if (capChanged) Status?.Invoke(EffectiveCap == 0 ? "No FPS cap on this screen" : $"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
         var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap and > 0 && rtss is not null
-            ? new ThermalGovernor(cap, GuardOptions, settings.CpuTempAlertC, settings.GpuTempAlertC)
+            ? new ThermalGovernor(cap, GuardOptions, GuardTriggerC)
             : null;
         lock (_capLock)
         {

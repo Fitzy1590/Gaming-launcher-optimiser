@@ -371,11 +371,11 @@
             <TextBlock Text="Thermal guard" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>
-                    <CheckBox Content="Lower the frame cap a step (117 → 110 → 100 → 90…) when the CPU/GPU gets near its alert limit; restore it once cool" IsChecked="{Binding T.Enabled}" />
+                    <CheckBox Content="Only when it gets hot: ease the frame cap down a step (117 → 110 → 100…) while the chip stays at the trigger temperature, hold while it levels out, and step back up as it cools" IsChecked="{Binding T.Enabled}" />
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding T.Enabled}">
-                        <TextBlock Text="Act within" VerticalAlignment="Center" Width="80" />
-                        <TextBox Text="{Binding T.MarginC}" Width="50" />
-                        <TextBlock Text="°C of the limit, after" VerticalAlignment="Center" Margin="8,0" />
+                        <TextBlock Text="Start at" VerticalAlignment="Center" Width="80" />
+                        <TextBox Text="{Binding T.TriggerC}" Width="50" AutomationProperties.Name="Trigger temperature" />
+                        <TextBlock Text="°C, after" VerticalAlignment="Center" Margin="8,0" />
                         <TextBox Text="{Binding T.StepDownAfterSeconds}" Width="50" />
                         <TextBlock Text="s.  Never below" VerticalAlignment="Center" Margin="8,0" />
                         <TextBox Text="{Binding T.MinimumCap}" Width="50" />

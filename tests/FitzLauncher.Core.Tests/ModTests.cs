@@ -541,8 +541,10 @@ public class CoolingAndCapTests
         var off = FitzLauncher.Core.Optimization.CoolingPlan.For(FitzLauncher.Core.Optimization.CoolingMode.Off);
         var coolest = FitzLauncher.Core.Optimization.CoolingPlan.For(FitzLauncher.Core.Optimization.CoolingMode.Coolest);
         Assert.Null(off.BoostMode);
-        Assert.Equal(0, coolest.BoostMode);
-        Assert.True(coolest.PowerScale < 1);
+        Assert.Equal(3, coolest.BoostMode); // efficient boost, not off
+        Assert.Equal(1.0, coolest.PowerScale); // reactive only: nothing changes up front
+        Assert.Equal(0, coolest.CapSteps);
+        Assert.True(coolest.GuardExtraMarginC > 0);
         Assert.Equal(100, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(110, 1));
         Assert.Equal(60, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(90, 1));
         Assert.Equal(60, FitzLauncher.Core.Optimization.CoolingPlan.StepDown(60, 2));

@@ -438,7 +438,13 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
         // Controller activity feeds the adaptive idle cap.
-        if (quick is not null) session.WithControllerInput(() => quick.LastInput);
+        // Xbox-style pads (watcher) and DualShock/DualSense (HID) both count as playing for the idle cap.
+        FitzLauncher.Windows.PlayStationPads.Shared.Start();
+        session.WithControllerInput(() =>
+        {
+            var sony = FitzLauncher.Windows.PlayStationPads.Shared.LastInput;
+            return quick is not null && quick.LastInput > sony ? quick.LastInput : sony;
+        });
 
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
@@ -510,6 +516,7 @@ public sealed partial class MainViewModel : ObservableObject
             trainerCts.Cancel();
             FitzLauncher.Windows.WindowsActions.TrainerAndGame = null;
             GameHelpService.Stop(gameHelp);
+            FitzLauncher.Windows.PlayStationPads.Shared.Stop();
             if (game.Trainer is { CloseWithGame: true }) FitzLauncher.App.Services.Mods.TrainerService.Stop(trainer);
             _session = null;
             IsPlaying = false;

@@ -20,6 +20,13 @@ public sealed class PlayStationPads : IDisposable
     private int _users;
     private DateTime _lastScan;
 
+    private long _lastInputTicks = DateTime.UtcNow.Ticks;
+
+    /// <summary>When a Sony controller was last used (a button, trigger or stick moved): counts as activity for the idle cap.</summary>
+    public DateTime LastInput => new(Interlocked.Read(ref _lastInputTicks), DateTimeKind.Utc);
+
+    internal void NoteInput() => Interlocked.Exchange(ref _lastInputTicks, DateTime.UtcNow.Ticks);
+
     /// <summary>The newest reading from any connected Sony controller (null when none).</summary>
     public PadSnapshot? Current
     {
@@ -150,12 +157,23 @@ public sealed class PlayStationPads : IDisposable
                 while (!_closed)
                 {
                     if (!Hid.ReadFile(_h, buf, buf.Length, out var read, 0) || read <= 0) break; // unplugged or closed
-                    if (PlayStationReport.Parse(buf.AsSpan(0, read), _model, _bt) is { } s) lock (this) _latest = s;
+                    if (PlayStationReport.Parse(buf.AsSpan(0, read), _model, _bt) is { } s)
+                    {
+                        PadSnapshot? before;
+                        lock (this) { before = _latest; _latest = s; }
+                        if (IsActive(s) || before is { } b && Moved(b, s)) Shared.NoteInput(); // held sticks count: walking isn't idle
+                    }
                 }
             }
             catch (ObjectDisposedException) { }
             _closed = true;
         }
+
+        private static bool IsActive(PadSnapshot s) => s.Buttons != 0 || s.LT > 30 || s.RT > 30
+            || Math.Abs((int)s.LX) > 8000 || Math.Abs((int)s.LY) > 8000 || Math.Abs((int)s.RX) > 8000 || Math.Abs((int)s.RY) > 8000;
+
+        private static bool Moved(PadSnapshot a, PadSnapshot b) =>
+            Math.Abs(a.LX - b.LX) + Math.Abs(a.LY - b.LY) + Math.Abs(a.RX - b.RX) + Math.Abs(a.RY - b.RY) > 2000 || a.LT != b.LT || a.RT != b.RT;
 
         public void Dispose()
         {

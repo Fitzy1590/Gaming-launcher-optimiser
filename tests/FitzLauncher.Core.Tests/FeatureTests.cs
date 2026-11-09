@@ -84,32 +84,39 @@ public class AutoTunerTests
 
 public class ThermalGovernorTests
 {
+    private static readonly ThermalGuardOptions O = new() { TriggerC = 90, ReleaseBelowC = 5, StepDownAfterSeconds = 15, RecoverAfterSeconds = 45 };
+
     [Fact]
-    public void Steps_down_when_hot_and_back_up_after_cooling()
+    public void Does_nothing_below_the_trigger()
     {
-        var o = new ThermalGuardOptions { MarginC = 2, StepDownAfterSeconds = 15, RecoverMarginC = 8, RecoverAfterSeconds = 90 };
-        var g = new ThermalGovernor(117, o, cpuLimitC: 90, gpuLimitC: 85);
+        var g = new ThermalGovernor(117, O, 90);
         var t = new DateTime(2026, 1, 1);
-
-        Assert.Null(g.Update(60, 84, t));               // 84 >= 85-2 → hot, timer starts
-        Assert.Null(g.Update(60, 84, t.AddSeconds(10)));
-        Assert.Equal(110, g.Update(60, 84, t.AddSeconds(16)));
-        Assert.Equal(100, g.Update(60, 84, t.AddSeconds(32)));
-        Assert.True(g.IsThrottling);
-
-        Assert.Null(g.Update(60, 75, t.AddSeconds(40)));   // cool (< 77), timer starts
-        Assert.Equal(110, g.Update(60, 75, t.AddSeconds(131)));
-        Assert.Equal(117, g.Update(60, 70, t.AddSeconds(222)));
+        for (var i = 0; i < 100; i++) Assert.Null(g.Update(84, 88, t = t.AddSeconds(2))); // warm but under 90
         Assert.False(g.IsThrottling);
     }
 
     [Fact]
-    public void Never_goes_below_minimum_cap()
+    public void Steps_down_at_90_holds_while_levelling_out_and_recovers()
     {
-        var g = new ThermalGovernor(90, new ThermalGuardOptions { StepDownAfterSeconds = 1, MinimumCap = 75 }, 90, 85);
+        var g = new ThermalGovernor(117, O, 90);
+        var t = new DateTime(2026, 1, 1);
+        Assert.Null(g.Update(91, 80, t));
+        Assert.Equal(110, g.Update(91, 80, t.AddSeconds(16)));
+        Assert.Null(g.Update(88, 80, t.AddSeconds(20)));             // 85-90: hold
+        Assert.Null(g.Update(88, 80, t.AddSeconds(200)));            // still holding, no further step
+        Assert.Equal(110, g.CurrentCap);
+        Assert.Null(g.Update(84, 80, t.AddSeconds(210)));            // ≤ 85: cool timer starts
+        Assert.Equal(117, g.Update(84, 80, t.AddSeconds(256)));
+        Assert.False(g.IsThrottling);
+    }
+
+    [Fact]
+    public void Uses_the_hotter_reading_and_never_goes_below_minimum()
+    {
+        var g = new ThermalGovernor(90, new ThermalGuardOptions { TriggerC = 90, StepDownAfterSeconds = 1, MinimumCap = 72 }, 90);
         var t = DateTime.Now;
-        for (var i = 0; i < 20; i++) g.Update(99, 99, t.AddSeconds(i * 2));
-        Assert.Equal(75, g.CurrentCap);
+        for (var i = 0; i < 20; i++) g.Update(60, 95, t.AddSeconds(i * 2));
+        Assert.Equal(72, g.CurrentCap);
     }
 }
 
