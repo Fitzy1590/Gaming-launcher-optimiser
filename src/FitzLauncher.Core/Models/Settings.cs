@@ -73,7 +73,7 @@ public sealed class LauncherSettings
     public bool ConsolePadMirror { get; set; } = true;
     /// <summary>Hold PS + a button for Windows actions (volume, brightness, screenshot…).</summary>
     public FitzLauncher.Core.Input.PadComboSettings PadCombos { get; set; } = FitzLauncher.Core.Input.PadComboSettings.New();
-    /// <summary>FPS counters hidden with PS + Right (FPS is still recorded).</summary>
+    /// <summary>Old setting (counters stayed hidden for later games); no longer used: PS + Right now lasts for one game.</summary>
     public bool OverlayHiddenByPad { get; set; }
 
     // ---- mods

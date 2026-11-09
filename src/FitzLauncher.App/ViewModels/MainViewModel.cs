@@ -40,13 +40,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool SessionOwnsPower => _session?.OwnsPowerLimit == true;
 
-    /// <summary>PS + Right: hide or show the FPS counters (remembered for the next game).</summary>
+    /// <summary>PS + Right: hide or show the FPS counters in the game that's running. Only for that game: the next one starts with them showing.</summary>
     public void ToggleOverlayFromPad()
     {
-        var hidden = _session is { } s ? s.ToggleOverlayHidden() : !_s.Settings.OverlayHiddenByPad;
-        _s.Settings.OverlayHiddenByPad = hidden;
-        _s.SaveSettings();
-        if (_session is null) ShowToast(hidden ? "FPS counters will be hidden in games (PS + Right shows them)." : "FPS counters will show in games.");
+        if (_session is { } s) s.ToggleOverlayHidden();
+        else ShowToast("PS + Right hides or shows the FPS counters while a game is running.");
     }
     private bool _consoleWasRunning;
 
@@ -467,7 +465,6 @@ public sealed partial class MainViewModel : ObservableObject
             AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
-            StartOverlayHidden = _s.Settings.OverlayHiddenByPad,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
         };
         using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;

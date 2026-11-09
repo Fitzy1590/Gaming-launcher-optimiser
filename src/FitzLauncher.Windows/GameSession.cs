@@ -194,6 +194,31 @@ public sealed class GameSession(
     /// <summary>Quick HUD (View + LB held): shows the target and power line until released.</summary>
     public void SetHud(bool open) => _hud = open;
 
+    private string OsdMarker => Path.Combine(paths.Root, "rtss-osd-off.txt");
+
+    private void MarkOsdOff(string exe)
+    {
+        try { File.WriteAllText(OsdMarker, exe); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    private void ClearOsdMarker()
+    {
+        try { File.Delete(OsdMarker); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
+    /// <summary>If a previous run was closed while the counters were hidden, RTSS's display for that game is still switched off: switch it back on.</summary>
+    private void RestoreOsdLeftOff(RtssClient? rtss)
+    {
+        try
+        {
+            if (rtss is null || !File.Exists(OsdMarker)) return;
+            var exe = File.ReadAllText(OsdMarker).Trim();
+            if (exe.Length > 0 && rtss.SetOsdEnabled(exe, true)) Status?.Invoke("Switched RTSS's on-screen display back on (it was left off by an earlier session)");
+            File.Delete(OsdMarker);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+    }
+
     private volatile bool _overlayHidden;
     private bool _osdTurnedOff;
 
@@ -213,12 +238,18 @@ public sealed class GameSession(
         if (_overlayHidden)
         {
             RtssClient.ClearOsd();
-            if (rtss is not null && exe is not null) _osdTurnedOff = rtss.SetOsdEnabled(exe, false);
+            if (rtss is not null && exe is not null)
+            {
+                MarkOsdOff(exe); // written first: if the launcher dies while hidden, the next start switches RTSS's display back on
+                _osdTurnedOff = rtss.SetOsdEnabled(exe, false);
+                if (!_osdTurnedOff) ClearOsdMarker();
+            }
         }
         else
         {
             if (_osdTurnedOff && rtss is not null && exe is not null) rtss.SetOsdEnabled(exe, true);
             _osdTurnedOff = false;
+            ClearOsdMarker();
             Note("Overlay on", 3);
         }
         Status?.Invoke(_overlayHidden ? "FPS counters hidden (still recording)" : "FPS counters shown");
@@ -454,6 +485,7 @@ public sealed class GameSession(
             Status?.Invoke("Thermal guard needs RTSS to change the cap live; only alerts are active.");
         var overlayLayout = game.Overlay ?? settings.EffectiveOverlay;
         var overlay = overlayLayout.Enabled && rtss is not null;
+        RestoreOsdLeftOff(rtss);
         if (StartOverlayHidden && rtss is not null) ToggleOverlayHidden();
 
         // ---------------------------------------------------------------- CPU pinning
@@ -658,6 +690,7 @@ public sealed class GameSession(
         _fps = null;
         if (overlay) RtssClient.ClearOsd();
         if (_osdTurnedOff && rtss is not null) { rtss.SetOsdEnabled(renderExe, true); _osdTurnedOff = false; } // never leave RTSS's OSD off
+        ClearOsdMarker();
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
         limiter?.RestoreAll();

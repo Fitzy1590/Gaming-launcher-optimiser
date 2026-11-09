@@ -274,7 +274,7 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <TextBlock Text="PS + Left sleeps; PS + Right hides/shows all FPS counters (FPS is still recorded). Volume and brightness repeat while held. While PS is held, buttons you were already holding stay held for the game; new presses belong to the shortcut. These are the only controller shortcuts: the older View-button ones are off unless you turn them on under Quick switch. Brightness works on the built-in screen only." Style="{StaticResource Wrap}" FontSize="12" />
+                        <TextBlock Text="PS + Left sleeps; PS + Right hides/shows all FPS counters for the game that is running (FPS is still recorded; the next game starts with them showing). Volume and brightness repeat while held. While PS is held, buttons you were already holding stay held for the game; new presses belong to the shortcut. These are the only controller shortcuts: the older View-button ones are off unless you turn them on under Quick switch. Brightness works on the built-in screen only." Style="{StaticResource Wrap}" FontSize="12" />
 
                         <TextBlock Text="Actions wheel" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,16,0,4" />
                         <CheckBox Content="Show the actions wheel when PS is held on its own: flick the right stick to a slot and release PS to run it. It also lists every PS + button shortcut as a guide" IsChecked="{Binding WheelEnabled}" />
