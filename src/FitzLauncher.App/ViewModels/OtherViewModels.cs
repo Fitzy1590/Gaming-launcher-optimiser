@@ -248,7 +248,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         var set = await Task.Run(() => client.Apply(limits)); // sets the same values back: changes nothing if it works
         AutoTdpCheck = set
             ? $"Working: RyzenAdj can read and set the power limit (now {limits.Text}). Auto TDP can run on this device."
-            : $"RyzenAdj can read the limits ({limits.Text}) but not set them here, so Auto TDP can't change power. If OneXConsole locks the limit, turn off its TDP control and try again.";
+            : $"RyzenAdj can read the limits ({limits.Text}) but not set them here, so Auto TDP can't change power. What RyzenAdj said: {client.LastError}. If OneXConsole locks the limit, turn off its TDP control and try again.";
     }
 
     [ObservableProperty] private string _autoTdpCheck = "";

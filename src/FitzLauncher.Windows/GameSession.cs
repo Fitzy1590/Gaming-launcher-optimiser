@@ -460,6 +460,7 @@ public sealed class GameSession(
         {
             var original = RyzenAdj.SaveOriginal();
             powerSet = RyzenAdj.Apply(watts, PowerMaxWatts);
+            if (!powerSet) Trace?.Invoke($"RyzenAdj could not set {watts} W: {RyzenAdj.LastError}");
             Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
         }
         if (powerSet) lock (_capLock) _livePower = PowerWatts;
@@ -471,7 +472,7 @@ public sealed class GameSession(
         }
         else if (AutoTdp == AutoTdpMode.On && !powerSet)
         {
-            AutoTdpStartNote = "Auto TDP isn't running: RyzenAdj couldn't set the power limit on this device (Settings → Power limit → Test). If OneXConsole locks the limit, turn off its TDP control.";
+            AutoTdpStartNote = "Auto TDP isn't running: RyzenAdj couldn't set the power limit on this device (Settings → Power limit → Test). If OneXConsole locks the limit, turn off its TDP control." + (RyzenAdj.LastError.Length > 0 ? $" RyzenAdj said: {RyzenAdj.LastError}" : "");
             Status?.Invoke(AutoTdpStartNote);
             Note("Auto TDP isn't running: couldn't set the power limit", 12);
         }

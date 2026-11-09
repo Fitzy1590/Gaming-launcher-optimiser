@@ -56,16 +56,46 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
         return stapm is { } s ? new PowerLimits(s, fast ?? s, slow ?? s) : null;
     }
 
+    /// <summary>What RyzenAdj said the last time a set failed (shown by Settings → Auto TDP → Check).</summary>
+    public string LastError { get; private set; } = "";
+
     /// <summary>Sustained = watts; short boost a little higher so loading screens stay quick.</summary>
     public bool Apply(int watts, int maxWatts)
     {
         var sustained = watts * 1000;
         var boost = Math.Min((int)(watts * 1.15), maxWatts) * 1000;
-        return Run($"--stapm-limit={sustained} --slow-limit={sustained} --fast-limit={boost}").code == 0;
+        return SetLimits(sustained, sustained, boost);
     }
 
-    public bool Apply(PowerLimits l) =>
-        Run($"--stapm-limit={(int)(l.StapmW * 1000)} --slow-limit={(int)(l.SlowW * 1000)} --fast-limit={(int)(l.FastW * 1000)}").code == 0;
+    public bool Apply(PowerLimits l) => SetLimits((int)(l.StapmW * 1000), (int)(l.SlowW * 1000), (int)(l.FastW * 1000));
+
+    /// <summary>
+    /// Sets the three limits. Some chips reject one of the three and RyzenAdj then exits non-zero even though the
+    /// others took, so a failure is retried one limit at a time and the result is judged by reading the limits back.
+    /// </summary>
+    private bool SetLimits(int stapmMw, int slowMw, int fastMw)
+    {
+        LastError = "";
+        var all = Run($"--stapm-limit={stapmMw} --slow-limit={slowMw} --fast-limit={fastMw}");
+        if (all.code == 0) return true;
+        var notes = new List<string> { $"all three together: exit {all.code} {Trim(all.output)}" };
+        foreach (var (name, mw) in new[] { ("stapm-limit", stapmMw), ("slow-limit", slowMw), ("fast-limit", fastMw) })
+        {
+            var one = Run($"--{name}={mw}");
+            if (one.code != 0) notes.Add($"{name}: exit {one.code} {Trim(one.output)}");
+        }
+        // The sustained limit is the one that matters: judge by what the chip reports now.
+        var now = Read();
+        if (now is not null && Math.Abs(now.StapmW - stapmMw / 1000.0) <= 0.6) return true;
+        LastError = string.Join("; ", notes) + (now is null ? "" : $"; chip still reports {now.StapmW:0.#} W sustained");
+        return false;
+    }
+
+    private static string Trim(string output)
+    {
+        var line = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).FirstOrDefault() ?? "";
+        return line.Length > 120 ? line[..120] : line;
+    }
 
     private string UndervoltMarker => Path.Combine(paths.Root, "undervolt-active");
 
