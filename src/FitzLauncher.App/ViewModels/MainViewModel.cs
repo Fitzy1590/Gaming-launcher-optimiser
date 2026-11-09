@@ -51,6 +51,20 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _consoleWasRunning;
 
     /// <summary>Low-power sleep: stop the launcher's own polling while asleep, start it again on wake.</summary>
+    /// <summary>After an auto TDP session: keep the power range that held the target (live mode) and report what happened.</summary>
+    private string? LearnAutoTdp(Game game, GameSession session, SessionSummary summary)
+    {
+        if (session.AutoTdpLearned is { } p && session.AutoTdpTarget is { } target && summary.Duration.TotalMinutes >= 5 && session.AutoTdp == AutoTdpMode.On)
+        {
+            game.AutoTdpProfiles.TryGetValue(target, out var old);
+            game.AutoTdpProfiles[target] = AutoTdpProfile.Blend(old, p);
+            // Keep the older single-number memory in step, so the rest of the app shows a sensible power figure too.
+            game.PowerByTarget[target] = p.Typical;
+            game.PowerWatts = p.Typical;
+        }
+        return session.AutoTdpReport;
+    }
+
     public void OnDeviceSleep(bool asleep)
     {
         FitzLauncher.Windows.PlayStationPads.Shared.Paused = asleep;
@@ -413,7 +427,20 @@ public sealed partial class MainViewModel : ObservableObject
             sessionCap = CoolingPlan.StepDown(baseCap, coolingPlan.CapSteps);
         if (abSetup?.Cap is { } abCap) sessionCap = abCap;
         var limiterMode = await Task.Run(() => PrepareLimiterMode(game));
-        var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto ? _s.RyzenAdj : null;
+        // Auto TDP (handhelds): off by default; per game or for all games. Needs RyzenAdj, whether or not "power limit" is on.
+        var autoTdp = _s.Hardware?.IsApu == true && game.PowerAuto && !SafeMode ? game.AutoTdp ?? _s.Settings.AutoTdp : AutoTdpMode.Off;
+        var ryzenAdj = _s.Hardware?.IsApu == true && game.PowerAuto
+            ? autoTdp != AutoTdpMode.Off && RyzenAdjClient.Find(_s.Settings.RyzenAdjPath) is { } autoPath ? new RyzenAdjClient(autoPath, _s.Paths) : _s.RyzenAdj
+            : null;
+        if (ryzenAdj is null) autoTdp = AutoTdpMode.Off;
+        var autoMin = Math.Clamp(_s.Settings.AutoTdpMinWatts, 10, 120);
+        var autoMax = Math.Clamp(Math.Max(_s.Settings.AutoTdpMaxWatts, autoMin), autoMin, 120);
+        var autoTarget = sessionCap ?? game.FpsTarget;
+        // Where auto TDP starts: what held this target last time (a little above), else the learned/default power.
+        var autoStart = autoTarget is { } at && game.AutoTdpProfiles.TryGetValue(at, out var known) && known.Typical > 0
+            ? (int)Math.Round(known.Typical * 1.08)
+            : PowerTuner.WattsFor(game, _s.Settings, autoTarget);
+        autoStart = Math.Clamp(autoStart, autoMin, autoMax);
         // Undervolt ladder: first undervolted session starts one step in.
         var st = _s.Settings;
         st.UndervoltTarget = Math.Clamp(st.UndervoltTarget, -30, 0);
@@ -434,7 +461,10 @@ public sealed partial class MainViewModel : ObservableObject
             RyzenAdj = ryzenAdj ?? undervolt,
             UndervoltOffset = undervolt is null || SafeMode ? null : _s.Settings.UndervoltCurrent,
             Controller = SafeMode ? null : game.Controller is { Enabled: true } own ? own : _s.Settings.DefaultController is { Enabled: true } def ? def : null,
-            PowerWatts = ryzenAdj is null ? null : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
+            PowerWatts = ryzenAdj is null || autoTdp == AutoTdpMode.Observe ? null // observe changes nothing
+                : autoTdp == AutoTdpMode.On ? autoStart
+                : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
+            AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
             StartOverlayHidden = _s.Settings.OverlayHiddenByPad,
@@ -462,6 +492,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
+        session.Trace += line => _s.Log.Write($"[{vm.Name}] {line}");
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
         session.Alert += a => Ui(() => TempAlertRaised?.Invoke(a));
         // Trainer: started a little after the game, closed with it.
@@ -505,7 +536,8 @@ public sealed partial class MainViewModel : ObservableObject
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
-                coolingPlan.PowerScale < 1 ? null
+                autoTdp != AutoTdpMode.Off ? LearnAutoTdp(game, session, summary)
+                    : coolingPlan.PowerScale < 1 ? null
                     : session.LearnedWatts is { } lw && session.LearnedTarget is { } powerTarget ? PowerTuner.LearnLive(game, powerTarget, lw, _s.Settings)
                     : PowerTuner.Learn(game, summary, _s.Settings),
                 PacingTuner.Learn(game, summary), crashNote };

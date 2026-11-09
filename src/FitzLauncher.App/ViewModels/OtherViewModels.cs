@@ -229,6 +229,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         OnPropertyChanged(nameof(GameHelpText));
     }
 
+    /// <summary>Auto TDP is for handhelds (Ryzen APUs): the section only shows there.</summary>
+    public bool ShowAutoTdp => _s.Hardware?.IsApu == true;
+
     public int HibernateMinutes
     {
         get => _s.Settings.HibernateAfterMinutes;

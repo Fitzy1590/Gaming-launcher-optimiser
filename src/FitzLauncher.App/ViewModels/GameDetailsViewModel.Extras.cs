@@ -330,6 +330,8 @@ public sealed partial class GameDetailsViewModel
     {
         Game.PowerWatts = null;
         Game.PowerByTarget.Clear();
+        Game.AutoTdpProfiles.Clear();
+        OnPropertyChanged(nameof(AutoTdpText));
         _s.SaveLibrary();
         OnPropertyChanged(nameof(PowerText));
     }

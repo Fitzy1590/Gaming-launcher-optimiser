@@ -153,6 +153,31 @@
                 </StackPanel>
             </Border>
 
+            <TextBlock Text="Auto TDP (handhelds)" Style="{StaticResource H2}" Visibility="{Binding ShowAutoTdp, Converter={StaticResource Vis}}" />
+            <Border Style="{StaticResource Card}" Visibility="{Binding ShowAutoTdp, Converter={StaticResource Vis}}">
+                <StackPanel>
+                    <TextBlock Text="Holds your FPS target with the least power that stays smooth, and works in the background from the moment a game starts. Power goes up fast when frames dip while the chip is at its limit, and creeps down slowly while the target is held with room to spare. It remembers the power range that worked for each game, so the next session starts in the right place. Your previous limits are put back when the game closes."
+                               Style="{StaticResource Wrap}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="autotdp" Content="Off" IsChecked="{Binding S.AutoTdp, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="autotdp" Content="Watch only" IsChecked="{Binding S.AutoTdp, Converter={StaticResource Eq}, ConverterParameter=Observe}"
+                                     ToolTip="Changes nothing: logs the power it would have used, to check it against how the game felt" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="autotdp" Content="On" IsChecked="{Binding S.AutoTdp, Converter={StaticResource Eq}, ConverterParameter=On}" />
+                    </WrapPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Stay between" VerticalAlignment="Center" Width="100" />
+                        <TextBox Text="{Binding S.AutoTdpMinWatts}" Width="56" AutomationProperties.Name="Lowest watts" />
+                        <TextBlock Text="and" VerticalAlignment="Center" Margin="8,0" />
+                        <TextBox Text="{Binding S.AutoTdpMaxWatts}" Width="56" AutomationProperties.Name="Highest watts" />
+                        <TextBlock Text="W" VerticalAlignment="Center" Margin="8,0" />
+                    </StackPanel>
+                    <TextBlock Text="Smooth means the 1% low stays above 90% of your FPS target. Each game can choose its own mode on its page. Needs RyzenAdj (above) and an FPS target. Watch mode is the safe way to start: after a session, the launcher log and the auto-tdp folder in Fitz's data folder hold a line per two seconds (limit, FPS, 1% low, watts, temperature, decision)."
+                               Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+                    <TextBlock Text="OneXConsole also sets power per game. Turn its per-game TDP off for games Fitz manages, or the two will fight; Fitz checks every few seconds and tells you if something keeps changing the limit."
+                               Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Text="Library snapshots" Style="{StaticResource H2}" />
             <Border Style="{StaticResource Card}">
                 <StackPanel>

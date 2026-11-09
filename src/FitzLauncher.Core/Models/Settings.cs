@@ -119,6 +119,10 @@ public sealed class LauncherSettings
     public int PowerMaxWatts { get; set; } = 85;
     /// <summary>Adjust the APU power limit live in each session to the lowest that holds the target.</summary>
     public bool LivePowerTuning { get; set; } = true;
+    /// <summary>Auto TDP for handhelds: Off, Observe (logs what it would do) or On (holds the FPS target with the least power). Off by default.</summary>
+    public FitzLauncher.Core.Optimization.AutoTdpMode AutoTdp { get; set; }
+    public int AutoTdpMinWatts { get; set; } = 25;
+    public int AutoTdpMaxWatts { get; set; } = 60;
     /// <summary>Starting point for a game with nothing learned yet.</summary>
     public int PowerDefaultWatts { get; set; } = 65;
 

@@ -15,6 +15,39 @@ public sealed partial class GameDetailsViewModel
     public bool HasAdvice => AdviceHeadline.Length > 0;
     partial void OnAdviceHeadlineChanged(string value) => OnPropertyChanged(nameof(HasAdvice));
 
+    // ---- auto TDP (handhelds)
+
+    /// <summary>"Default" (the global setting), "Off", "Observe" or "On".</summary>
+    public string AutoTdpChoice
+    {
+        get => Game.AutoTdp?.ToString() ?? "Default";
+        set
+        {
+            Game.AutoTdp = Enum.TryParse<AutoTdpMode>(value, out var m) ? m : null;
+            if (Game.AutoTdp is AutoTdpMode.On or AutoTdpMode.Observe) Game.PowerAuto = true; // auto TDP needs this game's power managed
+            _s.SaveLibrary();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(AutoTdpText));
+            OnPropertyChanged(nameof(PowerOn));
+        }
+    }
+
+    public string AutoTdpText
+    {
+        get
+        {
+            var mode = Game.AutoTdp ?? _s.Settings.AutoTdp;
+            var learned = Game.AutoTdpProfiles.Count == 0 ? ""
+                : " Learned: " + string.Join(" · ", Game.AutoTdpProfiles.OrderBy(kv => kv.Key).Select(kv => $"{kv.Key} FPS → {kv.Value.Text}")) + ".";
+            return mode switch
+            {
+                AutoTdpMode.On => $"On: holds {Game.FpsTarget?.ToString() ?? "your"} FPS with the least power ({_s.Settings.AutoTdpMinWatts}–{_s.Settings.AutoTdpMaxWatts} W).{learned}",
+                AutoTdpMode.Observe => "Watching only: nothing is changed; a log of what it would do is written for each session.",
+                _ => "Off for this game." + learned,
+            };
+        }
+    }
+
     private DisplayInfo? PrimaryDisplay()
     {
         var displays = HardwareScanner.CurrentDisplays();

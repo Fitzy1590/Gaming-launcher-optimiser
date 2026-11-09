@@ -29,6 +29,27 @@ public sealed class FrameTimeRecorder
 
     public long FrameCount { get { lock (_lock) return _frames; } }
 
+    // Frames of the last 15 s with their times, for live decisions (auto TDP): "how is it running right now?"
+    private readonly Queue<(long tick, float ms)> _window = new();
+    private const double WindowSeconds = 15;
+
+    /// <summary>Frames, average FPS and 1% low (99th percentile frame time) over roughly the last <paramref name="seconds"/> seconds.</summary>
+    public (int Frames, double Fps, double LowFps) RecentStats(double seconds)
+    {
+        lock (_lock)
+        {
+            var cutoff = System.Diagnostics.Stopwatch.GetTimestamp() - (long)(seconds * System.Diagnostics.Stopwatch.Frequency);
+            var times = new List<float>(_window.Count);
+            foreach (var (tick, ms) in _window) if (tick >= cutoff) times.Add(ms);
+            if (times.Count == 0) return (0, 0, 0);
+            var total = 0.0;
+            foreach (var t in times) total += t;
+            times.Sort();
+            var p99 = times[Math.Min(times.Count - 1, (int)Math.Ceiling(times.Count * 0.99) - 1)];
+            return (times.Count, times.Count * 1000.0 / total, p99 > 0 ? 1000.0 / p99 : 0);
+        }
+    }
+
     // Timestamped spikes for the stutter detective (capped so memory stays constant).
     private readonly List<StutterEvent> _stutters = [];
     public const int MaxStutterEvents = 3000;
@@ -41,6 +62,11 @@ public sealed class FrameTimeRecorder
         if (frameTimeMs <= 0 || frameTimeMs > IgnoreAboveMs) return;
         lock (_lock)
         {
+            var now = System.Diagnostics.Stopwatch.GetTimestamp();
+            _window.Enqueue((now, (float)frameTimeMs));
+            var drop = now - (long)(WindowSeconds * System.Diagnostics.Stopwatch.Frequency);
+            while (_window.Count > 0 && _window.Peek().tick < drop) _window.Dequeue();
+
             _frames++;
             _totalMs += frameTimeMs;
             var idx = (int)Math.Min(frameTimeMs / BucketMs, _histogram.Length - 1);

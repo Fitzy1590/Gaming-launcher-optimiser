@@ -67,6 +67,10 @@ public sealed class Game
     public int? PowerWatts { get; set; }
     /// <summary>Lowest power limit that held each FPS target (learned live in sessions).</summary>
     public Dictionary<int, int> PowerByTarget { get; set; } = [];
+    /// <summary>This game's own auto TDP choice (null: the global setting).</summary>
+    public FitzLauncher.Core.Optimization.AutoTdpMode? AutoTdp { get; set; }
+    /// <summary>What auto TDP learned per FPS target: the power range that held it.</summary>
+    public Dictionary<int, FitzLauncher.Core.Optimization.AutoTdpProfile> AutoTdpProfiles { get; set; } = [];
 
     // ---- RTSS limiter mode A/B (0 = async, 1 = front-edge sync)
     public Dictionary<int, LimiterResult> LimiterResults { get; set; } = [];

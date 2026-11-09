@@ -252,6 +252,14 @@
                     </DockPanel>
                     <TextBlock Text="{Binding PowerText}" Style="{StaticResource Wrap}" />
                     <Button Content="Reset learned power" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Command="{Binding ResetPowerCommand}" />
+                    <TextBlock Text="Auto TDP" FontWeight="SemiBold" Foreground="{StaticResource Text}" Margin="0,16,0,4" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameautotdp" Content="My default" IsChecked="{Binding AutoTdpChoice, Converter={StaticResource Eq}, ConverterParameter=Default}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameautotdp" Content="Off" IsChecked="{Binding AutoTdpChoice, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameautotdp" Content="Watch only" IsChecked="{Binding AutoTdpChoice, Converter={StaticResource Eq}, ConverterParameter=Observe}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameautotdp" Content="On" IsChecked="{Binding AutoTdpChoice, Converter={StaticResource Eq}, ConverterParameter=On}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding AutoTdpText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
                 </StackPanel>
 
                 <!-- ReShade / ENB -->

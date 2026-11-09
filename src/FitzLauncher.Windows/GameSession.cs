@@ -51,6 +51,24 @@ public sealed class GameSession(
     public int? PowerWatts { get; init; }
     public int PowerMaxWatts { get; init; } = 120;
     public int PowerMinWatts { get; init; } = 10;
+
+    // ---- auto TDP (handhelds): off, observe (log only) or on
+    public AutoTdpMode AutoTdp { get; init; }
+    public int AutoTdpMinWatts { get; init; } = 25;
+    public int AutoTdpMaxWatts { get; init; } = 60;
+    /// <summary>What auto TDP learned this session (the range that held the target), for next time; null if too short.</summary>
+    public AutoTdpProfile? AutoTdpLearned { get; private set; }
+    /// <summary>The FPS target the learned range applies to.</summary>
+    public int? AutoTdpTarget { get; private set; }
+    /// <summary>A plain-English line for the end of an auto TDP session.</summary>
+    public string? AutoTdpReport { get; private set; }
+    /// <summary>Decisions and explanations, for the log (not shown on screen).</summary>
+    public event Action<string>? Trace;
+    private AutoTdpGovernor? _auto;
+    private bool _autoSimulated;
+    private StreamWriter? _autoCsv;
+    private int _autoOverrides;
+    private bool _autoWarned;
     /// <summary>Find the lowest power limit that holds the target while playing.</summary>
     public bool LivePowerTuning { get; init; }
     /// <summary>Lowest power that held the target this session (live tuning), for next time.</summary>
@@ -218,6 +236,7 @@ public sealed class GameSession(
             if (!RyzenAdj.Apply(next, PowerMaxWatts)) { Note("Couldn't change power"); return; }
             _livePower = next;
             _powerGov = null; // you're in charge now
+            if (_auto is not null && !_autoSimulated) { _auto = null; Trace?.Invoke("Auto TDP paused: you changed the power limit by hand."); }
             LearnedWatts = null;
             Note($"Power {next} W");
             Status?.Invoke($"Power limit changed to {next} W in-game");
@@ -238,6 +257,52 @@ public sealed class GameSession(
             Note("Settings restored after sleep");
         }
         Status?.Invoke("Resumed from sleep: power, undervolt and FPS cap re-applied");
+    }
+
+    // ---- auto TDP log: one CSV per session so decisions can be checked against how the game felt
+
+    private void OpenAutoCsv()
+    {
+        try
+        {
+            var dir = Path.Combine(paths.Root, "auto-tdp");
+            Directory.CreateDirectory(dir);
+            foreach (var old in Directory.EnumerateFiles(dir, "*.csv").Where(f => File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddDays(-14))) File.Delete(old);
+            var safe = string.Concat(game.Name.Where(c => char.IsLetterOrDigit(c) || c == ' ')).Trim().Replace(' ', '-');
+            _autoCsv = new StreamWriter(Path.Combine(dir, $"{safe}-{DateTime.Now:yyyyMMdd-HHmm}.csv")) { AutoFlush = true };
+            _autoCsv.WriteLine($"# {game.Name}, target {AutoTdpTarget} FPS, {(_autoSimulated ? "observe" : "on")}, range {AutoTdpMinWatts}-{AutoTdpMaxWatts} W");
+            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException) { _autoCsv = null; }
+    }
+
+    private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d)
+    {
+        try
+        {
+            _autoCsv?.WriteLine(string.Join(',', ((DateTimeOffset.Now - start).TotalSeconds).ToString("0", System.Globalization.CultureInfo.InvariantCulture), limit, s.Frames,
+                s.Fps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), s.LowFps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
+                s.DrawnWatts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", s.TempC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                s.ThermalHold ? 1 : 0, d?.Watts?.ToString() ?? "", d is null ? "" : "\"" + d.Reason.Replace("\"", "'") + "\""));
+        }
+        catch (IOException) { _autoCsv = null; }
+    }
+
+    private void FinishAutoTdp()
+    {
+        _autoCsv?.Dispose();
+        _autoCsv = null;
+        if (_auto is not { } g) return;
+        AutoTdpLearned = _autoSimulated ? null : g.Summary();
+        if (_autoSimulated)
+        {
+            AutoTdpReport = g.AverageDrawn is { } drawn
+                ? $"Auto TDP (observed, nothing changed): it would have averaged {g.AverageLimit:0} W (up to {g.MaxUsed} W); the game drew {drawn:0} W on average, {g.PeakDrawn:0} W at most."
+                : $"Auto TDP (observed): it would have averaged {g.AverageLimit:0} W, but the chip's power can't be read, so it couldn't tell how much the game really needs.";
+        }
+        else if (g.Summary() is { } p)
+            AutoTdpReport = $"Auto TDP: {AutoTdpTarget} FPS held at {p.Min}–{p.Max} W (usually {p.Typical} W), {g.AverageLimit:0} W on average.";
+        if (AutoTdpReport is not null) Trace?.Invoke(AutoTdpReport);
     }
 
     private void Note(string text, int seconds = 4)
@@ -360,7 +425,18 @@ public sealed class GameSession(
             Status?.Invoke(powerSet ? $"Power limit {watts} W" + (original is not null ? $" (was {original.StapmW:0} W)" : "") : "Couldn't set the power limit (RyzenAdj failed)");
         }
         if (powerSet) lock (_capLock) _livePower = PowerWatts;
-        if (powerSet && LivePowerTuning && Cap is > 0 and { } powerTarget)
+        if (AutoTdp != AutoTdpMode.Off && Cap is > 0 and { } autoTarget && (powerSet || AutoTdp == AutoTdpMode.Observe))
+        {
+            _autoSimulated = AutoTdp == AutoTdpMode.Observe;
+            var startWatts = _autoSimulated ? (int)Math.Round(RyzenAdj?.Read()?.StapmW ?? 45) : PowerWatts!.Value;
+            _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated);
+            AutoTdpTarget = autoTarget;
+            Status?.Invoke(_autoSimulated
+                ? $"Auto TDP is watching (not changing anything): it logs the power it would use to hold {autoTarget} FPS"
+                : $"Auto TDP on: holding {autoTarget} FPS with the least power ({AutoTdpMinWatts}–{AutoTdpMaxWatts} W), starting at {_auto.Current} W");
+            OpenAutoCsv();
+        }
+        else if (powerSet && LivePowerTuning && Cap is > 0 and { } powerTarget)
         {
             _powerGov = new PowerGovernor(PowerWatts!.Value, PowerMinWatts, PowerMaxWatts, powerTarget);
             LearnedTarget = powerTarget;
@@ -500,6 +576,26 @@ public sealed class GameSession(
                     }
                 }
 
+                // Auto TDP: raise fast when frames dip at the limit, creep down while the target is held with room to spare.
+                if (_auto is { } ag && idleGov is not { Idle: true } && BenchmarkSecondsLeft() is null)
+                {
+                    var (frames, avg, low) = fps.PrimaryRecorder?.RecentStats(6) ?? (0, 0, 0);
+                    var hot = Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
+                    var sample = new AutoTdpSample(frames, avg, low, r.Watts, hot > 0 ? hot : null, currentGuard?.IsThrottling == true);
+                    var before = ag.Current;
+                    var decision = ag.Update(sample, DateTime.UtcNow);
+                    WriteAutoCsv(start, before, sample, decision);
+                    if (decision is { } dec)
+                    {
+                        Trace?.Invoke("Auto TDP" + (_autoSimulated ? " (observing, not applied)" : "") + ": " + dec.Reason);
+                        if (!_autoSimulated && dec.Watts is { } nw && RyzenAdj!.Apply(nw, PowerMaxWatts))
+                        {
+                            lock (_capLock) _livePower = nw;
+                            Note($"TDP {nw} W");
+                        }
+                    }
+                }
+
                 // Live power tuning: the governor follows the target unless the thermal guard or idle cap is in charge.
                 if (_powerGov is { } gov && currentGuard is not { IsThrottling: true } && idleGov is not { Idle: true } && BenchmarkSecondsLeft() is null)
                 {
@@ -516,7 +612,21 @@ public sealed class GameSession(
                 // Vendor apps sometimes re-apply their own power limit; re-assert ours every minute.
                 int? livePower;
                 lock (_capLock) livePower = _livePower;
-                if (powerSet && tick % 30 == 0 && livePower is { } lp) RyzenAdj!.Apply(lp, PowerMaxWatts);
+                if (_auto is not null && !_autoSimulated && powerSet && tick % 8 == 0 && livePower is { } al)
+                {
+                    // Auto TDP changes the limit often, so check every ~16 s that nothing else (OneXConsole's own per-game
+                    // TDP) has changed it back; put ours back, and say so once if it keeps happening.
+                    if (RyzenAdj!.Read() is { } actual && Math.Abs(actual.StapmW - al) > 1.5)
+                    {
+                        RyzenAdj.Apply(al, PowerMaxWatts);
+                        if (++_autoOverrides >= 2 && !_autoWarned)
+                        {
+                            _autoWarned = true;
+                            Status?.Invoke("Something else keeps changing the power limit (probably OneXConsole's per-game TDP). Turn that off for this game so Auto TDP stays in charge.");
+                        }
+                    }
+                }
+                else if (powerSet && tick % 30 == 0 && livePower is { } lp) RyzenAdj!.Apply(lp, PowerMaxWatts);
 
                 if (AutoBenchmark is { } ab && !_autoBenchStarted && DateTimeOffset.Now - start >= TimeSpan.FromSeconds(ab.Warmup) - _sleep.Asleep)
                 {
@@ -557,6 +667,7 @@ public sealed class GameSession(
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
             rtss!.SetFramerateLimit(renderExe, _quickCap ?? (hadCap && game.FpsTarget is { } original ? original : 0));
         }
+        FinishAutoTdp();
         if (powerSet) RyzenAdj!.Restore();
         cooling?.Restore();
         if (amdApplied) await Task.Run(() => AmdFeatures.RestoreAfterSession(paths));
@@ -579,7 +690,7 @@ public sealed class GameSession(
         summary.AvgGpuTempC = gpuSamples > 0 ? sumGpu / gpuSamples : null;
         summary.TempAlerts = alerts;
         summary.AvgGpuLoad = gpuLoadSamples > 0 ? gpuLoadSum / gpuLoadSamples : null;
-        summary.PowerWatts = powerSet ? LearnedWatts ?? PowerWatts : null; // the lowest that held, when tuned live
+        summary.PowerWatts = _auto is { } done && !_autoSimulated ? (int)Math.Round(done.AverageLimit) : powerSet ? LearnedWatts ?? PowerWatts : null; // the lowest that held, when tuned live
         summary.LimiterMode = LimiterMode;
         summary.AsleepSeconds = Math.Round(_sleep.Asleep.TotalSeconds);
 
