@@ -99,6 +99,26 @@ public sealed class ModService(AppServices s)
         }
     }
 
+    // ---- guided Nexus installs for free accounts: one files page at a time, requirements first
+    private readonly Dictionary<Guid, List<(long Id, string Name)>> _nexusQueue = [];
+
+    public void QueueNexus(Game g, IEnumerable<(long Id, string Name)> mods)
+    {
+        lock (_nexusQueue) _nexusQueue[g.Id] = [.. mods];
+    }
+
+    /// <summary>Marks a Nexus mod as installed; returns the next one to open and how many are left, or null when done / not queued.</summary>
+    public ((long Id, string Name) Next, int Left)? AdvanceNexus(Game g, long installedId, out bool finished)
+    {
+        finished = false;
+        lock (_nexusQueue)
+        {
+            if (!_nexusQueue.TryGetValue(g.Id, out var q) || q.RemoveAll(x => x.Id == installedId) == 0) return null;
+            if (q.Count == 0) { _nexusQueue.Remove(g.Id); finished = true; return null; }
+            return (q[0], q.Count);
+        }
+    }
+
     public void SetEnabled(Game g, InstalledMod mod, bool on)
     {
         lock (_lock)

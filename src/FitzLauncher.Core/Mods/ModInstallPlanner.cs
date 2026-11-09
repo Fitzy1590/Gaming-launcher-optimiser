@@ -75,6 +75,9 @@ public static class ModInstallPlanner
             var top = tops[0];
             if (IsRootMarker(top, existsInGame) || (layout.DataDir is not null && BethesdaContent.Contains(top))) break;
             if (layout.Framework == ModFramework.Unity && top is "plugins" or "patchers" or "config") break;
+            // Witcher 3: modXxx / dlcXxx / content are the mod's real folders, not a wrapper.
+            if (layout.Framework == ModFramework.Witcher3 && (top.Equals("content", StringComparison.OrdinalIgnoreCase)
+                || (top.StartsWith("mod", StringComparison.OrdinalIgnoreCase) || top.StartsWith("dlc", StringComparison.OrdinalIgnoreCase)) && rel.All(e => e.StartsWith(top + "/content/", StringComparison.OrdinalIgnoreCase)))) break;
             if (rel.Any(e => e.Equals(top + "/Scripts/main.lua", StringComparison.OrdinalIgnoreCase) || e.Equals(top + "/dlls/main.dll", StringComparison.OrdinalIgnoreCase)) && layout.Ue4ssModsDir is not null)
             {
                 wrapperName = top; // a UE4SS mod: its folder name is the mod name
@@ -111,6 +114,12 @@ public static class ModInstallPlanner
             plan.Notes.Add($"UE4SS mod: add \"{safeName} : 1\" to Mods/mods.txt if it doesn't load (newer UE4SS loads enabled.txt automatically).");
             plan.Files.Add(new PlannedFile("", Join(plan.TargetRoot, "enabled.txt"))); // empty marker file
         }
+        else if (layout.Framework == ModFramework.Witcher3 && topFolders.Count > 0 && topFolders.All(t => t.StartsWith("mod", StringComparison.OrdinalIgnoreCase)))
+            Place("mods", "Witcher 3 mods folder");
+        else if (layout.Framework == ModFramework.Witcher3 && topFolders.Count > 0 && topFolders.All(t => t.StartsWith("dlc", StringComparison.OrdinalIgnoreCase)))
+            Place("dlc", "Witcher 3 dlc folder");
+        else if (layout.Framework == ModFramework.Witcher3 && topFolders.Contains("content"))
+            Place($"mods/mod{new string(safeName.Where(char.IsLetterOrDigit).ToArray())}", "Witcher 3 mods folder"); // the game only loads folders starting with "mod"
         else if (layout.Framework == ModFramework.Cyberpunk && looseExt.Overlaps([".archive", ".xl"]) && topFolders.Count == 0)
             Place("archive/pc/mod", "archive/pc/mod");
         else if (layout.Framework == ModFramework.Cyberpunk && looseExt.Contains(".reds"))
@@ -193,6 +202,8 @@ public static class ModInstallPlanner
             if (l.StartsWith("r6/scripts/") && l.EndsWith(".reds")) set.Add("redscript");
             if (l.StartsWith("bin/x64/plugins/cyber_engine_tweaks/mods/")) set.Add("Cyber Engine Tweaks");
             if (l.StartsWith("red4ext/plugins/")) set.Add("RED4ext");
+            if (l.StartsWith("archive/pc/mod/") && l.EndsWith(".xl")) set.Add("ArchiveXL");
+            if (l.StartsWith("r6/tweaks/")) set.Add("TweakXL");
             if (l.StartsWith("mods/") && l.EndsWith(".dll") && layout.Loaders.Contains("MelonLoader")) set.Add("MelonLoader");
         }
         // A mod that IS the loader doesn't require itself.
@@ -204,6 +215,9 @@ public static class ModInstallPlanner
             if (d.StartsWith("BepInEx/core/", StringComparison.OrdinalIgnoreCase)) set.Remove("BepInEx");
             if (name == "ue4ss.dll") set.Remove("UE4SS");
             if (name == "cyber_engine_tweaks.asi") { set.Remove("Cyber Engine Tweaks"); set.Remove("ASI Loader"); }
+            if (name == "red4ext.dll") set.Remove("RED4ext");
+            if (name == "archivexl.dll") { set.Remove("ArchiveXL"); set.Remove("RED4ext"); }
+            if (name == "tweakxl.dll") { set.Remove("TweakXL"); set.Remove("RED4ext"); }
         }
         return set;
     }

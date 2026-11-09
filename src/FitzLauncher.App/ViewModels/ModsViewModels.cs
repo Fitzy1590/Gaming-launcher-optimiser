@@ -409,6 +409,7 @@ public sealed partial class ModsViewModel : ObservableObject
         ShowIssues(issues);
         var mine = issues.Where(i => i.ModId == installed.Id && i.Severity == IssueSeverity.Error).ToList();
         Status = $"Installed {installed.Name} → {plan.TargetLabel}." + (mine.Count > 0 ? $" Problem: {mine[0].Title}. See Check." : "");
+        if (installed.Source == ModSource.Nexus) AdvanceNexusQueue(installed);
     }
 
     // ------------------------------------------------------------------ installed list

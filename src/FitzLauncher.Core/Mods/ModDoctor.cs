@@ -140,11 +140,70 @@ public static partial class ModCompatibility
         foreach (var m in enabled.Where(m => m.Files.Count > 0 && !File.Exists(c.StagedPath(m, m.Files[0]))))
             issues.Add(new(IssueSeverity.Warning, $"{m.Name}: files missing", "The launcher's copy of this mod is gone, so it can't be turned off cleanly.", m.Id, "Reinstall it."));
 
+        // ---- game-specific
+        if (layout.Framework == ModFramework.Witcher3) issues.AddRange(Witcher3(c.GameRoot));
+        if (layout.Framework == ModFramework.Cyberpunk) issues.AddRange(Cyberpunk(c.GameRoot));
+
         // ---- overlaps between mods (normal, but worth knowing which one wins)
         foreach (var g in ModDeployer.Conflicts(enabled).GroupBy(x => (x.Winner, Loser: x.Overridden[0])))
             issues.Add(new(IssueSeverity.Info, $"{g.Key.Winner.Name} overrides {g.Key.Loser.Name}", $"{g.Count()} file(s) are in both; {g.Key.Winner.Name} wins because it's later in the list.", g.Key.Loser.Id, "Move a mod up or down to change which one wins."));
 
         return [.. issues.OrderByDescending(i => i.Severity)];
+    }
+
+    public const string ScriptMergerUrl = "https://www.nexusmods.com/witcher3/mods/484";
+
+    /// <summary>
+    /// The Witcher 3: mods that change the same script (.ws) or XML file conflict and only one works unless they're
+    /// merged with Script Merger (its merged mod is mod0000_MergedFiles). Folders not starting with "mod" are ignored
+    /// by the game. Reads the game's mods folder, so it also covers mods installed by hand.
+    /// </summary>
+    public static IEnumerable<ModIssue> Witcher3(string gameRoot)
+    {
+        var modsDir = Path.Combine(gameRoot, "mods");
+        if (!Directory.Exists(modsDir)) yield break;
+        var owners = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        HashSet<string> merged = new(StringComparer.OrdinalIgnoreCase);
+        foreach (var dir in SafeDirectories(modsDir))
+        {
+            var name = Path.GetFileName(dir);
+            if (!name.StartsWith("mod", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return new(IssueSeverity.Warning, $"\"{name}\" won't load", "The Witcher 3 only loads folders in mods/ whose names start with \"mod\".", Fix: $"Rename it to mod{name}.");
+                continue;
+            }
+            var content = Path.Combine(dir, "content");
+            if (!Directory.Exists(content)) continue;
+            foreach (var f in SafeFilesDeep(content).Where(f => f.EndsWith(".ws", StringComparison.OrdinalIgnoreCase) || f.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)))
+            {
+                var rel = Path.GetRelativePath(content, f);
+                if (name.Equals("mod0000_MergedFiles", StringComparison.OrdinalIgnoreCase)) { merged.Add(rel); continue; }
+                (owners.TryGetValue(rel, out var l) ? l : owners[rel] = []).Add(name);
+            }
+        }
+        var conflicts = owners.Where(kv => kv.Value.Count > 1 && !merged.Contains(kv.Key)).ToList();
+        foreach (var group in conflicts.GroupBy(kv => string.Join(" + ", kv.Value.Order())).Take(10))
+            yield return new(IssueSeverity.Warning, $"Script conflict: {group.Key}",
+                $"{group.Count()} file(s) changed by more than one mod (e.g. {Path.GetFileName(group.First().Key)}); only one version works until they're merged.",
+                Fix: $"Run Script Merger ({ScriptMergerUrl}) and merge them; run it again after adding or removing script mods.");
+    }
+
+    /// <summary>Cyberpunk 2077: mods still in the pre-1.1 archive/pc/patch folder.</summary>
+    public static IEnumerable<ModIssue> Cyberpunk(string gameRoot)
+    {
+        var patch = Path.Combine(gameRoot, "archive", "pc", "patch");
+        if (Directory.Exists(patch) && SafeFilesDeep(patch).Any(f => f.EndsWith(".archive", StringComparison.OrdinalIgnoreCase)))
+            yield return new(IssueSeverity.Warning, "Mods in archive/pc/patch", "That's the old mod folder; current mods go in archive/pc/mod and old ones there can break the game.", Fix: "Move the .archive files to archive/pc/mod (or reinstall those mods).");
+    }
+
+    private static IEnumerable<string> SafeDirectories(string dir)
+    {
+        try { return Directory.GetDirectories(dir); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return []; }
+    }
+
+    private static IEnumerable<string> SafeFilesDeep(string dir)
+    {
+        try { return Directory.GetFiles(dir, "*", SearchOption.AllDirectories); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { return []; }
     }
 
     public static IEnumerable<string> ProvidedLoaders(InstalledMod m)
@@ -160,6 +219,9 @@ public static partial class ModCompatibility
             else if (n is "cyber_engine_tweaks.asi") yield return "Cyber Engine Tweaks";
             else if (n is "red4ext.dll") yield return "RED4ext";
             else if (n is "scc.exe") yield return "redscript";
+            else if (n is "archivexl.dll") yield return "ArchiveXL";
+            else if (n is "tweakxl.dll") yield return "TweakXL";
+            else if (n is "codeware.dll") yield return "Codeware";
             else if (n is "scripthookv.dll") yield return "Script Hook V";
             else if (f.StartsWith("BepInEx/core/", StringComparison.OrdinalIgnoreCase)) yield return "BepInEx";
             else if (f.StartsWith("MelonLoader/", StringComparison.OrdinalIgnoreCase)) yield return "MelonLoader";

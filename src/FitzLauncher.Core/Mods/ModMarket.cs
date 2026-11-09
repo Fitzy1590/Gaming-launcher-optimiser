@@ -151,9 +151,19 @@ public static class ModPreInstallCheck
             foreach (var e in plan.External) Bump(CompatVerdict.Check, $"Needs {e.Name} from outside Nexus{(e.Url is { } u ? $" ({u})" : "")}.");
             foreach (var d in plan.Dlc) Bump(CompatVerdict.Check, $"Needs the {d} DLC.");
         }
-        if (modUpdated is { } mu && gameUpdated is { } gu && gu > mu.AddDays(2))
+        // Big updates that broke most older mods: Witcher 3 next-gen (4.0) and Cyberpunk 2.0.
+        if (modUpdated is { } m0 && gameUpdated is { } g0 && BigUpdate(layout.Framework) is { } big && g0 >= big.Date && m0 < big.Date)
+            Bump(CompatVerdict.Check, $"Last updated before {big.Name} ({big.Date:MMM yyyy}); your game is newer, so check the mod page says it works with {big.Name}.");
+        else if (modUpdated is { } mu && gameUpdated is { } gu && gu > mu.AddDays(2))
             Bump(CompatVerdict.Check, $"The game was updated ({gu:d MMM yyyy}) after this mod's last update ({mu:d MMM yyyy}); if it uses a script extender or DLLs, check the comments for an update.");
         if (reasons.Count == 0) reasons.Add("No requirements or known conflicts with this game install.");
         return new CompatReport(verdict, reasons);
     }
+
+    private static (string Name, DateTimeOffset Date)? BigUpdate(ModFramework f) => f switch
+    {
+        ModFramework.Witcher3 => ("the next-gen update 4.0", new DateTimeOffset(2022, 12, 14, 0, 0, 0, TimeSpan.Zero)),
+        ModFramework.Cyberpunk => ("update 2.0", new DateTimeOffset(2023, 9, 21, 0, 0, 0, TimeSpan.Zero)),
+        _ => null,
+    };
 }

@@ -36,6 +36,7 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 - [x] **Handheld wattage** (`PowerGovernor`, `Game.PowerByTarget`): Optimise turns on power control on APUs, W per target applied at launch, tuned live (+3/−2 W), learned minimum saved, original restored at exit. Not yet confirmed on device. Verify: `--filter BaselineAndPowerTests`; on Windows, `ryzenadj --info` before = after the session
 
 - [x] Mods marketplace (Nexus): rankings (most downloaded / endorsed / popular this month / recently updated / newest), load more, per-mod compatibility check, one-click install with recursive requirements (Premium direct; free via Mod Manager Download pages), tracked mods + track installed + endorse, pre-launch check with auto-repair. Not yet confirmed on device. Verify: `--filter ModMarketTests`; on Windows, Find mods → Nexus → Install on a mod with requirements installs them first
+- [x] Witcher 3 / Cyberpunk mod support: W3 mods/dlc placement, Script Merger conflict detection (mod0000_MergedFiles aware), unloaded folder names, pre-next-gen warning; CP2077 ArchiveXL/TweakXL/Codeware requirements, archive/pc/patch warning, pre-2.0 warning; free-account guided install queue. Not yet confirmed on device. Verify: `--filter GameSpecificModTests`
 - [ ] Nexus SSO login (needs an application slug from Nexus support; personal API key used meanwhile)
 
 ## 3. Backlog

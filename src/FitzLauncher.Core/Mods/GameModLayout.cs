@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace FitzLauncher.Core.Mods;
 
-public enum ModFramework { Generic, Bethesda, Unreal, Unity, Cyberpunk }
+public enum ModFramework { Generic, Bethesda, Unreal, Unity, Cyberpunk, Witcher3 }
 
 /// <summary>
 /// How a game takes mods: engine family, where mod files go, and which mod loaders are installed.
@@ -81,6 +81,12 @@ public sealed partial class GameModLayout
         if (Has("bin/x64/plugins/cyber_engine_tweaks")) loaders.Add("Cyber Engine Tweaks");
         if (Has("red4ext")) loaders.Add("RED4ext");
         if (Has("engine/tools/scc.exe")) loaders.Add("redscript");
+        if (Has("red4ext/plugins/ArchiveXL")) loaders.Add("ArchiveXL");
+        if (Has("red4ext/plugins/TweakXL")) loaders.Add("TweakXL");
+        if (Has("red4ext/plugins/Codeware")) loaders.Add("Codeware");
+
+        // The Witcher 3 (classic and next-gen DX11/DX12 exes): mods in mods/modXxx, DLC in dlc/dlcXxx
+        if (Has("bin/x64/witcher3.exe") || Has("bin/x64_dx12/witcher3.exe")) framework = ModFramework.Witcher3;
 
         // Unity
         if (Has(InExe("UnityPlayer.dll")) || SafeDirs(Path.Combine(gameRoot, exeDir)).Any(d => d.EndsWith("_Data", StringComparison.OrdinalIgnoreCase) && File.Exists(Path.Combine(d, "globalgamemanagers"))))

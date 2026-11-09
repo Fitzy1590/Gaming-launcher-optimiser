@@ -92,9 +92,15 @@ public sealed partial class ModsViewModel
 
         if (!(await Nexus.ValidateAsync()).IsPremium)
         {
-            foreach (var (id, _) in toInstall) Open(NexusClient.FilesUrl(Domain, id.ToString()));
-            Status = $"Free account: opened {toInstall.Count} Nexus page(s). Click \"Mod Manager Download\" on each (requirements first) and Fitz installs them.";
+            // Free account: Nexus needs a click per file, so walk through them one page at a time.
+            if (!_s.Settings.NxmHandler)
+                throw new StoreException("Turn on \"Open Nexus Mod Manager Download links in Fitz Launcher\" in Settings → Mods first, so Fitz can pick up each download.");
+            _s.Mods.QueueNexus(Game, toInstall);
+            Open(NexusClient.FilesUrl(Domain, toInstall[0].ModId.ToString()));
             foreach (var e in plan.External.Where(e => e.Url is not null)) Open(e.Url!);
+            Status = toInstall.Count == 1
+                ? $"Opened {toInstall[0].Name} on Nexus: click \"Mod Manager Download\" (Slow download is fine) and Fitz installs it."
+                : $"Step 1 of {toInstall.Count}: opened {toInstall[0].Name} on Nexus. Click \"Mod Manager Download\"; when it's installed Fitz opens the next one.";
             return;
         }
         var done = 0;
@@ -116,6 +122,18 @@ public sealed partial class ModsViewModel
         row.IsInstalled = true;
         Status = $"Installed {row.Name}" + (toInstall.Count > 1 ? $" and {toInstall.Count - 1} requirement(s)" : "") + "." + (plan.External.Count > 0 ? " Opened the pages for tools from outside Nexus." : "");
     });
+
+    /// <summary>Free-account queue: after each install, open the next mod's Nexus page.</summary>
+    private void AdvanceNexusQueue(InstalledMod mod)
+    {
+        if (!long.TryParse(mod.SourceId, out var id) || Game.ModSetup.NexusDomain is not { } domain) return;
+        if (_s.Mods.AdvanceNexus(Game, id, out var finished) is { } step)
+        {
+            Open(NexusClient.FilesUrl(domain, step.Next.Id.ToString()));
+            Status += $" Next: {step.Next.Name} ({step.Left} left) is open on Nexus: click \"Mod Manager Download\".";
+        }
+        else if (finished) Status += " That was the last one: everything it needs is installed.";
+    }
 
     /// <summary>After any Nexus install: remember its requirements (for the launch check) and track it on Nexus.</summary>
     private async Task AfterNexusInstallAsync(InstalledMod mod)
