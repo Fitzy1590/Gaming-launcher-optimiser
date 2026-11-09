@@ -21,6 +21,11 @@ public sealed class EmulatorSource
     public string? PortableMarker { get; set; }
     /// <summary>Folders kept in the shared data folder so updates never touch them.</summary>
     public string[] DataDirs { get; set; } = [];
+    /// <summary>Command line; <c>{rom}</c> is replaced by the game's path. Starts the game in full screen where the emulator supports it.</summary>
+    public string ArgsTemplate { get; set; } = "\"{rom}\"";
+    /// <summary>Id of the emulator that replaced this one (this one is no longer updated).</summary>
+    public string? SupersededBy { get; set; }
+    public string? SupersededReason { get; set; }
     /// <summary>False until the repo, asset pattern and folders were checked against the live project.</summary>
     public bool Verified { get; set; }
 }
@@ -38,24 +43,24 @@ public static class EmulatorSources
     // Everything here comes from SPEC.md §1.1 (written from memory) so Verified stays false until stage E2 checks it.
     public static IReadOnlyList<EmulatorSource> Defaults { get; } =
     [
-        new() { Id = "pcsx2", Name = "PCSX2", Platforms = [EmuPlatform.PlayStation2], ExeNames = ["pcsx2-qt.exe"], Type = EmulatorSourceType.GitHub,
+        new() { Id = "pcsx2", ArgsTemplate = "-batch -fullscreen -- \"{rom}\"", Name = "PCSX2", Platforms = [EmuPlatform.PlayStation2], ExeNames = ["pcsx2-qt.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "PCSX2/pcsx2", AssetPattern = @"windows.*x64.*\.(7z|zip)$", PortableMarker = "portable.ini", DataDirs = ["inis", "memcards", "sstates", "cache"] },
-        new() { Id = "rpcs3", Name = "RPCS3", Platforms = [EmuPlatform.PlayStation3], ExeNames = ["rpcs3.exe"], Type = EmulatorSourceType.GitHub,
+        new() { Id = "rpcs3", ArgsTemplate = "--no-gui \"{rom}\"", Name = "RPCS3", Platforms = [EmuPlatform.PlayStation3], ExeNames = ["rpcs3.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "RPCS3/rpcs3-binaries-win", AssetPattern = @"win64.*\.(7z|zip)$" },
-        new() { Id = "ppsspp", Name = "PPSSPP", Platforms = [EmuPlatform.PSP], ExeNames = ["PPSSPPWindows64.exe", "PPSSPPWindows.exe"], Type = EmulatorSourceType.Manual,
+        new() { Id = "ppsspp", ArgsTemplate = "\"{rom}\" --fullscreen", Name = "PPSSPP", Platforms = [EmuPlatform.PSP], ExeNames = ["PPSSPPWindows64.exe", "PPSSPPWindows.exe"], Type = EmulatorSourceType.Manual,
                 PortableMarker = "memstick", DataDirs = ["memstick"] },
-        new() { Id = "dolphin", Name = "Dolphin", Platforms = [EmuPlatform.GameCube, EmuPlatform.Wii], ExeNames = ["Dolphin.exe"], Type = EmulatorSourceType.Website,
+        new() { Id = "dolphin", ArgsTemplate = "-b -e \"{rom}\"", Name = "Dolphin", Platforms = [EmuPlatform.GameCube, EmuPlatform.Wii], ExeNames = ["Dolphin.exe"], Type = EmulatorSourceType.Website,
                 PortableMarker = "portable.txt", DataDirs = ["User"] },
-        new() { Id = "lime3ds", Name = "Lime3DS", Platforms = [EmuPlatform.Nintendo3DS], ExeNames = ["lime3ds.exe", "lime-qt.exe"], Type = EmulatorSourceType.GitHub,
+        new() { Id = "lime3ds", ArgsTemplate = "-f \"{rom}\"", SupersededBy = "azahar", SupersededReason = "Lime3DS is no longer updated; Azahar is the maintained 3DS emulator.", Name = "Lime3DS", Platforms = [EmuPlatform.Nintendo3DS], ExeNames = ["lime3ds.exe", "lime-qt.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "Lime3DS/lime3ds-archive", AssetPattern = @"windows.*\.(7z|zip)$", DataDirs = ["user"] },
-        new() { Id = "azahar", Name = "Azahar", Platforms = [EmuPlatform.Nintendo3DS], ExeNames = ["azahar.exe", "azahar-qt.exe"], Type = EmulatorSourceType.GitHub,
+        new() { Id = "azahar", ArgsTemplate = "-f \"{rom}\"", Name = "Azahar", Platforms = [EmuPlatform.Nintendo3DS], ExeNames = ["azahar.exe", "azahar-qt.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "azahar-emu/azahar", AssetPattern = @"windows.*\.(7z|zip)$", DataDirs = ["user"] },
         new() { Id = "xenia-canary", Name = "Xenia Canary", Platforms = [EmuPlatform.Xbox360], ExeNames = ["xenia_canary.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "xenia-canary/xenia-canary-releases", AssetPattern = @"\.zip$", PortableMarker = "portable.txt", DataDirs = ["content"] },
         // Switch and Project64 sources are picked and checked at their own stages; until then the user points at the exe.
-        new() { Id = "ryubing", Name = "Ryujinx (Ryubing fork)", Platforms = [EmuPlatform.Switch], ExeNames = ["Ryujinx.exe"], Type = EmulatorSourceType.Manual, DataDirs = ["portable"] },
-        new() { Id = "yuzu-fork", Name = "Yuzu-style fork", Platforms = [EmuPlatform.Switch], ExeNames = ["yuzu.exe", "eden.exe"], Type = EmulatorSourceType.Manual, DataDirs = ["user"] },
-        new() { Id = "rmg", Name = "Rosalie's Mupen GUI", Platforms = [EmuPlatform.N64], ExeNames = ["RMG.exe"], Type = EmulatorSourceType.GitHub,
+        new() { Id = "ryubing", ArgsTemplate = "-f \"{rom}\"", Name = "Ryujinx (Ryubing fork)", Platforms = [EmuPlatform.Switch], ExeNames = ["Ryujinx.exe"], Type = EmulatorSourceType.Manual, DataDirs = ["portable"] },
+        new() { Id = "yuzu-fork", ArgsTemplate = "-f -g \"{rom}\"", Name = "Yuzu-style fork", Platforms = [EmuPlatform.Switch], ExeNames = ["yuzu.exe", "eden.exe"], Type = EmulatorSourceType.Manual, DataDirs = ["user"] },
+        new() { Id = "rmg", ArgsTemplate = "-f \"{rom}\"", Name = "Rosalie's Mupen GUI", Platforms = [EmuPlatform.N64], ExeNames = ["RMG.exe"], Type = EmulatorSourceType.GitHub,
                 Repo = "Rosalie241/RMG", AssetPattern = @"windows.*\.(7z|zip)$" },
         new() { Id = "project64", Name = "Project64", Platforms = [EmuPlatform.N64], ExeNames = ["Project64.exe"], Type = EmulatorSourceType.Manual },
     ];

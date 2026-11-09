@@ -270,6 +270,10 @@ public sealed class EmulationSettings
     /// <summary>Where downloaded emulators live (versions\, data\, mods-library\). Empty = the launcher's data folder.</summary>
     public string EmuRoot { get; set; } = "";
     public List<string> ScanFolders { get; set; } = [];
+    /// <summary>Emulator id → the program the user picked or Fitz found.</summary>
+    public Dictionary<string, string> EmulatorPaths { get; set; } = [];
+    /// <summary>Platform name (EmuPlatform) → folders holding that console's games.</summary>
+    public Dictionary<string, List<string>> RomFolders { get; set; } = [];
     public int CheckIntervalHours { get; set; } = 6;
     /// <summary>"stable" or "nightly" per emulator id; missing = stable.</summary>
     public Dictionary<string, string> Channels { get; set; } = [];

@@ -58,6 +58,8 @@
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Library}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Mods"
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Mods}" />
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Emulation"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Emulation}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Storage"
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Storage}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Hardware"
@@ -331,6 +333,8 @@
                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Sessions}" />
             <views:HomeView Grid.Row="3" DataContext="{Binding Home}"
                             Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Home}" />
+            <views:EmulationView Grid.Row="3" DataContext="{Binding Emulation}"
+                                 Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Emulation}" />
             <views:StorageView Grid.Row="3" DataContext="{Binding Storage}"
                                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Storage}" />
             <views:AboutView Grid.Row="3"

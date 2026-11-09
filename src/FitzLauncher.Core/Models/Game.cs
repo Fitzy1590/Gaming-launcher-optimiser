@@ -30,6 +30,11 @@ public sealed class Game
     /// <summary>Serial or title ID read from the dump (matching and mods).</summary>
     public string? TitleId { get; set; }
     public List<string> Collections { get; set; } = [];
+    /// <summary>How this game has run on each emulator (key = emulator id).</summary>
+    public Dictionary<string, FitzLauncher.Core.Emulation.EmuPerfRecord> EmuPerf { get; set; } = [];
+    public FitzLauncher.Core.Emulation.EmuTuningState EmuTuning { get; set; } = new();
+    /// <summary>Move the quality up or down after each session to hold the FPS target.</summary>
+    public bool EmuAutoTune { get; set; }
     /// <summary>Tuning preset last applied to this game's emulator settings.</summary>
     public string? TuningPreset { get; set; }
 

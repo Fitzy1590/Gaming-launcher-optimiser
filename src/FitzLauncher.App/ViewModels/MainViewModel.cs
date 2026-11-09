@@ -13,7 +13,7 @@ using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About }
+public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About, Emulation }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -29,6 +29,7 @@ public sealed partial class MainViewModel : ObservableObject
     public SettingsViewModel Settings { get; }
     public HomeViewModel Home { get; }
     public StorageViewModel Storage { get; }
+    public EmulationViewModel Emulation { get; }
     public ModsOverviewViewModel ModsOverview { get; }
     public AppServices Services => _s;
 
@@ -170,6 +171,7 @@ public sealed partial class MainViewModel : ObservableObject
         Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
         Home = new HomeViewModel(services, this);
         Storage = new StorageViewModel(services, this);
+        Emulation = new EmulationViewModel(services, this);
         ModsOverview = new ModsOverviewViewModel(services, OpenMods);
         if (Games.Count == 0) _page = Page.Library;
         Home.Reload();
@@ -247,6 +249,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (value == Page.Home) Home.Reload();
         if (value == Page.Mods) ModsOverview.Reload();
         if (value == Page.Storage) _ = Storage.ReloadAsync();
+        if (value == Page.Emulation) Emulation.Reload();
         Hardware.SetVisible(value == Page.Hardware);
     }
 
@@ -296,6 +299,33 @@ public sealed partial class MainViewModel : ObservableObject
         if (added.Count > 1) ShowToast($"Added {added.Count} games. Fetching artwork in the background…");
 
         // Artwork in the background, a few at a time; the cards show initials until it arrives.
+        using var gate = new SemaphoreSlim(4);
+        await Task.WhenAll(added.Select(async vm =>
+        {
+            await gate.WaitAsync();
+            try { await FetchArtworkAsync(vm); }
+            finally { gate.Release(); }
+        }));
+        return added.Count;
+    }
+
+    /// <summary>Adds emulator games (they share one program, so they are told apart by game file, not by exe).</summary>
+    public async Task<int> AddEmulationGamesAsync(IEnumerable<Game> games)
+    {
+        var added = new List<GameViewModel>();
+        foreach (var game in games)
+        {
+            if (_s.Library.Games.Any(g => g.RomPath is not null && g.RomPath.Equals(game.RomPath, StringComparison.OrdinalIgnoreCase))) continue;
+            _s.Library.Games.Add(game);
+            var vm = new GameViewModel(game);
+            Games.Add(vm);
+            added.Add(vm);
+        }
+        if (added.Count == 0) return 0;
+        _s.SaveLibrary();
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(LibraryCount));
+        RefreshLibraryMeta();
         using var gate = new SemaphoreSlim(4);
         await Task.WhenAll(added.Select(async vm =>
         {
@@ -388,6 +418,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (IsPlaying) { ShowToast("A game is already running."); return; }
         if (!File.Exists(vm.Game.ExePath)) { ShowToast($"Can't find {vm.Game.ExePath}. Use Edit to fix the path."); return; }
+        if (vm.Game.Platform is not null && await Task.Run(() => Emulation.Service.PrepareLaunch(vm.Game)) is { } emuProblem) ShowToast(emuProblem);
 
         // Mods: repair what can be repaired, then ask before launching with problems left.
         if (!SafeMode && _s.Settings.ModLaunchCheck && vm.Game.ModSetup.Mods.Any(m => m.Enabled))
@@ -549,13 +580,14 @@ public sealed partial class MainViewModel : ObservableObject
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
+            var emuNote = Emulation.Service.AfterSession(game, summary);
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
                 autoTdp != AutoTdpMode.Off ? LearnAutoTdp(game, session, summary)
                     : coolingPlan.PowerScale < 1 ? null
                     : session.LearnedWatts is { } lw && session.LearnedTarget is { } powerTarget ? PowerTuner.LearnLive(game, powerTarget, lw, _s.Settings)
                     : PowerTuner.Learn(game, summary, _s.Settings),
-                PacingTuner.Learn(game, summary), crashNote };
+                PacingTuner.Learn(game, summary), crashNote, emuNote };
             if (session.FinalTarget is { } kept && game.CapPerDevice && screen is not null)
             {
                 DeviceCaps.Save(game, Environment.MachineName, screen, kept);
