@@ -76,6 +76,12 @@ public sealed class LauncherSettings
     /// <summary>FPS counters hidden with PS + Right (FPS is still recorded).</summary>
     public bool OverlayHiddenByPad { get; set; }
 
+    // ---- game help (AI Game Companion)
+    /// <summary>Open AI Game Companion with every game.</summary>
+    public bool GameHelpWithGames { get; set; }
+    /// <summary>Its launcher.exe when not found automatically.</summary>
+    public string? GameHelpPath { get; set; }
+
     // ---- game updates
     /// <summary>Check official sources for game updates on the first launch of each day.</summary>
     public bool GameUpdateCheckDaily { get; set; } = true;

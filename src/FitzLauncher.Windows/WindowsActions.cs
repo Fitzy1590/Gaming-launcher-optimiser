@@ -11,7 +11,7 @@ public static class WindowsActions
     // Virtual-key codes: https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes
     private const byte VK_VOLUME_MUTE = 0xAD, VK_VOLUME_DOWN = 0xAE, VK_VOLUME_UP = 0xAF, VK_MEDIA_NEXT = 0xB0, VK_MEDIA_PREV = 0xB1,
         VK_MEDIA_PLAY_PAUSE = 0xB3, VK_LWIN = 0x5B, VK_CONTROL = 0x11, VK_SHIFT = 0x10, VK_MENU = 0x12, VK_TAB = 0x09, VK_ESCAPE = 0x1B,
-        VK_SNAPSHOT = 0x2C, VK_G = 0x47, VK_D = 0x44;
+        VK_SNAPSHOT = 0x2C, VK_G = 0x47, VK_D = 0x44, VK_A = 0x41;
     private const uint KEYEVENTF_KEYUP = 0x2;
 
     [DllImport("user32.dll")] private static extern void keybd_event(byte vk, byte scan, uint flags, nuint extra);
@@ -49,6 +49,9 @@ public static class WindowsActions
             case PadAction.OpenLauncher: OpenLauncher?.Invoke(); break;
             case PadAction.TrainerOrGame: SwitchTrainerAndGame(); break;
             case PadAction.ToggleOverlay: ToggleOverlay?.Invoke(); break;
+            // AI Game Companion's fixed global hotkeys: Ctrl+Shift+G panel, Ctrl+Shift+A screenshot + question.
+            case PadAction.GameHelp: Keys(VK_CONTROL, VK_SHIFT, VK_G); break;
+            case PadAction.GameHelpAsk: Keys(VK_CONTROL, VK_SHIFT, VK_A); break;
             case PadAction.Sleep:
                 // Same as Start → Sleep (Modern Standby on handhelds). A moment's pause so the button release
                 // doesn't count as wake-up input.

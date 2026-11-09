@@ -211,6 +211,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     private OverlayEditorViewModel? _overlayEditor;
     /// <summary>The default in-game overlay layout.</summary>
     public OverlayEditorViewModel OverlayEditor => _overlayEditor ??= new OverlayEditorViewModel(_s.Settings.EffectiveOverlay, _s.SaveSettings);
+    // ---- game help (AI Game Companion)
+    public bool GameHelpWithGames { get => _s.Settings.GameHelpWithGames; set { _s.Settings.GameHelpWithGames = value; _s.SaveSettings(); OnPropertyChanged(); OnPropertyChanged(nameof(GameHelpText)); } }
+    public string GameHelpText => _s.GameHelp.Locate() is { } p
+        ? $"Found: {p}. PS + Triangle shows its panel in game (Ctrl+Shift+G); PS + another button can be set to \"ask about the screen\" (Ctrl+Shift+A)."
+        : "Not installed. Get it from its GitHub releases (free, MIT), set your AI provider in its Settings, then Choose… its launcher.exe if it isn't found.";
+
+    [RelayCommand] private static void GetGameHelp() => ModsViewModel.Open(FitzLauncher.App.Services.GameHelpService.ReleasesUrl);
+
+    [RelayCommand]
+    private void ChooseGameHelp()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Find AI Game Companion (launcher.exe)", Filter = "launcher.exe|launcher.exe|Programs (*.exe)|*.exe" };
+        if (dlg.ShowDialog() != true) return;
+        _s.Settings.GameHelpPath = dlg.FileName;
+        _s.SaveSettings();
+        OnPropertyChanged(nameof(GameHelpText));
+    }
+
     public int HibernateMinutes
     {
         get => _s.Settings.HibernateAfterMinutes;

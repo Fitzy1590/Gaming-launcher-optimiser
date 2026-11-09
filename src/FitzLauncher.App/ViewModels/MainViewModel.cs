@@ -456,6 +456,10 @@ public sealed partial class MainViewModel : ObservableObject
                 if (trainer is not null && FitzLauncher.App.Services.Mods.TrainerService.FavouritesLine(t) is { Length: > 0 } keys) session.ShowNote("Trainer: " + keys, 12);
             });
         }
+        System.Diagnostics.Process? gameHelp = null;
+        if (_s.Settings.GameHelpWithGames && !SafeMode)
+            session.Launched += () => _ = Task.Run(async () =>
+                gameHelp = await _s.GameHelp.StartWithGameAsync(() => session.GamePids, line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); }, trainerCts.Token));
         FitzLauncher.Windows.WindowsActions.TrainerAndGame = () => (trainer is { HasExited: false } tp ? tp.Id : null, session.GamePids);
         if (abTest is not null)
             session.BenchmarkCompleted += b => Ui(() =>
@@ -505,6 +509,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             trainerCts.Cancel();
             FitzLauncher.Windows.WindowsActions.TrainerAndGame = null;
+            GameHelpService.Stop(gameHelp);
             if (game.Trainer is { CloseWithGame: true }) FitzLauncher.App.Services.Mods.TrainerService.Stop(trainer);
             _session = null;
             IsPlaying = false;

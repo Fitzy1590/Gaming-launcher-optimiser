@@ -190,3 +190,16 @@ public class PadComboDefaultsTests
         Assert.Equal(PadComboSettings.CurrentDefaults, custom.DefaultsVersion);
     }
 }
+
+public class GameHelpComboTests
+{
+    [Fact]
+    public void TriangleOpensGameHelpAndKeyboardMovesToL3()
+    {
+        Assert.Equal(PadAction.GameHelp, PadComboSettings.New().ActionFor(PadSnapshot.Y));
+        var v2 = new PadComboSettings { DefaultsVersion = 2, Combos = [new() { Button = PadSnapshot.Y, Action = PadAction.OnScreenKeyboard }] };
+        v2.AddNewDefaults();
+        Assert.Equal(PadAction.GameHelp, v2.ActionFor(PadSnapshot.Y));
+        Assert.Equal(PadAction.OnScreenKeyboard, v2.ActionFor(PadSnapshot.LeftThumb));
+    }
+}

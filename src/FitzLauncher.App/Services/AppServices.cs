@@ -181,6 +181,9 @@ public sealed class AppServices : IDisposable
         return Sleep;
     }
 
+    private GameHelpService? _gameHelp;
+    public GameHelpService GameHelp => _gameHelp ??= new GameHelpService(this);
+
     private FitzLauncher.Windows.ConsoleBridge? _console;
 
     /// <summary>PS button → OneXConsole (and driving it with the Sony pad).</summary>

@@ -4,7 +4,7 @@ namespace FitzLauncher.Core.Input;
 public enum PadAction
 {
     None, VolumeUp, VolumeDown, Mute, BrightnessUp, BrightnessDown, PlayPause, NextTrack, PreviousTrack,
-    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame, ToggleOverlay, Sleep,
+    Screenshot, GameBar, OnScreenKeyboard, TaskManager, ShowDesktop, SwitchWindow, OpenLauncher, TrainerOrGame, ToggleOverlay, Sleep, GameHelp, GameHelpAsk,
 }
 
 /// <summary>One PS + button combo.</summary>
@@ -17,7 +17,7 @@ public sealed class PadCombo
 
 public sealed class PadComboSettings
 {
-    public const int CurrentDefaults = 2;
+    public const int CurrentDefaults = 3;
     /// <summary>Fresh settings (not loaded from a file).</summary>
     public static PadComboSettings New() => new() { DefaultsVersion = CurrentDefaults };
 
@@ -35,7 +35,8 @@ public sealed class PadComboSettings
         new() { Button = PadSnapshot.A, Action = PadAction.Mute },
         new() { Button = PadSnapshot.B, Action = PadAction.SwitchWindow },
         new() { Button = PadSnapshot.X, Action = PadAction.GameBar },
-        new() { Button = PadSnapshot.Y, Action = PadAction.OnScreenKeyboard },
+        new() { Button = PadSnapshot.Y, Action = PadAction.GameHelp },
+        new() { Button = PadSnapshot.LeftThumb, Action = PadAction.OnScreenKeyboard },
         new() { Button = PadSnapshot.LeftShoulder, Action = PadAction.BrightnessDown },
         new() { Button = PadSnapshot.RightShoulder, Action = PadAction.BrightnessUp },
         new() { Button = PadSnapshot.Back, Action = PadAction.Screenshot },
@@ -57,7 +58,7 @@ public sealed class PadComboSettings
     {
         // v2: PS + Left sleeps, PS + Right hides the FPS counters; brightness moved to L1/R1. Only applied when
         // those four buttons are still on the v1 defaults, so nobody's own choices are overwritten.
-        if (DefaultsVersion < CurrentDefaults)
+        if (DefaultsVersion < 2)
         {
             bool Is(ushort b, PadAction a) => ActionFor(b) == a;
             if (Is(PadSnapshot.Left, PadAction.BrightnessDown) && Is(PadSnapshot.Right, PadAction.BrightnessUp)
@@ -68,6 +69,17 @@ public sealed class PadComboSettings
                 Combos.Add(new PadCombo { Button = PadSnapshot.Right, Action = PadAction.ToggleOverlay });
                 Combos.Add(new PadCombo { Button = PadSnapshot.LeftShoulder, Action = PadAction.BrightnessDown });
                 Combos.Add(new PadCombo { Button = PadSnapshot.RightShoulder, Action = PadAction.BrightnessUp });
+            }
+            DefaultsVersion = 2;
+        }
+        // v3: PS + Triangle opens game help (AI Game Companion); the on-screen keyboard moves to PS + L3.
+        if (DefaultsVersion < 3)
+        {
+            if (ActionFor(PadSnapshot.Y) == PadAction.OnScreenKeyboard && ActionFor(PadSnapshot.LeftThumb) == PadAction.None)
+            {
+                Combos.RemoveAll(c => c.Button == PadSnapshot.Y);
+                Combos.Add(new PadCombo { Button = PadSnapshot.Y, Action = PadAction.GameHelp });
+                Combos.Add(new PadCombo { Button = PadSnapshot.LeftThumb, Action = PadAction.OnScreenKeyboard });
             }
             DefaultsVersion = CurrentDefaults;
         }

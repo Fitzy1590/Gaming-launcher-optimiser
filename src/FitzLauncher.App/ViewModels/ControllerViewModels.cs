@@ -261,6 +261,8 @@ public sealed partial class PadComboRow(ushort button, string name, Services.App
         new(FitzLauncher.Core.Input.PadAction.TrainerOrGame, "Switch trainer ↔ game"),
         new(FitzLauncher.Core.Input.PadAction.ToggleOverlay, "Hide / show FPS counters"),
         new(FitzLauncher.Core.Input.PadAction.Sleep, "Sleep"),
+        new(FitzLauncher.Core.Input.PadAction.GameHelp, "Game help panel (AI Game Companion)"),
+        new(FitzLauncher.Core.Input.PadAction.GameHelpAsk, "Game help: ask about the screen"),
     ];
 
     public FitzLauncher.Core.Input.PadAction Action
