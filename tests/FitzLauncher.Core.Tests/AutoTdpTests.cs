@@ -156,6 +156,34 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AFpsCollapseWhileWarmStillGetsPowerBackInsteadOfBeingHeldDown()
+    {
+        // From a real log: 34 FPS against a 110 target at 37 W, 84 °C, trigger 86 °C. "Warm" used to block every raise.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 37, thermalTriggerC: 86);
+        var d = g.Update(new AutoTdpSample(500, 34, 33, 37, TempC: 84), T0);
+        Assert.NotNull(d?.Watts);
+        Assert.InRange(d!.Watts!.Value, 38, 42);   // gently: 5 W at most while warm
+    }
+
+    [Fact]
+    public void ItDoesNotCutPowerForHeatWhileFpsHasAlreadyCollapsedUnlessItIsWellOverTheTrigger()
+    {
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 40, thermalTriggerC: 86);
+        var held = g.Update(new AutoTdpSample(500, 34, 33, 40, TempC: 87), T0);
+        Assert.Null(held?.Watts);                                    // 1 °C over the trigger, FPS at 31 %: no cut
+        var hard = g.Update(new AutoTdpSample(500, 34, 33, 40, TempC: 91), T0.AddSeconds(14));
+        Assert.True(hard?.Watts < 40);                               // 5 °C over: heat comes first
+    }
+
+    [Fact]
+    public void HeatStillCutsPowerWhenTheGameIsRunningFine()
+    {
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86);
+        var d = g.Update(new AutoTdpSample(500, 107, 87, 48, TempC: 87), T0);
+        Assert.True(d?.Watts < 48);
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);
@@ -200,7 +228,7 @@ public class AutoTdpTests
         Assert.Equal(40, g.Current);
         var warm = new AutoTdpGovernor(Target, 25, 60, 40);
         for (var t = 0; t < 60; t += 2)
-            Assert.Null(warm.Update(new AutoTdpSample(500, 70, 60, 40, TempC: 87), T0.AddSeconds(t))?.Watts); // 85-90 °C: no more power
+            Assert.Null(warm.Update(new AutoTdpSample(500, 90, 80, 40, TempC: 87), T0.AddSeconds(t))?.Watts); // a normal dip at 85-90 °C: no more power
         Assert.Equal(40, warm.Current);
     }
 

@@ -73,6 +73,8 @@ public sealed class AutoTdpGovernor
     /// <summary>A raise helped while the power reading said the limit wasn't binding: the reading under-reports, so it is no longer used to hold power back or to trim.</summary>
     private bool _drawUntrusted;
     private int _floor, _ceiling;
+    private int _coolCeiling;
+    private DateTime _coolCeilingUntil = DateTime.MinValue;
     private string? _lastNote;
     private double _seconds, _limitSeconds, _drawnSeconds, _drawnTotal, _healthySeconds;
 
@@ -131,6 +133,8 @@ public sealed class AutoTdpGovernor
 
         var binding = _drawUntrusted || s.DrawnWatts is not { } d || d >= Current - (_simulated ? 1.5 : 2.5); // unknown draw: assume the limit is what's holding it
         var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : s.LowFps < _target * SmoothFloor || s.Fps < _target * AvgFloor;
+        // Far under the target (a loading hitch aside, something is badly wrong): power must not be the thing that is held back.
+        var severe = !_simulated && s.Fps < _target * 0.60;
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
         // Too hot: the fix that costs the least is less power (the frame cap stays put). Stop once it's below the trigger.
@@ -141,6 +145,8 @@ public sealed class AutoTdpGovernor
         {
             _hotEpisode = true;
             _healthySince = null;
+            if (severe && temp < _trigger + 4)
+                return Note($"{temp:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
             if (Current > _min)
             {
                 if ((now - _lastChange).TotalSeconds < 12) return null; // let the last cut take effect
@@ -155,8 +161,8 @@ public sealed class AutoTdpGovernor
         {
             // Cooled down: don't climb straight back to the power that heated it.
             _hotEpisode = false;
-            _ceiling = Math.Min(_max, Current + 4);
-            _ceilingUntil = now.AddMinutes(5);
+            _coolCeiling = Math.Min(_max, Current + 4);
+            _coolCeilingUntil = now.AddMinutes(5);
         }
 
         // Did the last raise actually help? Judged on the average OR the 1% low: the average over the last few seconds can still
@@ -180,10 +186,11 @@ public sealed class AutoTdpGovernor
         }
 
         var ceiling = now < _ceilingUntil ? _ceiling : _max;
+        if (now < _coolCeilingUntil && !severe) ceiling = Math.Min(ceiling, _coolCeiling); // after a heat episode; not while FPS has collapsed
         if (distress)
         {
             _healthySince = null;
-            if (warm || s.ThermalHold) return Note("dipping, but it's warm: not adding power");
+            if (s.ThermalHold || (warm && !severe)) return Note("dipping, but it's warm: not adding power");
             if (!binding)
             {
                 var cap = Math.Min(_max, ceiling);
@@ -244,6 +251,7 @@ public sealed class AutoTdpGovernor
     private int StepFor(AutoTdpSample s)
     {
         if (_simulated) return 5;
+        if (s.TempC is { } tc && tc >= _trigger - 5) return 5;   // warm: climb gently
         if (s.Fps < _target * 0.70) return 10;
         return s.LowFps < _target * 0.80 ? 8 : 5;
     }
