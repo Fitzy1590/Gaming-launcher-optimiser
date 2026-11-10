@@ -72,6 +72,9 @@ public sealed class AutoTdpGovernor
     private int _gainFails;
     /// <summary>A raise helped while the power reading said the limit wasn't binding: the reading under-reports, so it is no longer used to hold power back or to trim.</summary>
     private bool _drawUntrusted;
+    private readonly int? _knownTypical;
+    private int _needLevel;
+    private DateTime _needAt;
     private int _floor, _ceiling;
     private int _coolCeiling;
     private DateTime _coolCeilingUntil = DateTime.MinValue;
@@ -79,8 +82,9 @@ public sealed class AutoTdpGovernor
     private double _seconds, _limitSeconds, _drawnSeconds, _drawnTotal, _healthySeconds;
 
     /// <param name="thermalTriggerC">The temperature (the thermal guard's trigger) above which it lowers power to cool the chip.</param>
-    public AutoTdpGovernor(int target, int minWatts, int maxWatts, int startWatts, bool simulated = false, double thermalTriggerC = 90)
+    public AutoTdpGovernor(int target, int minWatts, int maxWatts, int startWatts, bool simulated = false, double thermalTriggerC = 90, int? learnedTypical = null)
     {
+        _knownTypical = learnedTypical;
         (_target, _min, _max, _simulated, _trigger) = (target, minWatts, Math.Max(maxWatts, minWatts), simulated, thermalTriggerC);
         Current = Math.Clamp(startWatts, _min, _max);
         _floor = _min;
@@ -232,6 +236,7 @@ public sealed class AutoTdpGovernor
         if (_floor > _min && now >= _floorDecayAt) { _floor--; _floorDecayAt = now.AddSeconds(20); }
         var failed = _failed is { } f && now - f.at < TimeSpan.FromMinutes(10) ? f.w : (int?)null;
         var lowest = Math.Max(_min, Math.Max(_floor, failed is { } ff ? ff + 3 : _min));
+        lowest = Math.Max(lowest, TypicalFloor(now)); // a quiet menu must not pull the limit far below what the game itself needs
 
         // 1. Snap to what the game actually draws (free: it doesn't use the headroom).
         if (!_drawUntrusted && peak60 is { } p && s.DrawnWatts is not null && held >= 15 && (now - _lastChange).TotalSeconds >= 15)
@@ -245,6 +250,18 @@ public sealed class AutoTdpGovernor
         if (held >= 40 && (now - _lastChange).TotalSeconds >= 40 && Current - 2 >= lowest)
             return Change(Current - 2, now, raised: false, "holding the target with room to spare");
         return null;
+    }
+
+    /// <summary>
+    /// How low the limit may be lowered to while healthy: 6 W under what the game really needed, which is last time's typical level
+    /// and the level a real dip this session forced it up to (that one fades by 1 W a minute). Quiet time doesn't count as "need":
+    /// without this a menu (low draw, easy FPS) dragged the limit to the floor, and leaving the menu stalled the game until power climbed back.
+    /// </summary>
+    private int TypicalFloor(DateTime now)
+    {
+        var need = _knownTypical ?? 0;
+        if (_needLevel > 0) need = Math.Max(need, _needLevel - (int)(now - _needAt).TotalMinutes);
+        return need > 0 ? Math.Max(_min, need - 6) : _min;
     }
 
     /// <summary>How much to add: more when the game is far under the target.</summary>
@@ -274,6 +291,7 @@ public sealed class AutoTdpGovernor
         if (raised)
         {
             _failed = (prev, now);
+            _needLevel = watts; _needAt = now;
             _floor = watts; _floorDecayAt = now.AddSeconds(20);
             _healthySince = null;
             if (!_simulated) _gain = (now.AddSeconds(6), fpsBefore, lowBefore, prev, probe);

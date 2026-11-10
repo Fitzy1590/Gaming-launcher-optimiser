@@ -505,7 +505,8 @@ public sealed partial class MainViewModel : ObservableObject
                 : autoTdp == AutoTdpMode.On ? autoStart
                 : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
             AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
-            AutoTdpFallbackTarget = _s.Settings.DefaultFpsTarget, AutoTdpWhyNot = autoWhyNot,
+            AutoTdpFallbackTarget = _s.Settings.DefaultFpsTarget,
+            AutoTdpLearnedTypical = autoTarget is { } lt && game.AutoTdpProfiles.TryGetValue(lt, out var lp) && lp.Typical > 0 ? lp.Typical : null, AutoTdpWhyNot = autoWhyNot,
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,

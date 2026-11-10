@@ -69,24 +69,53 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
 
     public bool Apply(PowerLimits l) => SetLimits((int)(l.StapmW * 1000), (int)(l.SlowW * 1000), (int)(l.FastW * 1000));
 
+    // What this chip accepts, learned on the first change and reused: every RyzenAdj run talks to the chip's power controller,
+    // and several runs in a row (a retry storm) can hitch the whole system.
+    private HashSet<string>? _accepted;
+    private bool _exitCodeUnreliable;
+
     /// <summary>
-    /// Sets the three limits. Some chips reject one of the three and RyzenAdj then exits non-zero even though the
-    /// others took, so a failure is retried one limit at a time and the result is judged by reading the limits back.
+    /// Sets the three limits in ONE RyzenAdj run. The first time, if that run reports a failure, each limit is tried alone once to learn
+    /// which ones this chip accepts (some reject one of the three and then exit non-zero although the others took); after that only the
+    /// accepted ones are sent, so a power change is always a single run.
     /// </summary>
     private bool SetLimits(int stapmMw, int slowMw, int fastMw)
     {
         LastError = "";
-        var all = Run($"--stapm-limit={stapmMw} --slow-limit={slowMw} --fast-limit={fastMw}");
-        if (all.code == 0) return true;
-        var notes = new List<string> { $"all three together: exit {all.code} {Trim(all.output)}" };
-        foreach (var (name, mw) in new[] { ("stapm-limit", stapmMw), ("slow-limit", slowMw), ("fast-limit", fastMw) })
+        var flags = new[] { ("stapm-limit", stapmMw), ("slow-limit", slowMw), ("fast-limit", fastMw) };
+        string Args(IEnumerable<(string name, int mw)> f) => string.Join(' ', f.Select(x => $"--{x.name}={x.mw}"));
+
+        if (_accepted is { } known)
         {
-            var one = Run($"--{name}={mw}");
-            if (one.code != 0) notes.Add($"{name}: exit {one.code} {Trim(one.output)}");
+            var args = Args(flags.Where(f => known.Contains(f.Item1)));
+            if (args.Length == 0) return false;
+            var r = Run(args);
+            if (r.code == 0 || _exitCodeUnreliable) return true;
+            LastError = $"exit {r.code} {Trim(r.output)}";
+            return false;
         }
-        // The sustained limit is the one that matters: judge by what the chip reports now.
+
+        var all = Run(Args(flags));
+        if (all.code == 0) { _accepted = [.. flags.Select(f => f.Item1)]; return true; }
+
+        var notes = new List<string> { $"all three together: exit {all.code} {Trim(all.output)}" };
+        var ok = new HashSet<string>();
+        foreach (var f in flags)
+        {
+            var one = Run(Args([f]));
+            if (one.code == 0) ok.Add(f.Item1);
+            else notes.Add($"{f.Item1}: exit {one.code} {Trim(one.output)}");
+        }
+        if (ok.Count > 0) { _accepted = ok; return ok.Contains("stapm-limit"); }
+
+        // Nothing reported success. Some builds exit non-zero even when it worked: judge once by reading the chip back.
         var now = Read();
-        if (now is not null && Math.Abs(now.StapmW - stapmMw / 1000.0) <= 0.6) return true;
+        if (now is not null && Math.Abs(now.StapmW - stapmMw / 1000.0) <= 0.6)
+        {
+            _accepted = [.. flags.Select(f => f.Item1)];
+            _exitCodeUnreliable = true;
+            return true;
+        }
         LastError = string.Join("; ", notes) + (now is null ? "" : $"; chip still reports {now.StapmW:0.#} W sustained");
         return false;
     }

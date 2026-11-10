@@ -45,8 +45,10 @@ public sealed class GameSession(
     /// <summary>Changes the power limit and remembers when, so a stutter at that moment can be explained.</summary>
     private bool SetPower(int watts)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         var ok = RyzenAdj!.Apply(watts, PowerMaxWatts);
         if (ok) _lastPowerChange = DateTimeOffset.UtcNow;
+        if (sw.ElapsedMilliseconds > 400) Trace?.Invoke($"RyzenAdj took {sw.ElapsedMilliseconds} ms to set {watts} W (slow runs can hitch the game)");
         return ok;
     }
 
@@ -59,6 +61,8 @@ public sealed class GameSession(
 
     /// <summary>APU power limit for this session (watts), applied through RyzenAdj.</summary>
     public int? PowerWatts { get; init; }
+    /// <summary>The power level that usually held the target last time (Auto TDP won't drop far below it, so a menu can't pull the limit down before the game needs it).</summary>
+    public int? AutoTdpLearnedTypical { get; init; }
     public int PowerMaxWatts { get; init; } = 120;
     public int PowerMinWatts { get; init; } = 10;
 
@@ -491,7 +495,7 @@ public sealed class GameSession(
             if (Cap is not > 0) Status?.Invoke($"Auto TDP: this game has no FPS target, so it holds your default ({autoTarget} FPS) or better");
             _autoSimulated = AutoTdp == AutoTdpMode.Observe;
             var startWatts = _autoSimulated ? (int)Math.Round(RyzenAdj?.Read()?.StapmW ?? 45) : PowerWatts!.Value;
-            _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated, thermalTriggerC: GuardTriggerC);
+            _auto = new AutoTdpGovernor(autoTarget, AutoTdpMinWatts, AutoTdpMaxWatts, startWatts, simulated: _autoSimulated, thermalTriggerC: GuardTriggerC, learnedTypical: AutoTdpLearnedTypical);
             AutoTdpTarget = autoTarget;
             AutoTdpStartNote = _autoSimulated
                 ? $"Auto TDP is watching (not changing anything): it logs the power it would use to hold {autoTarget} FPS"
@@ -681,9 +685,9 @@ public sealed class GameSession(
                 // Vendor apps sometimes re-apply their own power limit; re-assert ours every minute.
                 int? livePower;
                 lock (_capLock) livePower = _livePower;
-                if (_auto is not null && !_autoSimulated && powerSet && tick % 8 == 0 && livePower is { } al)
+                if (_auto is not null && !_autoSimulated && powerSet && tick % 30 == 0 && livePower is { } al)
                 {
-                    // Auto TDP changes the limit often, so check every ~16 s that nothing else (OneXConsole's own per-game
+                    // Auto TDP changes the limit often, so check about once a minute (reading the chip is itself a hit) that nothing else (OneXConsole's own per-game
                     // TDP) has changed it back; put ours back, and say so once if it keeps happening.
                     if (RyzenAdj!.Read() is { } actual && Math.Abs(actual.StapmW - al) > 1.5)
                     {

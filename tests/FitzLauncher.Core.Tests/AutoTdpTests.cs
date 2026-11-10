@@ -184,6 +184,32 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AQuietMenuCannotDragTheLimitFarBelowWhatTheGameUsuallyNeeds()
+    {
+        // Last time this game held the target at 41 W. In a menu the draw is 22 W and FPS is easy: it may ease off, not dive.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 44, learnedTypical: 41);
+        for (var t = 0; t < 300; t += 2) g.Update(new AutoTdpSample(500, Target, Target * 0.98, 22), T0.AddSeconds(t));
+        Assert.InRange(g.Current, 35, 44);
+        // Without a known level the same menu does pull it down (existing behaviour).
+        var plain = new AutoTdpGovernor(Target, 25, 60, startWatts: 44);
+        for (var t = 0; t < 300; t += 2) plain.Update(new AutoTdpSample(500, Target, Target * 0.98, 22), T0.AddSeconds(t));
+        Assert.True(plain.Current < 35);
+    }
+
+    [Fact]
+    public void TheFloorFollowsWhatARealDipThisSessionForcedItUpTo()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 40);
+        // A heavy scene needs 50 W: it climbs there.
+        for (var t = 0; t < 60; t += 2) g.Update(Plant(g.Current, needed: 50), T0.AddSeconds(t));
+        Assert.True(g.Current >= 49, $"only reached {g.Current}");
+        var peak = g.Current;
+        // Then a quiet menu for five minutes: it may ease off but not dive to the floor.
+        for (var t = 60; t < 360; t += 2) g.Update(new AutoTdpSample(500, Target, Target * 0.98, 20), T0.AddSeconds(t));
+        Assert.True(g.Current >= peak - 12, $"fell from {peak} to {g.Current}");
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);
