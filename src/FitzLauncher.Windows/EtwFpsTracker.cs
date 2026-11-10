@@ -81,6 +81,19 @@ public sealed class EtwFpsTracker : IDisposable
         }
     }
 
+    private long _testPresents;
+
+    /// <summary>How many DXGI test presents were left out of the frame count (for the log).</summary>
+    public long TestPresentsIgnored => Interlocked.Read(ref _testPresents);
+
+    private const uint DxgiPresentTest = 0x1; // DXGI_PRESENT_TEST (dxgi.h)
+
+    private static bool IsTestPresent(TraceEvent e)
+    {
+        try { return e.PayloadByName("Flags") is { } f && (Convert.ToUInt32(f, System.Globalization.CultureInfo.InvariantCulture) & DxgiPresentTest) != 0; }
+        catch (Exception ex) when (ex is IndexOutOfRangeException or InvalidCastException or FormatException or OverflowException) { return false; }
+    }
+
     private void OnEvent(TraceEvent e)
     {
         var pid = e.ProcessID;
@@ -90,6 +103,9 @@ public sealed class EtwFpsTracker : IDisposable
         bool kernel = provider == DxgKrnl && id == DxgKrnlPresentInfo;
         if (!api && !kernel) return;
         if (!_isGameProcess(pid)) return;
+        // Present(…, DXGI_PRESENT_TEST) only asks whether the window is visible: nothing is drawn, so it isn't a frame
+        // (PresentMon skips these too). Counting them made FPS read about 10 % high in some games.
+        if (api && provider == Dxgi && IsTestPresent(e)) { Interlocked.Increment(ref _testPresents); return; }
 
         var state = _pids.GetOrAdd(pid, _ => new PidState());
         var t = e.TimeStampRelativeMSec;

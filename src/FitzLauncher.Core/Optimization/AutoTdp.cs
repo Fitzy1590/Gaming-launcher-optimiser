@@ -73,6 +73,7 @@ public sealed class AutoTdpGovernor
     /// <summary>A raise helped while the power reading said the limit wasn't binding: the reading under-reports, so it is no longer used to hold power back or to trim.</summary>
     private bool _drawUntrusted;
     private readonly int? _knownTypical;
+    private readonly Queue<(DateTime at, double c)> _temps = [];
     private int _needLevel;
     private DateTime _needAt;
     private int _floor, _ceiling;
@@ -93,6 +94,8 @@ public sealed class AutoTdpGovernor
     }
 
     public int Current { get; private set; }
+    /// <summary>The FPS the governor is holding the game to right now.</summary>
+    public int Target => _target;
 
     /// <summary>The limit it asked for was not applied (RyzenAdj failed or timed out): go back to what is really set and try again after a pause.</summary>
     public void Resync(int appliedWatts)
@@ -149,26 +152,31 @@ public sealed class AutoTdpGovernor
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
         // Too hot: the fix that costs the least is less power (the frame cap stays put). Stop once it's below the trigger.
+        // Temperatures spike 10-15 °C in one reading and drop straight back (a hitch, a boost burst). Reacting to one reading cut power,
+        // which dipped FPS, which raised power again. So heat is judged on the last ~6 s; only a reading far past the trigger acts alone.
         var temp = s.TempC ?? 0;
-        var hot = temp > 0 && temp >= _trigger;
-        var warm = temp > 0 && temp >= _trigger - 5;
+        if (temp > 0) _temps.Enqueue((now, temp));
+        while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(6.5)) _temps.Dequeue();
+        var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
+        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 7);
+        var warm = temp > 0 && smooth >= _trigger - 5;
         if (hot)
         {
             _hotEpisode = true;
             _healthySince = null;
-            if (severe && temp < _trigger + 4)
-                return Note($"{temp:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
+            if (severe && smooth < _trigger + 2)
+                return Note($"{smooth:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
             if (Current > _min)
             {
                 if ((now - _lastChange).TotalSeconds < 12) return null; // let the last cut take effect
-                var next = Math.Max(_min, Current - (temp >= _trigger + 4 ? 5 : 3));
-                var cut = Change(next, now, raised: false, $"{temp:0} °C: lowering power to cool it, keeping the FPS target");
+                var next = Math.Max(_min, Current - (smooth >= _trigger + 4 ? 5 : 3));
+                var cut = Change(next, now, raised: false, $"{smooth:0} °C: lowering power to cool it, keeping the FPS target");
                 _healthySince = null;
                 return cut;
             }
             return Note($"{temp:0} °C at the {_min} W floor: the thermal guard eases the FPS cap instead");
         }
-        if (_hotEpisode && temp > 0 && temp < _trigger - 3)
+        if (_hotEpisode && temp > 0 && smooth < _trigger - 3)
         {
             // Cooled down: don't climb straight back to the power that heated it.
             _hotEpisode = false;
@@ -236,7 +244,10 @@ public sealed class AutoTdpGovernor
             return Change(next, now, raised: true, why, fpsBefore: s.Fps, lowBefore: s.LowFps);
         }
 
-        var room = _simulated || (s.LowFps >= _target * RoomLow && s.Fps >= _target * RoomAvg);
+        // Room to spare: the usual bar, or clearly above the target (6 %+) with a 1% low that is still smooth: a 1% low a few points
+        // under 94 % kept restarting the clock while the game ran 10 % over the target.
+        var room = _simulated || (s.LowFps >= _target * RoomLow && s.Fps >= _target * RoomAvg)
+                   || (s.Fps >= _target * 1.06 && s.LowFps >= _target * SmoothFloor);
         if (!room) { _healthySince = null; return null; } // fine, but not by much: hold
         _healthySince ??= now;
         var held = (now - _healthySince.Value).TotalSeconds;
@@ -254,8 +265,14 @@ public sealed class AutoTdpGovernor
                 return Change(next, now, raised: false, $"the limit was well above what the game draws (peak {p:0} W in the last minute)");
         }
         // 2. Then creep down while the target is held with room to spare.
-        if (held >= 40 && (now - _lastChange).TotalSeconds >= 40 && Current - 2 >= lowest)
-            return Change(Current - 2, now, raised: false, "holding the target with room to spare");
+        // The further above the target, the bigger and quicker the steps down (3 W / 25 s at 10 %+ over, 2 W / 30 s at 5 %+, else 2 W / 40 s).
+        var over = s.Fps / _target;
+        var (step, wait) = over >= 1.10 ? (3, 25) : over >= 1.05 ? (2, 30) : (2, 40);
+        if (held >= wait && (now - _lastChange).TotalSeconds >= wait)
+        {
+            var lower = Math.Max(lowest, Current - step);
+            if (Current - lower >= 2) return Change(lower, now, raised: false, $"holding the target with room to spare ({over:P0} of it)");
+        }
         return null;
     }
 

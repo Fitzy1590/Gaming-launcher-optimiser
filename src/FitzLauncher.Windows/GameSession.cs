@@ -325,19 +325,21 @@ public sealed class GameSession(
             var safe = string.Concat(game.Name.Where(c => char.IsLetterOrDigit(c) || c == ' ')).Trim().Replace(' ', '-');
             _autoCsv = new StreamWriter(Path.Combine(dir, $"{safe}-{DateTime.Now:yyyyMMdd-HHmm}.csv")) { AutoFlush = true };
             _autoCsv.WriteLine($"# {game.Name}, target {AutoTdpTarget} FPS, {(_autoSimulated ? "observe" : "on")}, range {AutoTdpMinWatts}-{AutoTdpMaxWatts} W");
-            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note");
+            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note,target_fps,cap_fps,cpu_c,gpu_c,cpu_w");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { _autoCsv = null; }
     }
 
-    private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d)
+    private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d, int target, int? cap, double? cpuC = null, double? gpuC = null, double? watts = null)
     {
         try
         {
             _autoCsv?.WriteLine(string.Join(',', ((DateTimeOffset.Now - start).TotalSeconds).ToString("0", System.Globalization.CultureInfo.InvariantCulture), limit, s.Frames,
                 s.Fps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), s.LowFps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
                 s.DrawnWatts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", s.TempC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                s.ThermalHold ? 1 : 0, d?.Watts?.ToString() ?? "", d is null ? "" : "\"" + d.Reason.Replace("\"", "'") + "\""));
+                s.ThermalHold ? 1 : 0, d?.Watts?.ToString() ?? "", d is null ? "" : "\"" + d.Reason.Replace("\"", "'") + "\"", target, cap?.ToString() ?? "",
+                cpuC?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", gpuC?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                watts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? ""));
         }
         catch (IOException) { _autoCsv = null; }
     }
@@ -583,6 +585,7 @@ public sealed class GameSession(
                 tick++;
                 try
                 {
+                if (tick == 30) Trace?.Invoke($"FPS capture after a minute: {fps.PrimaryRecorder?.FrameCount ?? 0} frames counted, {fps.TestPresentsIgnored} DXGI test presents left out");
                 // Process list every 4 s; sensors every 2 s.
                 if (tick % 2 == 0)
                 {
@@ -661,7 +664,7 @@ public sealed class GameSession(
                     var before = ag.Current;
                     if ((currentGuard?.CurrentCap ?? Cap) is { } heldTo and > 0) ag.SetTarget(heldTo); // the target it's holding right now
                     var decision = ag.Update(sample, DateTime.UtcNow);
-                    WriteAutoCsv(start, before, sample, decision);
+                    WriteAutoCsv(start, before, sample, decision, ag.Target, currentGuard?.CurrentCap ?? Cap, r.CpuTempC, r.GpuTempC, r.Watts);
                     if (decision is { } dec)
                     {
                         Trace?.Invoke("Auto TDP" + (_autoSimulated ? " (observing, not applied)" : "") + ": " + dec.Reason);

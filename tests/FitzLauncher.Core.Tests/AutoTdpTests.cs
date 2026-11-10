@@ -222,6 +222,41 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void ASingleTemperatureSpikeDoesNotCutPowerButASustainedOneDoes()
+    {
+        // From a real log: 76 -> 89 -> 83 -> 78 °C within a few seconds, each time followed by a cut, a dip and a re-raise.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86.5);
+        Assert.Null(g.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0)?.Watts);
+        Assert.Null(g.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0.AddSeconds(2))?.Watts);
+        Assert.Null(g.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 90), T0.AddSeconds(4))?.Watts);   // one spike
+        Assert.Equal(48, g.Current);
+
+        var hot = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86.5);
+        hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0);
+        hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0.AddSeconds(2));
+        Assert.Null(hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 90), T0.AddSeconds(4))?.Watts);   // first hot reading: wait
+        Assert.Null(hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 91), T0.AddSeconds(6))?.Watts);
+        var cut = hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 92), T0.AddSeconds(8));             // it stays hot: act
+        Assert.True(cut?.Watts < 48);
+
+        var extreme = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86.5);
+        Assert.True(extreme.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 95), T0)?.Watts < 48);       // far past the trigger acts alone
+    }
+
+    [Fact]
+    public void WhenWellOverTheTargetItStepsDownFasterAndByMore()
+    {
+        // Log: 121 FPS against a 110 target at a steady 47 W for a minute, 1% low 101-107 (just under the old 94 % bar).
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 47);
+        for (var t = 0; t < 70; t += 2) g.Update(new AutoTdpSample(500, 121, 104, g.Current), T0.AddSeconds(t));
+        Assert.True(g.Current <= 44, $"still at {g.Current}");
+        // But not when it is only just on target.
+        var tight = new AutoTdpGovernor(110, 25, 60, startWatts: 47);
+        for (var t = 0; t < 70; t += 2) tight.Update(new AutoTdpSample(500, 110, 104, tight.Current), T0.AddSeconds(t));
+        Assert.True(tight.Current >= 45);
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);
