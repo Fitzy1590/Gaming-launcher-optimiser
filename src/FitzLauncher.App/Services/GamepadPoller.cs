@@ -29,11 +29,10 @@ public sealed class GamepadPoller : IDisposable
     ];
 
     private readonly DispatcherTimer _timer;
-    private readonly Dictionary<PadButton, DateTime> _held = [];
+    private readonly FitzLauncher.Core.Input.PressFilter<PadButton> _filter = new(
+        b => b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right or PadButton.ScrollUp or PadButton.ScrollDown,
+        b => b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right);
     private bool _available = true;
-    private const int DirectionSettleMs = 80;
-    private PadButton? _lastDir;
-    private DateTime _lastDirAt;
 
     public event Action<PadButton>? Pressed;
 
@@ -75,30 +74,7 @@ public sealed class GamepadPoller : IDisposable
         // While PS is held the buttons belong to a PS combo (volume etc.), not the menus.
         if (FitzLauncher.Windows.PlayStationPads.Shared.Current is { } ps && !ps.Has(FitzLauncher.Core.Input.PadSnapshot.Guide)) Add(down, ps.Buttons, ps.LX, ps.LY, ps.RY);
 
-        var now = DateTime.UtcNow;
-        foreach (var b in down)
-        {
-            if (!_held.TryGetValue(b, out var next))
-            {
-                // A D-pad hat reports diagonals as two directions while the thumb rolls from one to the next, so a
-                // direction arriving right after a different one is part of the same click: swallow it.
-                var isDir = b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right;
-                if (isDir && _lastDir != b && (now - _lastDirAt).TotalMilliseconds < DirectionSettleMs)
-                {
-                    _held[b] = now.AddMilliseconds(380);
-                    continue;
-                }
-                if (isDir) { _lastDir = b; _lastDirAt = now; }
-                Pressed?.Invoke(b);
-                _held[b] = now.AddMilliseconds(380); // first repeat delay
-            }
-            else if (now >= next && b is PadButton.Up or PadButton.Down or PadButton.Left or PadButton.Right or PadButton.ScrollUp or PadButton.ScrollDown)
-            {
-                Pressed?.Invoke(b);
-                _held[b] = now.AddMilliseconds(110);
-            }
-        }
-        foreach (var b in _held.Keys.Where(k => !down.Contains(k)).ToList()) _held.Remove(b);
+        foreach (var b in _filter.Step(down, DateTime.UtcNow)) Pressed?.Invoke(b);
     }
 
     private static void Add(HashSet<PadButton> down, ushort buttons, short lx, short ly, short ry)
