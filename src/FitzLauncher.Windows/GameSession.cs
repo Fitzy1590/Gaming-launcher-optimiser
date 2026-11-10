@@ -659,6 +659,8 @@ public sealed class GameSession(
                 if (_auto is { } ag && idleGov is not { Idle: true } && BenchmarkSecondsLeft() is null)
                 {
                     var (frames, avg, low) = fps.PrimaryRecorder?.RecentStats(6) ?? (0, 0, 0);
+                    // Frames counted above the cap (110 held, 121 counted in the logs) are not real headroom: count the game as at its cap.
+                    if ((currentGuard?.CurrentCap ?? Cap) is { } capNow and > 0 && avg > capNow) avg = capNow;
                     var hot = Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
                     var sample = new AutoTdpSample(frames, avg, low, r.Watts, hot > 0 ? hot : null, currentGuard?.IsThrottling == true);
                     var before = ag.Current;

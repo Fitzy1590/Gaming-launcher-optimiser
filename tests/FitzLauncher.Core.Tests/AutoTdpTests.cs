@@ -234,13 +234,13 @@ public class AutoTdpTests
         var hot = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86.5);
         hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0);
         hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 77), T0.AddSeconds(2));
-        Assert.Null(hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 90), T0.AddSeconds(4))?.Watts);   // first hot reading: wait
-        Assert.Null(hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 91), T0.AddSeconds(6))?.Watts);
-        var cut = hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 92), T0.AddSeconds(8));             // it stays hot: act
+        // Heat is judged over ~16 s: it takes several hot readings in a row before the average crosses the trigger.
+        for (var t = 4; t <= 10; t += 2) Assert.Null(hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 91), T0.AddSeconds(t))?.Watts);
+        var cut = hot.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 92), T0.AddSeconds(12));
         Assert.True(cut?.Watts < 48);
 
         var extreme = new AutoTdpGovernor(110, 25, 60, startWatts: 48, thermalTriggerC: 86.5);
-        Assert.True(extreme.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 95), T0)?.Watts < 48);       // far past the trigger acts alone
+        Assert.True(extreme.Update(new AutoTdpSample(500, 118, 106, 47, TempC: 95), T0)?.Watts < 48);       // 8 °C+ past the trigger acts alone
     }
 
     [Fact]
@@ -293,6 +293,34 @@ public class AutoTdpTests
         // Cooler and still short of the target: power comes back.
         var cool = g.Update(new AutoTdpSample(500, 40, 34, g.Current, TempC: 72), T0.AddSeconds(40));
         Assert.True(cool?.Watts > g.Current - 1 && cool!.Watts > cuts[^1]);
+    }
+
+    [Fact]
+    public void HeatCutsAreSpacedForTheSlowCoolingAndStayCloseToWhereTheHeatStarted()
+    {
+        // Log: 47 W -> 26 W in 54 s (a cut every 12-14 s) while the chip stayed at 85-94 °C and then cooled by itself.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 47, thermalTriggerC: 86.5);
+        var cuts = 0;
+        var lowest = 47;
+        for (var t = 0; t < 150; t += 2)
+        {
+            if (g.Update(new AutoTdpSample(500, 118, 106, g.Current, TempC: 91), T0.AddSeconds(t))?.Watts is not null) cuts++;
+            lowest = Math.Min(lowest, g.Current);
+        }
+        Assert.True(lowest >= 35, $"fell to {lowest} W");        // within 12 W of where the heat started
+        Assert.InRange(cuts, 1, 4);
+    }
+
+    [Fact]
+    public void AfterAHeatEpisodeItClimbsBackToNearWhereItStartedNotJustFourWattsAboveTheFloor()
+    {
+        // Log: cooled at 26 W, ceiling 30 W for 5 minutes at 64 °C with 90-105 FPS against 110.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 47, thermalTriggerC: 86.5);
+        for (var t = 0; t < 90; t += 2) g.Update(new AutoTdpSample(500, 118, 106, g.Current, TempC: 91), T0.AddSeconds(t));
+        var floor = g.Current;
+        Assert.True(floor < 47);
+        for (var t = 90; t < 150; t += 2) g.Update(Plant(g.Current, needed: 47) with { TempC = 64 }, T0.AddSeconds(t));
+        Assert.True(g.Current >= 42, $"stuck at {g.Current} W (it cooled from {floor} W; the heat began at 47 W)");
     }
 
     [Fact]

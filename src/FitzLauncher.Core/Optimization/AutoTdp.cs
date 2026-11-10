@@ -80,6 +80,8 @@ public sealed class AutoTdpGovernor
     private DateTime _needAt;
     private int _floor, _ceiling;
     private int _coolCeiling;
+    /// <summary>The limit when the current heat episode began: cuts stay within 12 W of it unless it gets very hot, and the climb back goes to near it.</summary>
+    private int _hotStart;
     private DateTime _coolCeilingUntil = DateTime.MinValue;
     private string? _lastNote;
     private double _seconds, _limitSeconds, _drawnSeconds, _drawnTotal, _healthySeconds;
@@ -154,17 +156,19 @@ public sealed class AutoTdpGovernor
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
         // Too hot: the fix that costs the least is less power (the frame cap stays put). Stop once it's below the trigger.
-        // Temperatures spike 10-15 °C in one reading and drop straight back (a hitch, a boost burst). Reacting to one reading cut power,
-        // which dipped FPS, which raised power again. So heat is judged on the last ~6 s; only a reading far past the trigger acts alone.
+        // CPU temperature swings 10-20 °C in a few seconds (boost bursts, the fan stepping up and down) and the cooling reacts slowly.
+        // Reacting to single readings cut power, which dipped FPS, which raised power again. So heat is judged on the last ~16 s;
+        // only a reading far past the trigger acts alone.
         var temp = s.TempC ?? 0;
         if (temp > 0) _temps.Enqueue((now, temp));
-        while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(6.5)) _temps.Dequeue();
+        while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(16)) _temps.Dequeue();
         var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
-        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 7);
+        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8);
         var warm = temp > 0 && smooth >= _trigger - 5;
         var deepCool = smooth > 0 && smooth < _trigger - 10; // clearly cool: the chip has room, so heat-related holds no longer apply
         if (hot)
         {
+            if (!_hotEpisode) _hotStart = Current;
             _hotEpisode = true;
             _healthySince = null;
             if (severe && smooth < _trigger + 2)
@@ -178,8 +182,13 @@ public sealed class AutoTdpGovernor
             }
             if (Current > _min)
             {
-                if ((now - _lastChange).TotalSeconds < 12) return null; // let the last cut take effect
-                var next = Math.Max(_min, Current - (smooth >= _trigger + 4 ? 5 : 3));
+                // The chip reacts to a cut over 20-30 s. Cutting every 12 s drove the limit from 47 W to 26 W in a log, long after the heat had
+                // already turned; so cuts are 20 s apart (12 s when very hot) and stay within 12 W of where the heat started unless it is very hot.
+                var veryHot = smooth >= _trigger + 6;
+                if ((now - _lastChange).TotalSeconds < (veryHot ? 12 : 20)) return null;
+                var floor = veryHot ? _min : Math.Max(_min, _hotStart - 12);
+                if (Current <= floor) return Note($"{smooth:0} °C: already {_hotStart - Current} W below where the heat started, waiting for it to cool");
+                var next = Math.Max(floor, Current - (smooth >= _trigger + 4 ? 5 : 3));
                 var cut = Change(next, now, raised: false, $"{smooth:0} °C: lowering power to cool it, keeping the FPS target");
                 _healthySince = null;
                 return cut;
@@ -188,9 +197,10 @@ public sealed class AutoTdpGovernor
         }
         if (_hotEpisode && temp > 0 && smooth < _trigger - 3)
         {
-            // Cooled down: don't climb straight back to the power that heated it.
+            // Cooled down: don't climb straight back to the power that heated it. But the ceiling follows where the heat started (a little
+            // under it), not where the cuts ended: "+4 W above the 26 W floor" held a cool chip at 30 W for 4 minutes at 90 FPS.
             _hotEpisode = false;
-            _coolCeiling = Math.Min(_max, Current + 4);
+            _coolCeiling = Math.Min(_max, Math.Max(Current + 4, _hotStart - 5));
             _coolCeilingUntil = now.AddMinutes(5);
         }
 
