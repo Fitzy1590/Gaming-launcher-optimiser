@@ -36,7 +36,7 @@ public sealed partial class HomeViewModel(AppServices s, MainViewModel main) : O
         ContinuePlaying.Clear();
         foreach (var g in visible.Where(g => g.Game.LastPlayed is not null).OrderByDescending(g => g.Game.LastPlayed).Take(4)) ContinuePlaying.Add(g);
         RecentlyAdded.Clear();
-        foreach (var g in visible.Where(g => !ContinuePlaying.Contains(g)).OrderByDescending(g => g.Game.AddedAt).Take(6)) RecentlyAdded.Add(g);
+        foreach (var g in visible.Where(g => g.Game.Platform is null && !ContinuePlaying.Contains(g)).OrderByDescending(g => g.Game.AddedAt).Take(6)) RecentlyAdded.Add(g);
 
         var sessions = s.Store.LoadSessions();
         var week = sessions.Where(x => x.End >= DateTimeOffset.Now.AddDays(-7)).ToList();

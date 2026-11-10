@@ -178,8 +178,9 @@ public sealed partial class MainViewModel : ObservableObject
         RefreshLibraryMeta();
     }
 
-    public bool IsEmpty => Games.Count == 0;
-    public string LibraryCount => Games.Count == 1 ? "1 game" : $"{Games.Count} games";
+    private int PcGameCount => Games.Count(g => g.Game.Platform is null);
+    public bool IsEmpty => PcGameCount == 0;
+    public string LibraryCount => PcGameCount == 1 ? "1 game" : $"{PcGameCount} games";
     public bool NotElevated => !_s.IsElevated;
     public string AppVersion => $"Fitz Launcher {UpdateService.CurrentVersion}";
     public LibrarySort[] SortOptions { get; } = Enum.GetValues<LibrarySort>();
@@ -187,6 +188,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool Filter(object o)
     {
         if (o is not GameViewModel g) return false;
+        if (g.Game.Platform is not null) return false; // console games live in the Emulation tab
         if (g.Game.Hidden && !ShowHidden) return false;
         if (StatusFilter is { } st && g.Game.Status != st) return false;
         if (TagFilter is { } tag && !g.Game.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)) return false;
@@ -207,10 +209,11 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Tag list and hours totals (library header).</summary>
     public void RefreshLibraryMeta()
     {
-        var tags = _s.Library.Games.SelectMany(g => g.Tags).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t).ToList();
+        var pcGames = _s.Library.Games.Where(g => g.Platform is null).ToList();
+        var tags = pcGames.SelectMany(g => g.Tags).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(t => t).ToList();
         AllTags.Clear();
         foreach (var t in tags) AllTags.Add(t);
-        var totals = LibraryStats.Compute(_s.Library.Games, _s.Store.LoadSessions(), DateTimeOffset.Now);
+        var totals = LibraryStats.Compute(pcGames, _s.Store.LoadSessions(), DateTimeOffset.Now);
         TotalsText = $"{LibraryStats.FormatHours(totals.TotalHours)} played  ·  {LibraryStats.FormatHours(totals.WeekHours)} this week  ·  " +
                      $"{totals.Playing} playing  ·  {totals.Completed} finished  ·  {totals.Backlog} in backlog";
         GamesView.Refresh();
