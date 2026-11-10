@@ -56,6 +56,8 @@ public sealed record AutoTdpDecision(int? Watts, string Reason);
 /// </summary>
 public sealed class AutoTdpGovernor
 {
+    // A low 1% low alone (average already above the target) is a hitch (loading, streaming), not a power shortage: extra watts don't fix it
+    // and cost heat. From a real log: two +8 W raises to 57 W for hitches at 117 FPS against a 110 target.
     private const double SmoothFloor = 0.90, AvgFloor = 0.95, RoomLow = 0.94, RoomAvg = 0.98;
 
     private int _target;
@@ -146,7 +148,7 @@ public sealed class AutoTdpGovernor
         if (_drawn.Count > 0) peak60 = _drawn.Max(x => x.w);
 
         var binding = _drawUntrusted || s.DrawnWatts is not { } d || d >= Current - (_simulated ? 1.5 : 2.5); // unknown draw: assume the limit is what's holding it
-        var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : s.LowFps < _target * SmoothFloor || s.Fps < _target * AvgFloor;
+        var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : (s.LowFps < _target * SmoothFloor && s.Fps < _target * 1.03) || s.Fps < _target * AvgFloor;
         // Far under the target (a loading hitch aside, something is badly wrong): power must not be the thing that is held back.
         var severe = !_simulated && s.Fps < _target * 0.60;
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
@@ -160,12 +162,20 @@ public sealed class AutoTdpGovernor
         var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
         var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 7);
         var warm = temp > 0 && smooth >= _trigger - 5;
+        var deepCool = smooth > 0 && smooth < _trigger - 10; // clearly cool: the chip has room, so heat-related holds no longer apply
         if (hot)
         {
             _hotEpisode = true;
             _healthySince = null;
             if (severe && smooth < _trigger + 2)
                 return Note($"{smooth:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
+            if (severe && Current > _min)
+            {
+                // FPS has collapsed (about 34) while the chip is 2 °C+ over the trigger. In the logs this state ends only when the chip
+                // cools below about 80 °C, and cutting is what cools it: 5 W every 12 s took 20 s+; cut harder and sooner, then let it climb back.
+                if ((now - _lastChange).TotalSeconds < 5) return null;
+                return Change(Math.Max(_min, Current - 8), now, raised: false, $"FPS collapsed to {s.Fps:0} at {smooth:0} °C: cutting hard to cool it, power comes back as soon as it is cooler");
+            }
             if (Current > _min)
             {
                 if ((now - _lastChange).TotalSeconds < 12) return null; // let the last cut take effect
@@ -209,7 +219,7 @@ public sealed class AutoTdpGovernor
         if (distress)
         {
             _healthySince = null;
-            if (s.ThermalHold || (warm && !severe)) return Note("dipping, but it's warm: not adding power");
+            if ((s.ThermalHold && !deepCool) || (warm && !severe)) return Note("dipping, but it's warm: not adding power");
             if (!binding)
             {
                 var cap = Math.Min(_max, ceiling);

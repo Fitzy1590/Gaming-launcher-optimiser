@@ -73,7 +73,10 @@ public sealed class ThermalGovernor
         if (cool) _futile = false;
         if (!cool || _index == 0) { _coolSince = null; return null; } // levelling out: hold
         _coolSince ??= now;
-        if ((now - _coolSince.Value).TotalSeconds >= _o.RecoverAfterSeconds)
+        // Well below the release point (8 °C+): the chip is clearly fine, so give each step back after 15 s instead of 45 s.
+        // A brief spike used to leave the cap lowered for minutes while the chip sat at 70 °C.
+        var wait = temp <= _trigger - _o.ReleaseBelowC - 8 ? Math.Min(15, _o.RecoverAfterSeconds) : _o.RecoverAfterSeconds;
+        if ((now - _coolSince.Value).TotalSeconds >= wait)
         {
             _index--;
             _coolSince = now;

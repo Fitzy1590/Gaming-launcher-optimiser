@@ -257,6 +257,45 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AHitchInTheOnePercentLowWithTheAverageAboveTargetDoesNotBuyPower()
+    {
+        // Log: 117 FPS against 110 with a 1% low of 73 raised the limit +8 W twice, to 57 W.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 41);
+        for (var t = 0; t < 30; t += 2) Assert.Null(g.Update(new AutoTdpSample(500, 117, 73, 41, TempC: 75), T0.AddSeconds(t))?.Watts);
+        Assert.Equal(41, g.Current);
+        // A real shortfall in the average still does.
+        Assert.True(g.Update(new AutoTdpSample(500, 100, 70, 41, TempC: 75), T0.AddSeconds(40))?.Watts > 41);
+    }
+
+    [Fact]
+    public void WhenTheChipIsClearlyCoolTheGuardHoldDoesNotStopItGettingPowerBack()
+    {
+        // Log: 31 W for 90 s at 69-72 °C with 84-106 FPS against 110, because thermal_hold stayed on while the FPS cap recovered.
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 31, thermalTriggerC: 86.5);
+        var d = g.Update(new AutoTdpSample(500, 84, 74, 31, TempC: 70, ThermalHold: true), T0);
+        Assert.True(d?.Watts > 31);
+        // Not clearly cool (80 °C): the hold still applies.
+        var warm = new AutoTdpGovernor(110, 25, 60, startWatts: 31, thermalTriggerC: 86.5);
+        Assert.Null(warm.Update(new AutoTdpSample(500, 84, 74, 31, TempC: 80, ThermalHold: true), T0)?.Watts);
+    }
+
+    [Fact]
+    public void AFpsCollapseWhileHotCutsPowerHardAndSoonThenItClimbsBack()
+    {
+        var g = new AutoTdpGovernor(110, 25, 60, startWatts: 49, thermalTriggerC: 86.5);
+        g.Update(new AutoTdpSample(500, 120, 105, 49, TempC: 80), T0);
+        var cuts = new List<int>();
+        for (var t = 2; t < 20; t += 2)
+            if (g.Update(new AutoTdpSample(500, 34, 33, g.Current, TempC: 93), T0.AddSeconds(t))?.Watts is { } w) cuts.Add(w);
+        Assert.NotEmpty(cuts);
+        Assert.True(49 - cuts[0] >= 8, $"first cut only {49 - cuts[0]} W");
+        Assert.True(cuts.Count >= 2, "it should keep cutting every few seconds while it stays collapsed and hot");
+        // Cooler and still short of the target: power comes back.
+        var cool = g.Update(new AutoTdpSample(500, 40, 34, g.Current, TempC: 72), T0.AddSeconds(40));
+        Assert.True(cool?.Watts > g.Current - 1 && cool!.Watts > cuts[^1]);
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);
