@@ -68,7 +68,8 @@ public sealed class AutoTdpGovernor
     private DateTime? _last, _healthySince;
     private DateTime _lastChange = DateTime.MinValue, _floorDecayAt = DateTime.MinValue, _ceilingUntil = DateTime.MinValue;
     private (int w, DateTime at)? _failed;
-    private (DateTime at, double fps, int prev, bool probe)? _gain;
+    private (DateTime at, double fps, double low, int prev, bool probe)? _gain;
+    private int _gainFails;
     /// <summary>A raise helped while the power reading said the limit wasn't binding: the reading under-reports, so it is no longer used to hold power back or to trim.</summary>
     private bool _drawUntrusted;
     private int _floor, _ceiling;
@@ -158,16 +159,24 @@ public sealed class AutoTdpGovernor
             _ceilingUntil = now.AddMinutes(5);
         }
 
-        // Did the last raise actually help?
+        // Did the last raise actually help? Judged on the average OR the 1% low: the average over the last few seconds can still
+        // hold menu or loading frames from before the raise, which made a real improvement look like a loss.
         if (_gain is { } g && now >= g.at)
         {
             _gain = null;
-            if (distress && s.Fps < g.fps * 1.02)
+            var helped = s.Fps >= g.fps * 1.02 || s.LowFps >= g.low * 1.03;
+            if (distress && !helped)
             {
-                _ceiling = g.prev; _ceilingUntil = now.AddMinutes(g.probe ? 10 : 5);
-                return Change(g.prev, now, raised: false, $"extra watts didn't improve FPS ({s.Fps:0}); back to {g.prev} W and not asking for more for a while");
+                _gainFails++;
+                var holdSeconds = Math.Min(120, 30 * (1 << Math.Min(_gainFails - 1, 3))); // 30, 60, 120 s: retried soon, never parked for minutes
+                _ceiling = g.prev; _ceilingUntil = now.AddSeconds(holdSeconds);
+                return Change(g.prev, now, raised: false, $"extra watts didn't improve FPS ({s.Fps:0}, 1% low {s.LowFps:0}); back to {g.prev} W, trying again in {holdSeconds} s");
             }
-            if (g.probe && s.Fps >= g.fps * 1.05) _drawUntrusted = true;
+            if (helped)
+            {
+                _gainFails = 0;
+                if (g.probe && (s.Fps >= g.fps * 1.05 || s.LowFps >= g.low * 1.08)) _drawUntrusted = true;
+            }
         }
 
         var ceiling = now < _ceilingUntil ? _ceiling : _max;
@@ -186,7 +195,7 @@ public sealed class AutoTdpGovernor
                     var up = Math.Min(cap, Current + StepFor(s));
                     return Change(up, now, raised: true,
                         $"dipping (avg {s.Fps:0}, 1% low {s.LowFps:0}) though the chip reads only {s.DrawnWatts:0} of {Current} W; that reading can under-report, so testing +{up - Current} W",
-                        fpsBefore: s.Fps, probe: true);
+                        fpsBefore: s.Fps, probe: true, lowBefore: s.LowFps);
                 }
                 // More power was tried (or isn't allowed) and FPS didn't follow: the game really isn't using the limit.
                 // Trim it to just above what the game draws.
@@ -202,11 +211,11 @@ public sealed class AutoTdpGovernor
                 }
                 return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W and more power didn't help: CPU or engine limited");
             }
-            if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "holding here for a few minutes: more power either overheated it or didn't help");
+            if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "holding here briefly: more power either overheated it or didn't help");
             if ((now - _lastChange).TotalSeconds < 3) return null;
             var next = Math.Min(Math.Min(_max, ceiling), Current + StepFor(s));
             var why = _simulated ? $"the game draws {s.DrawnWatts:0} W, the limit would have held it back" : $"dipping (avg {s.Fps:0}, 1% low {s.LowFps:0}) at the limit";
-            return Change(next, now, raised: true, why, fpsBefore: s.Fps);
+            return Change(next, now, raised: true, why, fpsBefore: s.Fps, lowBefore: s.LowFps);
         }
 
         var room = _simulated || (s.LowFps >= _target * RoomLow && s.Fps >= _target * RoomAvg);
@@ -246,7 +255,7 @@ public sealed class AutoTdpGovernor
         return new AutoTdpDecision(null, text);
     }
 
-    private AutoTdpDecision Change(int watts, DateTime now, bool raised, string why, double fpsBefore = 0, bool probe = false)
+    private AutoTdpDecision Change(int watts, DateTime now, bool raised, string why, double fpsBefore = 0, bool probe = false, double lowBefore = 0)
     {
         var prev = Current;
         Current = watts;
@@ -259,7 +268,7 @@ public sealed class AutoTdpGovernor
             _failed = (prev, now);
             _floor = watts; _floorDecayAt = now.AddSeconds(20);
             _healthySince = null;
-            if (!_simulated) _gain = (now.AddSeconds(6), fpsBefore, prev, probe);
+            if (!_simulated) _gain = (now.AddSeconds(6), fpsBefore, lowBefore, prev, probe);
         }
         else _healthySince = now;
         return new AutoTdpDecision(watts, $"{(watts > prev ? "+" : "−")}{Math.Abs(watts - prev)} W → {watts} W: {why}");

@@ -77,7 +77,7 @@ public class AutoTdpTests
             g.Update(new AutoTdpSample(500, 110, 100, 45), T0.AddSeconds(t));
             Assert.True(g.Current <= 60);
         }
-        Assert.InRange(g.Current, 49, 50); // 45 W drawn + 4 W: a lower limit costs nothing, a higher one would not help
+        Assert.InRange(g.Current, 49, 55); // 45 W drawn + 4 W: a lower limit costs nothing; a short test raise may be in progress
     }
 
     [Fact]
@@ -126,7 +126,33 @@ public class AutoTdpTests
             top = Math.Max(top, g.Current);
         }
         Assert.True(top > 50, "it should have tested a higher limit first");
-        Assert.InRange(g.Current, 33, 35);   // 30 W drawn + 4 W
+        Assert.InRange(g.Current, 33, 45);   // 30 W drawn + 4 W, or inside a short retest above it
+    }
+
+    [Fact]
+    public void MenuFramesInTheBeforeAverageDoNotMakeARealImprovementLookLikeALoss()
+    {
+        // Just left a menu at the 25 W floor: the 6 s average still holds menu frames, the 1% low is the game's.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 25);
+        Assert.Equal(35, g.Update(new AutoTdpSample(500, 70, 40, 25), T0)!.Watts);       // +10 W
+        var later = g.Update(new AutoTdpSample(500, 66, 52, 33), T0.AddSeconds(6));      // average fell, 1% low rose 30 %
+        Assert.True(later is null || later.Watts > 35, "must not undo the raise");
+        Assert.True(g.Current >= 35);
+    }
+
+    [Fact]
+    public void AFailedTestRaiseIsRetriedWithinTwoMinutesNotParkedForMinutes()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 25);
+        var raises = 0;
+        var last = g.Current;
+        for (var t = 0; t < 200; t += 2)
+        {
+            g.Update(new AutoTdpSample(500, 60, 50, 24), T0.AddSeconds(t));              // nothing helps this scene
+            if (g.Current > last) raises++;
+            last = g.Current;
+        }
+        Assert.True(raises >= 2, $"only {raises} raise(s) in 200 s");
     }
 
     [Fact]
@@ -149,7 +175,7 @@ public class AutoTdpTests
             g.Update(s, T0.AddSeconds(t));
             top = Math.Max(top, g.Current);
         }
-        Assert.True(g.Current <= 40, $"ended at {g.Current}");
+        Assert.True(g.Current <= 48, $"ended at {g.Current}");   // may be inside a short retest of a higher limit
         Assert.True(top < 60);
     }
 
