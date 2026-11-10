@@ -172,8 +172,15 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
         if (File.Exists(RestoreFile)) Restore();
     }
 
+    private DateTime _pausedUntil = DateTime.MinValue;
+
+    /// <summary>
+    /// Runs RyzenAdj with a hard time limit. It talks to the chip's power controller and on some systems a run can hang; the output is read
+    /// in the background so the wait can time out, a hung run is killed, and RyzenAdj is left alone for 30 s afterwards instead of being retried.
+    /// </summary>
     private (int code, string output) Run(string args)
     {
+        if (DateTime.UtcNow < _pausedUntil) return (-3, "RyzenAdj is paused for a moment after it stopped answering");
         try
         {
             var psi = new ProcessStartInfo(exePath, args)
@@ -181,9 +188,17 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true,
                 WorkingDirectory = Path.GetDirectoryName(exePath)!,
             };
-            using var p = Process.Start(psi)!;
-            var output = p.StandardOutput.ReadToEnd() + p.StandardError.ReadToEnd();
-            p.WaitForExit(10_000);
+            using var p = Process.Start(psi);
+            if (p is null) return (-1, "couldn't start RyzenAdj");
+            var outTask = p.StandardOutput.ReadToEndAsync();
+            var errTask = p.StandardError.ReadToEndAsync();
+            if (!p.WaitForExit(5_000))
+            {
+                try { p.Kill(entireProcessTree: true); } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                _pausedUntil = DateTime.UtcNow.AddSeconds(30);
+                return (-2, "RyzenAdj didn't answer within 5 s and was stopped");
+            }
+            var output = Task.WaitAll([outTask, errTask], 1_000) ? outTask.Result + errTask.Result : "";
             return (p.ExitCode, output);
         }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { return (-1, e.Message); }

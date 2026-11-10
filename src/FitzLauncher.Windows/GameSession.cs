@@ -40,6 +40,7 @@ public sealed class GameSession(
     public FitzLauncher.Core.Fps.StutterReport? StutterReport { get; private set; }
     private readonly List<FitzLauncher.Core.Fps.ContextSample> _samples = [];
     private readonly DiskActivity _disk = new();
+    private int _tickErrors;
     private DateTimeOffset _lastPowerChange = DateTimeOffset.MinValue;
 
     /// <summary>Changes the power limit and remembers when, so a stutter at that moment can be explained.</summary>
@@ -49,6 +50,7 @@ public sealed class GameSession(
         var ok = RyzenAdj!.Apply(watts, PowerMaxWatts);
         if (ok) _lastPowerChange = DateTimeOffset.UtcNow;
         if (sw.ElapsedMilliseconds > 400) Trace?.Invoke($"RyzenAdj took {sw.ElapsedMilliseconds} ms to set {watts} W (slow runs can hitch the game)");
+        if (!ok) Trace?.Invoke($"RyzenAdj didn't set {watts} W: {RyzenAdj.LastError}");
         return ok;
     }
 
@@ -579,6 +581,8 @@ public sealed class GameSession(
             {
                 if (LowPowerSleep.Asleep) continue; // nothing to watch while the device sleeps; keeps the chip idle
                 tick++;
+                try
+                {
                 // Process list every 4 s; sensors every 2 s.
                 if (tick % 2 == 0)
                 {
@@ -661,10 +665,19 @@ public sealed class GameSession(
                     if (decision is { } dec)
                     {
                         Trace?.Invoke("Auto TDP" + (_autoSimulated ? " (observing, not applied)" : "") + ": " + dec.Reason);
-                        if (!_autoSimulated && dec.Watts is { } nw && SetPower(nw))
+                        if (!_autoSimulated && dec.Watts is { } nw)
                         {
-                            lock (_capLock) _livePower = nw;
-                            Note($"TDP {nw} W");
+                            if (SetPower(nw))
+                            {
+                                lock (_capLock) _livePower = nw;
+                                Note($"TDP {nw} W");
+                            }
+                            else
+                            {
+                                int? applied;
+                                lock (_capLock) applied = _livePower;
+                                ag.Resync(applied ?? before);   // the overlay must show what is really set
+                            }
                         }
                     }
                 }
@@ -726,6 +739,12 @@ public sealed class GameSession(
                     }
                 }
                 Live?.Invoke(live);
+                }
+                catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException or KeyNotFoundException or FormatException or System.ComponentModel.Win32Exception)
+                {
+                    // One bad reading must never stop the overlay and the governor for the rest of the session.
+                    if (++_tickErrors <= 5) Trace?.Invoke($"Session check skipped after an error: {e.GetType().Name}: {e.Message}");
+                }
             }
         }
         catch (OperationCanceledException) { /* launcher closing */ }

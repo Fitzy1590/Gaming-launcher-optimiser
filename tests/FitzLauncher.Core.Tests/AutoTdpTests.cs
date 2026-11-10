@@ -210,6 +210,18 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void WhenALimitCouldNotBeAppliedItGoesBackToWhatIsReallySetAndTriesAgain()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 30);
+        var d = g.Update(new AutoTdpSample(500, 70, 60, 30), T0);          // asks for +10 W
+        Assert.Equal(40, d!.Watts);
+        g.Resync(30);                                                       // RyzenAdj timed out: still 30 W
+        Assert.Equal(30, g.Current);
+        var again = g.Update(new AutoTdpSample(500, 70, 60, 30), T0.AddSeconds(4));
+        Assert.True(again?.Watts > 30);                                     // asks again, nothing is stuck waiting on the lost raise
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);

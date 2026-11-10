@@ -94,6 +94,13 @@ public sealed class AutoTdpGovernor
 
     public int Current { get; private set; }
 
+    /// <summary>The limit it asked for was not applied (RyzenAdj failed or timed out): go back to what is really set and try again after a pause.</summary>
+    public void Resync(int appliedWatts)
+    {
+        Current = Math.Clamp(appliedWatts, _min, _max);
+        _gain = null;
+    }
+
     /// <summary>The FPS the game is being held to right now (the cap can change: quick switch, thermal guard).</summary>
     public void SetTarget(int target) { if (target > 0) _target = target; }
 
