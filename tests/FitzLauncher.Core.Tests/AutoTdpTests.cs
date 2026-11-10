@@ -81,6 +81,55 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void RaisesFastEvenWhenThePowerReadingSaysTheLimitIsNotBinding()
+    {
+        // Seen on device: limit 29 W, reading 25 W, 84 of 117 FPS. The reading under-reports: the game really needs 45 W.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 29);
+        double? reached = null;
+        for (var t = 0; t < 60; t += 2)
+        {
+            var s = Plant(g.Current, needed: 45, drawnOverride: g.Current - 4);
+            g.Update(s, T0.AddSeconds(t));
+            if (g.Current >= 45 && reached is null) reached = t;
+        }
+        Assert.NotNull(reached);
+        Assert.True(reached <= 16, $"took {reached} s to reach 45 W");
+    }
+
+    [Fact]
+    public void BigShortfallsGetBiggerSteps()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 29);
+        var d = g.Update(new AutoTdpSample(500, 70, 60, 25), T0);           // 60 % of target
+        Assert.Equal(39, d!.Watts);                                          // +10 W
+        var g2 = new AutoTdpGovernor(Target, 25, 60, startWatts: 29);
+        Assert.Equal(34, g2.Update(new AutoTdpSample(500, 108, 100, 29), T0)!.Watts); // small dip: +5 W
+    }
+
+    [Fact]
+    public void OnceARaiseHelpedTheUnderReportingReadingNoLongerPullsPowerDown()
+    {
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 29);
+        for (var t = 0; t < 400; t += 2) g.Update(Plant(g.Current, needed: 45, drawnOverride: g.Current - 6), T0.AddSeconds(t));
+        Assert.InRange(g.Current, 41, 52);   // never snapped down to "draw + 4" (about 31 W)
+    }
+
+    [Fact]
+    public void AProbeThatDoesNotHelpIsUndoneAndThenTheLimitIsTrimmedToWhatIsDrawn()
+    {
+        // Engine-bound at 100 FPS whatever the limit; the chip really draws 30 W of its 50 W limit.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 50);
+        var top = 50;
+        for (var t = 0; t < 400; t += 2)
+        {
+            g.Update(new AutoTdpSample(500, 100, 90, 30), T0.AddSeconds(t));
+            top = Math.Max(top, g.Current);
+        }
+        Assert.True(top > 50, "it should have tested a higher limit first");
+        Assert.InRange(g.Current, 33, 35);   // 30 W drawn + 4 W
+    }
+
+    [Fact]
     public void LowersTheLimitWhenLowRealisticOneLowsStillMeetTheFloorWithRoomToSpare()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, 45);

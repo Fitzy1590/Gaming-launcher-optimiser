@@ -41,9 +41,10 @@ public sealed record AutoTdpDecision(int? Watts, string Reason);
 /// <summary>
 /// Auto TDP: holds the FPS target with the least power that stays smooth.
 /// <list type="bullet">
-/// <item><b>Up fast.</b> If frames dip (1% low under 90 % of the target, or average under 95 %) while the chip is actually
-/// hitting its limit, it adds 5 W straight away (8 W for a bad dip). If the chip isn't using its limit, more watts won't help
-/// and it says so instead. If extra watts don't improve FPS, it goes back and stops asking for more for a while.</item>
+/// <item><b>Up fast.</b> If frames dip (1% low under 90 % of the target, or average under 95 %) it adds power straight away:
+/// 5 W, 8 W for a bad dip, 10 W when more than 30 % under the target. If the power reading says the chip isn't at its limit
+/// the reading can be wrong (some chips under-report), so it tests with a raise instead of trusting it. If extra watts don't
+/// improve FPS, it goes back, stops asking for more for a while, and only then trusts the reading enough to trim the limit.</item>
 /// <item><b>Down slowly.</b> With the target held comfortably (1% low over 96 %) it first snaps the limit to just above what the
 /// game really draws (peak of the last minute + 4 W), then lowers 2 W at a time after 40 s of room to spare. It never goes below
 /// a level that just dipped (+3 W margin, remembered for 10 min), and the level a big scene needed fades only 1 W per 20 s, so
@@ -67,7 +68,9 @@ public sealed class AutoTdpGovernor
     private DateTime? _last, _healthySince;
     private DateTime _lastChange = DateTime.MinValue, _floorDecayAt = DateTime.MinValue, _ceilingUntil = DateTime.MinValue;
     private (int w, DateTime at)? _failed;
-    private (DateTime at, double fps, int prev)? _gain;
+    private (DateTime at, double fps, int prev, bool probe)? _gain;
+    /// <summary>A raise helped while the power reading said the limit wasn't binding: the reading under-reports, so it is no longer used to hold power back or to trim.</summary>
+    private bool _drawUntrusted;
     private int _floor, _ceiling;
     private string? _lastNote;
     private double _seconds, _limitSeconds, _drawnSeconds, _drawnTotal, _healthySeconds;
@@ -125,7 +128,7 @@ public sealed class AutoTdpGovernor
         while (_drawn.Count > 0 && now - _drawn.Peek().at > TimeSpan.FromSeconds(60)) _drawn.Dequeue();
         if (_drawn.Count > 0) peak60 = _drawn.Max(x => x.w);
 
-        var binding = s.DrawnWatts is not { } d || d >= Current - (_simulated ? 1.5 : 2.5); // unknown draw: assume the limit is what's holding it
+        var binding = _drawUntrusted || s.DrawnWatts is not { } d || d >= Current - (_simulated ? 1.5 : 2.5); // unknown draw: assume the limit is what's holding it
         var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : s.LowFps < _target * SmoothFloor || s.Fps < _target * AvgFloor;
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
@@ -161,9 +164,10 @@ public sealed class AutoTdpGovernor
             _gain = null;
             if (distress && s.Fps < g.fps * 1.02)
             {
-                _ceiling = g.prev; _ceilingUntil = now.AddMinutes(5);
+                _ceiling = g.prev; _ceilingUntil = now.AddMinutes(g.probe ? 10 : 5);
                 return Change(g.prev, now, raised: false, $"extra watts didn't improve FPS ({s.Fps:0}); back to {g.prev} W and not asking for more for a while");
             }
+            if (g.probe && s.Fps >= g.fps * 1.05) _drawUntrusted = true;
         }
 
         var ceiling = now < _ceilingUntil ? _ceiling : _max;
@@ -173,8 +177,19 @@ public sealed class AutoTdpGovernor
             if (warm || s.ThermalHold) return Note("dipping, but it's warm: not adding power");
             if (!binding)
             {
-                // The game isn't using its power limit (CPU- or engine-limited, e.g. lowering the resolution changes nothing):
-                // more power can't help, and a lower limit costs nothing. Trim it to just above what the game really draws.
+                var cap = Math.Min(_max, ceiling);
+                if (!_simulated && Current < cap)
+                {
+                    // The reading says the limit isn't what's holding it back, yet frames are short. Readings can under-report,
+                    // so test: add power and see whether FPS follows (the gain check undoes it if it doesn't).
+                    if (_gain is not null || (now - _lastChange).TotalSeconds < 3) return null; // wait for the last test raise to be judged
+                    var up = Math.Min(cap, Current + StepFor(s));
+                    return Change(up, now, raised: true,
+                        $"dipping (avg {s.Fps:0}, 1% low {s.LowFps:0}) though the chip reads only {s.DrawnWatts:0} of {Current} W; that reading can under-report, so testing +{up - Current} W",
+                        fpsBefore: s.Fps, probe: true);
+                }
+                // More power was tried (or isn't allowed) and FPS didn't follow: the game really isn't using the limit.
+                // Trim it to just above what the game draws.
                 if (peak60 is { } used && s.DrawnWatts is not null && (now - _lastChange).TotalSeconds >= 15)
                 {
                     var want = Math.Max(_min, (int)Math.Ceiling(used + 4));
@@ -185,12 +200,11 @@ public sealed class AutoTdpGovernor
                         return trim;
                     }
                 }
-                return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W: more power won't help here (CPU or engine limited)");
+                return Note($"dipping but the chip draws only {s.DrawnWatts:0} of {Current} W and more power didn't help: CPU or engine limited");
             }
             if (Current >= Math.Min(_max, ceiling)) return Note(Current >= _max ? $"at the {_max} W limit and still dipping" : "holding here for a few minutes: more power either overheated it or didn't help");
             if ((now - _lastChange).TotalSeconds < 3) return null;
-            var severe = !_simulated && s.LowFps < _target * 0.80;
-            var next = Math.Min(Math.Min(_max, ceiling), Current + (severe ? 8 : 5));
+            var next = Math.Min(Math.Min(_max, ceiling), Current + StepFor(s));
             var why = _simulated ? $"the game draws {s.DrawnWatts:0} W, the limit would have held it back" : $"dipping (avg {s.Fps:0}, 1% low {s.LowFps:0}) at the limit";
             return Change(next, now, raised: true, why, fpsBefore: s.Fps);
         }
@@ -204,7 +218,7 @@ public sealed class AutoTdpGovernor
         var lowest = Math.Max(_min, Math.Max(_floor, failed is { } ff ? ff + 3 : _min));
 
         // 1. Snap to what the game actually draws (free: it doesn't use the headroom).
-        if (peak60 is { } p && s.DrawnWatts is not null && held >= 15 && (now - _lastChange).TotalSeconds >= 15)
+        if (!_drawUntrusted && peak60 is { } p && s.DrawnWatts is not null && held >= 15 && (now - _lastChange).TotalSeconds >= 15)
         {
             var want = (int)Math.Ceiling(p + 4);
             var next = Math.Max(want, lowest);
@@ -217,6 +231,14 @@ public sealed class AutoTdpGovernor
         return null;
     }
 
+    /// <summary>How much to add: more when the game is far under the target.</summary>
+    private int StepFor(AutoTdpSample s)
+    {
+        if (_simulated) return 5;
+        if (s.Fps < _target * 0.70) return 10;
+        return s.LowFps < _target * 0.80 ? 8 : 5;
+    }
+
     private AutoTdpDecision? Note(string text)
     {
         if (text == _lastNote) return null;
@@ -224,7 +246,7 @@ public sealed class AutoTdpGovernor
         return new AutoTdpDecision(null, text);
     }
 
-    private AutoTdpDecision Change(int watts, DateTime now, bool raised, string why, double fpsBefore = 0)
+    private AutoTdpDecision Change(int watts, DateTime now, bool raised, string why, double fpsBefore = 0, bool probe = false)
     {
         var prev = Current;
         Current = watts;
@@ -237,7 +259,7 @@ public sealed class AutoTdpGovernor
             _failed = (prev, now);
             _floor = watts; _floorDecayAt = now.AddSeconds(20);
             _healthySince = null;
-            if (!_simulated) _gain = (now.AddSeconds(8), fpsBefore, prev);
+            if (!_simulated) _gain = (now.AddSeconds(6), fpsBefore, prev, probe);
         }
         else _healthySince = now;
         return new AutoTdpDecision(watts, $"{(watts > prev ? "+" : "−")}{Math.Abs(watts - prev)} W → {watts} W: {why}");
