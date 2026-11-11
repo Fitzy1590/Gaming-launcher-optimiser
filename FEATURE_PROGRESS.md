@@ -7,6 +7,50 @@ Checkpoint across sessions. Base checks `B` apply to every item:
 
 UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 
+## 0. Checkpoint (2026-11-11, resume here after `/clear`)
+
+**State:** `main` = `425cdcf`, release v0.3.67, CI green, 403 Core tests pass. Working tree clean. Nothing below is confirmed on device unless it says so.
+
+**Shipped this stretch (v0.3.49 → v0.3.67)**
+- Auto TDP: now starts and says why when it can't; RyzenAdj single run per change with a real 5 s timeout; tuned from four real Witcher 3 logs (see decisions).
+- Controller menus: `Core/Input/PressFilter` (80 ms release grace + D-pad diagonal settle). User has not confirmed the double inputs are gone.
+- Stutter detective 2 (drive / power-change evidence, one-click fixes). Emulation Hub E0-E9 mostly built (§4). Console games hidden from the Library tab.
+
+**Technical decisions (keep unless a log says otherwise)**
+- Auto TDP shape: up fast (5/8/10 W, 5 W max while warm), down slow (2 W/40 s; 2 W/30 s at 5 %+ over target; 3 W/25 s at 10 %+).
+- Heat is judged on a ~16 s average of max(CPU, GPU); a single reading acts alone only 8 °C past the trigger. The CPU sensor swings 10-20 °C in seconds; the GPU sensor is steady.
+- Heat cuts: 20 s apart (12 s when 6 °C+ over), never more than 12 W below where the episode started unless very hot. After cooling the ceiling is `hotStart − 5 W` for 5 min (was floor + 4 W, which held 30 W for 4 min).
+- FPS collapse (< 60 % of target) while 2 °C+ over trigger: cut 8 W every 5 s. In every log the ~34 FPS plateau ended only after a cut cooled the chip; cause still unknown.
+- A low 1% low with the average ≥ 103 % of target is a hitch, not a power shortage: no raise.
+- A raise is judged on average OR 1% low after 6 s; a failed one is retried after 30/60/120 s. If the power reading says "not at the limit" it probes anyway (reading can under-report).
+- Floor while healthy: 6 W under what the game needed (last session's typical, or the level a real dip forced).
+- FPS above the frame cap is clamped to the cap before the governor sees it. Fitz's counter reads ~9-10 % above the cap (121 vs 110); ignoring DXGI test presents did not close the gap. Root cause open.
+- Thermal guard gives back an FPS-cap step after 15 s (not 45 s) when 13 °C+ under its trigger.
+- Emulation: no ROM/BIOS/key content, emulator downloads from GitHub hosts only, config edits are key-level patches of keys that already exist, overlay via RTSS/ETW (no injection).
+
+**In progress, nothing written yet: Resource manager (gputaskman-style), requested 2026-11-10**
+Design agreed with myself after reading `GameModeController`, `BackgroundLimiter` (`SessionHelpers.cs`), `CpuHogDetector` (`AdvancedTuners.cs`):
+1. `Core/Resources`: `ProcessUsage` (name, CPU %, RAM, GPU %, VRAM, has window); `GpuInstance.Parse` for counter instance names (`pid_N_luid_…_engtype_3D`); `ResourceAdvisor.Plan` → suggestions (Restrain = idle priority + efficiency mode + trim memory, automatic and reversible; Close = optional, asks); protected list (system, drivers, security, RTSS, OneXConsole, the launcher, the game); `ResourceChoice` Ask/Always/Never per process; `ResourceLearner` (compare FPS and 1% low 20 s before/after an action: helped / hurt / neutral; stop an action after 2 hurts) with a fake-clock test.
+2. `Windows/Resources`: `GpuProcessMonitor` (perf counters "GPU Engine" → Utilization Percentage, "GPU Process Memory" → Dedicated Usage; package already referenced); snapshot of CPU/RAM per process; actions with a `resource-restore.json` + `RecoverIfNeeded` (priority, EcoQoS via `SetProcessInformation`/`ProcessPowerThrottling`, `EmptyWorkingSet`; close = `CloseMainWindow` only, never kill). Cite Win32 docs in comments.
+3. `App`: `ResourceService` (memory in `resource-memory.json`); pre-launch scan in `MainViewModel.PlayAsync` when Game Mode is on → apply automatic items, show a prompt for optional closes with "remember my choices" (ticked = Always, unticked = Never); in-session pass every ~10 s from `session.Live` (use `session.GamePids`), evaluate and record; restore in the session `finally`; Hardware page card listing GPU/CPU/RAM per task with Always / Never / Forget.
+4. Verify: `--filter ResourceAdvisorTests|ResourceLearnerTests|GpuInstanceTests`; on device, launch with a browser playing video and check the prompt, the restore after exit, and the history line.
+
+**Also unfinished: Phase 2 guardrails refresh (requested 2026-11-10)**
+- Done already: `CLAUDE.md` (70 lines), `.claude/settings.json` deny list + Stop hook (`dotnet build FitzLauncher.slnx`), `.claude/rules/windows-ui.md`, this file.
+- To do: add deny entries `Read(signing/*.p12)`, `Read(./.env.local)` (others are covered by existing globs); create `.claude/skills/` with `release-check/SKILL.md` (push → wait → `list_releases` + `actions_list` for `Fitzy1590/Gaming-launcher-optimiser`, report link) and `auto-tdp-log-review/SKILL.md` (how to read the CSV columns and what to look for).
+
+**Waiting on the user**
+- Next Witcher 3 CSV on v0.3.67 (does the limit still stall low while cool; how far it falls in a hot spell).
+- `launcher.log` line "FPS capture after a minute", and Fitz FPS vs the OneXConsole counter when capped.
+- Whether D-pad / bumper double inputs are gone; whether the menu-exit freeze is gone.
+- Emulation Hub device tests (lists in chat history: find emulators, add folder, Optimise, revert, download, mods).
+- Suggested by me, not done: raise the OneXConsole fan curve (85 °C at ~30 W in logs).
+
+**Immediate next steps**
+1. Build the resource manager in the order above (Core + tests first), push, schedule the release check.
+2. Finish the Phase 2 items (skills, two deny entries).
+3. On the next CSV: check the plateau/ceiling behaviour, then look at the FPS-above-cap gap.
+
 ## 1. Implemented
 
 ### Game/launcher detection (`Core/Scanning`, `Core/GameUpdates`, `Core/Upscalers`)
