@@ -58,6 +58,7 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
   - Commit as `Fitzy1590 <fitzy151290@hotmail.com>`.
   - Push to `main` (it publishes a release). No PRs unless asked.
 - Don't restyle the app wholesale. Visual rules are in `.claude/rules/windows-ui.md`.
+- Multi-step procedures live in `.claude/skills/` (`release`, `auto-tdp-log-review`, `add-emulator`) and load only when needed.
 
 ## Emulation Hub (see `SPEC.md`, stages in `FEATURE_PROGRESS.md` §4)
 

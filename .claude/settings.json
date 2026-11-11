@@ -15,7 +15,10 @@
       "Read(./secrets/**)",
       "Read(**/prod.keys)",
       "Read(**/title.keys)",
-      "Read(**/*.key)"
+      "Read(**/*.key)",
+      "Read(signing/*.p12)",
+      "Read(./.env)",
+      "Read(./.env.local)"
     ]
   },
   "hooks": {
