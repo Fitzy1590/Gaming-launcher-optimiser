@@ -56,6 +56,8 @@ public sealed class FrameTimeRecorder
 
     /// <summary>Frames much slower than the ones around them, with when they happened.</summary>
     public List<StutterEvent> Stutters { get { lock (_lock) return [.. _stutters]; } }
+    /// <summary>How many spikes so far (cheap; for live checks).</summary>
+    public int StutterEventCount { get { lock (_lock) return _stutters.Count; } }
 
     public void AddFrame(double frameTimeMs)
     {

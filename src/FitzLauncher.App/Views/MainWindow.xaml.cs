@@ -32,6 +32,7 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
         };
 
         vm.Confirm = text => MessageBox.Show(this, text, "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
+        vm.ResourceChoicesDialog = rvm => new ResourceSuggestionsWindow(rvm) { Owner = this }.ShowDialog() == true;
         vm.EditGameDialog = game => new EditGameWindow(game) { Owner = this }.ShowDialog() == true;
         vm.TempAlertRaised += a => new TempAlertWindow(a, vm.Settings.S.TempAlertSound, vm.Settings.S.TempAlertOverlay).ShowNonActivating();
         // Controller navigation for every window (never while a game runs).

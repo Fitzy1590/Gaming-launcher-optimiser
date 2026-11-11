@@ -1,0 +1,51 @@
+<Window x:Class="FitzLauncher.App.Views.ResourceSuggestionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:FitzLauncher.App.ViewModels"
+        Title="Fitz Launcher · free up resources" Width="760" Height="640" MinHeight="420"
+        Background="{DynamicResource Bg}" Foreground="{StaticResource Text}" FontFamily="{StaticResource UiFont}"
+        WindowStartupLocation="CenterOwner" UseLayoutRounding="True" TextOptions.TextFormattingMode="Display" Icon="/Assets/fitz.ico">
+    <DockPanel Margin="32,28,32,24">
+        <StackPanel DockPanel.Dock="Top">
+            <TextBlock Text="{Binding GameName, StringFormat='Before {0} starts'}" Style="{StaticResource H1}" />
+            <TextBlock Text="These apps are using the most of your GPU, processor or memory. Pausing keeps an app's place and resumes it when the game ends. Closing asks it to quit the normal way. Nothing is ever force-closed."
+                       Style="{StaticResource MutedText}" FontSize="14" Margin="0,4,0,12" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding AutomaticText}" Style="{StaticResource Wrap}" Margin="0,0,0,12" Visibility="{Binding HasAutomatic, Converter={StaticResource Vis}}" />
+        </StackPanel>
+        <DockPanel DockPanel.Dock="Bottom" Margin="0,16,0,0">
+            <Button DockPanel.Dock="Right" Content="Start game" Style="{StaticResource PlayButton}" Padding="28,8" FontSize="14" Click="Start_Click" IsDefault="True" />
+            <Button Content="Cancel" HorizontalAlignment="Left" Padding="16,8" Click="Cancel_Click" IsCancel="True" />
+        </DockPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Rows}" KeyboardNavigation.TabNavigation="Continue">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="{Binding Why}" Style="{StaticResource Wrap}" Margin="0,2,0,0" />
+                                <TextBlock Text="{Binding History}" Style="{StaticResource Wrap}" Margin="0,4,0,0" Foreground="{StaticResource Secondary}"
+                                           Visibility="{Binding HasHistory, Converter={StaticResource Vis}}" />
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="12" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Now" Style="{StaticResource MutedText}" />
+                                        <ComboBox ItemsSource="{x:Static vm:ResourceChoiceRow.NowOptions}" MinHeight="32" SelectedIndex="{Binding Now, Mode=TwoWay}" AutomationProperties.Name="What to do with this app now" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Next time" Style="{StaticResource MutedText}" />
+                                        <ComboBox ItemsSource="{x:Static vm:ResourceChoiceRow.NextOptions}" MinHeight="32" SelectedIndex="{Binding Next, Mode=TwoWay}" AutomationProperties.Name="What to do next time" />
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
