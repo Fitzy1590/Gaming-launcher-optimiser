@@ -9,7 +9,7 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 
 ## 0. Checkpoint (2026-11-11, resume here after `/clear`)
 
-**State:** `main` = `425cdcf`, release v0.3.67, CI green, 403 Core tests pass. Working tree clean. Nothing below is confirmed on device unless it says so.
+**State:** code = `425cdcf` (release v0.3.67, CI green); later commits are docs/config only, 403 Core tests pass. Working tree clean. Nothing below is confirmed on device unless it says so.
 
 **Shipped this stretch (v0.3.49 → v0.3.67)**
 - Auto TDP: now starts and says why when it can't; RyzenAdj single run per change with a real 5 s timeout; tuned from four real Witcher 3 logs (see decisions).
@@ -35,9 +35,8 @@ Design agreed with myself after reading `GameModeController`, `BackgroundLimiter
 3. `App`: `ResourceService` (memory in `resource-memory.json`); pre-launch scan in `MainViewModel.PlayAsync` when Game Mode is on → apply automatic items, show a prompt for optional closes with "remember my choices" (ticked = Always, unticked = Never); in-session pass every ~10 s from `session.Live` (use `session.GamePids`), evaluate and record; restore in the session `finally`; Hardware page card listing GPU/CPU/RAM per task with Always / Never / Forget.
 4. Verify: `--filter ResourceAdvisorTests|ResourceLearnerTests|GpuInstanceTests`; on device, launch with a browser playing video and check the prompt, the restore after exit, and the history line.
 
-**Also unfinished: Phase 2 guardrails refresh (requested 2026-11-10)**
-- Done already: `CLAUDE.md` (70 lines), `.claude/settings.json` deny list + Stop hook (`dotnet build FitzLauncher.slnx`), `.claude/rules/windows-ui.md`, this file.
-- To do: add deny entries `Read(signing/*.p12)`, `Read(./.env.local)` (others are covered by existing globs); create `.claude/skills/` with `release-check/SKILL.md` (push → wait → `list_releases` + `actions_list` for `Fitzy1590/Gaming-launcher-optimiser`, report link) and `auto-tdp-log-review/SKILL.md` (how to read the CSV columns and what to look for).
+**Phase 2 guardrails refresh: done (`3217a72`)**
+- `CLAUDE.md` (under 200 lines), `.claude/settings.json` deny list + Stop hook (`dotnet build FitzLauncher.slnx`), `.claude/rules/windows-ui.md`, and on-demand skills in `.claude/skills/`: `release`, `auto-tdp-log-review`, `add-emulator`.
 
 **Waiting on the user**
 - Next Witcher 3 CSV on v0.3.67 (does the limit still stall low while cool; how far it falls in a hot spell).
@@ -48,8 +47,7 @@ Design agreed with myself after reading `GameModeController`, `BackgroundLimiter
 
 **Immediate next steps**
 1. Build the resource manager in the order above (Core + tests first), push, schedule the release check.
-2. Finish the Phase 2 items (skills, two deny entries).
-3. On the next CSV: check the plateau/ceiling behaviour, then look at the FPS-above-cap gap.
+2. On the next CSV: check the plateau/ceiling behaviour, then look at the FPS-above-cap gap.
 
 ## 1. Implemented
 
