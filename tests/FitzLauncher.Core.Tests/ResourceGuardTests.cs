@@ -327,3 +327,9 @@ public class ResourceGuardTests
         Assert.Null(m.JudgeLaunch("g", [], new PerfWindow(60, 50, 70, 0), T0.AddDays(1) + ResourceMemory.CompareWithin + TimeSpan.FromDays(1)));
     }
 }
+
+public class ResourceGuardDefaultsTests
+{
+    [Fact]
+    public void IsOffUntilTurnedOn() => Assert.False(new ResourceGuardOptions().Enabled);
+}

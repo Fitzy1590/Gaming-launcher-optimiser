@@ -66,9 +66,9 @@
                         <CheckBox Content="Run the game at High priority" IsChecked="{Binding G.RaiseGamePriority}" />
                         <CheckBox Content="Lower the priority of browsers and other background apps" IsChecked="{Binding G.LowerBackgroundPriority}" />
                         <CheckBox Content="Background CPU limiter: throttle any app that grabs a lot of CPU while you play, until it calms down" IsChecked="{Binding S.BackgroundLimiter}" />
-                        <CheckBox Content="Resource guard: free up GPU, CPU and memory for the game, and keep watching while you play" IsChecked="{Binding S.ResourceGuard.Enabled}" />
-                        <CheckBox Content="Resource guard: ask me before launch about optional steps (pausing or closing heavy apps)" IsChecked="{Binding S.ResourceGuard.AskAtLaunch}" Margin="24,0,0,0" />
-                        <CheckBox Content="Resource guard: keep freeing resources during play, and undo anything that makes the game run worse" IsChecked="{Binding S.ResourceGuard.LiveGuard}" Margin="24,0,0,0" />
+                        <CheckBox Content="Resource guard (off by default): free up GPU, CPU and memory for the game, and keep watching while you play" IsChecked="{Binding S.ResourceGuard.Enabled}" FontWeight="Medium" />
+                        <CheckBox Content="Resource guard: ask me before launch about optional steps (pausing or closing heavy apps)" IsChecked="{Binding S.ResourceGuard.AskAtLaunch}" Margin="24,0,0,0" IsEnabled="{Binding S.ResourceGuard.Enabled}" />
+                        <CheckBox Content="Resource guard: keep freeing resources during play, and undo anything that makes the game run worse" IsChecked="{Binding S.ResourceGuard.LiveGuard}" Margin="24,0,0,0" IsEnabled="{Binding S.ResourceGuard.Enabled}" />
                         <CheckBox Content="Keep all CPU cores awake while playing (core parking off; skipped on X3D CPUs, which rely on it)" IsChecked="{Binding S.CoreParkingOff}" />
                         <CheckBox Content="0.5 ms timer resolution (Windows 10 only; Windows 11 handles this per game)" IsChecked="{Binding G.HighResolutionTimer}" />
                     </StackPanel>

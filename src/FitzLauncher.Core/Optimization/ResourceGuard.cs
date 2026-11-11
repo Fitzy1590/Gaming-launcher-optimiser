@@ -46,7 +46,8 @@ public sealed record MachineState(long TotalRamMb, long FreeRamMb);
 
 public sealed class ResourceGuardOptions
 {
-    public bool Enabled { get; set; } = true;
+    /// <summary>Off until you turn it on: it changes other apps' priorities and can pause or close them.</summary>
+    public bool Enabled { get; set; }
     /// <summary>Show the optional suggestions before a game starts.</summary>
     public bool AskAtLaunch { get; set; } = true;
     /// <summary>Keep watching while the game runs.</summary>
