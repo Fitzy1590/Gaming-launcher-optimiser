@@ -18,7 +18,20 @@
       "Read(**/*.key)",
       "Read(signing/*.p12)",
       "Read(./.env)",
-      "Read(./.env.local)"
+      "Read(./.env.local)",
+      "Read(**/bin/**)",
+      "Read(**/obj/**)",
+      "Read(./publish/**)",
+      "Read(**/TestResults/**)"
+    ],
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(dotnet format whitespace:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)"
     ]
   },
   "hooks": {
