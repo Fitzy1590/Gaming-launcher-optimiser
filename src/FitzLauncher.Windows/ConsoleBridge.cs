@@ -21,6 +21,9 @@ public sealed class ConsoleBridge : IDisposable
     private readonly Action<string> _log;
     private Thread? _thread;
     private volatile bool _run;
+    // Bumped on every Start so a loop thread from an earlier run (slow to stop, e.g. stuck behind a sleep) can never
+    // carry on beside the new one.
+    private int _generation;
     private nint _returnTo;
     // Set when the PS button opened OneXConsole over something: once OneXConsole closes or hides itself (after
     // you pick an option), that window (the game) is brought back automatically.
@@ -60,14 +63,22 @@ public sealed class ConsoleBridge : IDisposable
 
     public bool Running => _run;
 
+    private void RunAction(PadAction action)
+    {
+        try { WindowsActions.Run(action); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log($"PS button ({action}): " + e.Message); }
+    }
+
     public void Start()
     {
         if (_run) return;
         _run = true;
+        var generation = Interlocked.Increment(ref _generation);
         s_active = _combos;
         PlayStationPads.Shared.Start();
-        _thread = new Thread(Loop) { IsBackground = true, Name = "Console button", Priority = ThreadPriority.AboveNormal };
+        _thread = new Thread(() => Loop(generation)) { IsBackground = true, Name = "Console button", Priority = ThreadPriority.AboveNormal };
         _thread.Start();
+        _log("PS shortcuts: watching the controller");
     }
 
     public void Stop()
@@ -81,11 +92,11 @@ public sealed class ConsoleBridge : IDisposable
         PlayStationPads.Shared.Stop();
     }
 
-    private void Loop()
+    private void Loop(int generation)
     {
         var lastForegroundCheck = DateTime.MinValue;
         var consoleInFront = false;
-        while (_run)
+        while (_run && generation == Volatile.Read(ref _generation))
         {
             var s = PlayStationPads.Shared.Current;
             // PS tap → OneXConsole; PS held + a button → that button's Windows action.
@@ -94,7 +105,9 @@ public sealed class ConsoleBridge : IDisposable
                 try
                 {
                     if (action == PadComboEngine.Tap) { if (_consoleEnabled()) Toggle(); }
-                    else WindowsActions.Run(action);
+                    // Sleep waits over a second and then blocks until the device wakes: never on the thread that reads the pad.
+                    else if (action == PadAction.Sleep) { _log("PS shortcut: Sleep"); _ = Task.Run(() => RunAction(action)); }
+                    else { if (!PadComboEngine.Repeats(action)) _log($"PS shortcut: {action}"); WindowsActions.Run(action); }
                 }
                 catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException or IOException) { _log($"PS button ({action}): " + e.Message); }
             }
@@ -220,20 +233,20 @@ public sealed class ConsoleBridge : IDisposable
             }
         }
         foreach (var root in new[] { Registry.LocalMachine, Registry.CurrentUser })
-        foreach (var keyPath in new[] { @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
-        {
-            using var key = root.OpenSubKey(keyPath);
-            if (key is null) continue;
-            foreach (var sub in key.GetSubKeyNames())
+            foreach (var keyPath in new[] { @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall", @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall" })
             {
-                using var app = key.OpenSubKey(sub);
-                var name = app?.GetValue("DisplayName") as string ?? "";
-                if (!name.Replace(" ", "").Contains("OneXConsole", StringComparison.OrdinalIgnoreCase)) continue;
-                if (app?.GetValue("DisplayIcon") is string icon && ExeFromIcon(icon) is { } exe) return exe;
-                if (app?.GetValue("InstallLocation") is string dir && Directory.Exists(dir)
-                    && Directory.EnumerateFiles(dir, "OneX*Console*.exe", SearchOption.AllDirectories).FirstOrDefault() is { } found) return found;
+                using var key = root.OpenSubKey(keyPath);
+                if (key is null) continue;
+                foreach (var sub in key.GetSubKeyNames())
+                {
+                    using var app = key.OpenSubKey(sub);
+                    var name = app?.GetValue("DisplayName") as string ?? "";
+                    if (!name.Replace(" ", "").Contains("OneXConsole", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (app?.GetValue("DisplayIcon") is string icon && ExeFromIcon(icon) is { } exe) return exe;
+                    if (app?.GetValue("InstallLocation") is string dir && Directory.Exists(dir)
+                        && Directory.EnumerateFiles(dir, "OneX*Console*.exe", SearchOption.AllDirectories).FirstOrDefault() is { } found) return found;
+                }
             }
-        }
         var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var pf86 = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86);
         foreach (var c in new[] { Path.Combine(pf, "OneXConsole", "OneXConsole.exe"), Path.Combine(pf86, "OneXConsole", "OneXConsole.exe"), Path.Combine(pf, "ONEXPLAYER", "OneXConsole", "OneXConsole.exe"), Path.Combine(pf86, "ONEXPLAYER", "OneXConsole", "OneXConsole.exe") })
