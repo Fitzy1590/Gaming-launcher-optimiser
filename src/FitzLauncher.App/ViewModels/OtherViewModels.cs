@@ -279,12 +279,43 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
+
+    // ---- resource guard: saved choices and what helped
+    public ObservableCollection<ResourceRuleRow> ResourceRules { get; } = [];
+    public ObservableCollection<ResourceHistoryRow> ResourceHistory { get; } = [];
+
+    private void LoadResourceGuard()
+    {
+        ResourceRules.Clear();
+        ResourceHistory.Clear();
+        var m = _s.ResourceMemory;
+        foreach (var r in m.Rules.OrderBy(r => r.Name, StringComparer.OrdinalIgnoreCase)) ResourceRules.Add(new ResourceRuleRow(r, ForgetResourceRule));
+        foreach (var o in m.Outcomes.OrderByDescending(o => o.Last)) ResourceHistory.Add(new ResourceHistoryRow(o));
+    }
+
+    private void ForgetResourceRule(ResourceRule rule)
+    {
+        _s.ResourceMemory.Rules.Remove(rule);
+        _s.SaveResourceMemory();
+        LoadResourceGuard();
+    }
+
+    [RelayCommand]
+    private void ResetResourceGuard()
+    {
+        if (MessageBox.Show("Forget every saved choice and everything the resource guard has learned about what helps?", "Fitz Launcher", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        var m = _s.ResourceMemory;
+        m.Rules.Clear(); m.Outcomes.Clear(); m.Offenders.Clear(); m.LastRuns.Clear();
+        _s.SaveResourceMemory();
+        LoadResourceGuard();
+    }
     public int[] Targets => LauncherSettings.FpsTargets;
 
     public SettingsViewModel(AppServices s)
     {
         _s = s;
         InitDestinations();
+        LoadResourceGuard();
         _ = LoadIdleTimeoutsAsync();
         Controllers = new ControllersViewModel(s);
         LoadSnapshots();

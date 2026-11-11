@@ -143,6 +143,8 @@ public sealed class LauncherSettings
     public bool CoreParkingOff { get; set; } = true;
     /// <summary>Throttle background apps that suddenly hog the CPU mid-game.</summary>
     public bool BackgroundLimiter { get; set; } = true;
+    /// <summary>Resource guard: frees GPU, CPU and memory for the game at launch and while playing (part of Game Mode).</summary>
+    public FitzLauncher.Core.Optimization.ResourceGuardOptions ResourceGuard { get; set; } = new();
     /// <summary>Lower the cap when there's no input for a while (menus, cutscenes, AFK), like Radeon Chill.</summary>
     public bool AdaptiveCap { get; set; } = true;
     public int AdaptiveIdleSeconds { get; set; } = 20;

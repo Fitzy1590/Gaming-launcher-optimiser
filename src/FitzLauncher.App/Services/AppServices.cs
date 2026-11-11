@@ -164,6 +164,19 @@ public sealed class AppServices : IDisposable
         lock (_saveLock) Store.SaveLibrary(Library);
     }
 
+    private ResourceMemory? _resourceMemory;
+    /// <summary>Resource guard choices and the history of what helped (resource-guard.json).</summary>
+    public ResourceMemory ResourceMemory => _resourceMemory ??= Json.Load<ResourceMemory>(Paths.ResourceGuardMemory) ?? new ResourceMemory();
+
+    public void SaveResourceMemory()
+    {
+        lock (_saveLock)
+        {
+            try { Json.Save(Paths.ResourceGuardMemory, ResourceMemory); }
+            catch (IOException e) { Log.Write("Could not save resource-guard.json: " + e.Message); }
+        }
+    }
+
     public void SaveSettings()
     {
         lock (_saveLock) Store.SaveSettings(Settings);

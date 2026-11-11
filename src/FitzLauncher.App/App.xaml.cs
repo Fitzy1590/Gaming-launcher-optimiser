@@ -62,6 +62,7 @@ public partial class App : Application
             FitzLauncher.Windows.PowerRequestOverride.Clear(services.Paths);
             FitzLauncher.Windows.ControllerRemapper.RecoverIfNeeded(services.Paths);
             FitzLauncher.Windows.CoolingController.RecoverIfNeeded(services.Paths);
+            foreach (var line in FitzLauncher.Windows.ResourceApplier.RecoverIfNeeded(services.Paths)) services.Log.Write("Recovered resource guard: " + line);
             if (File.Exists(FitzLauncher.Windows.AmdFeatures.RestoreFile(services.Paths))) FitzLauncher.Windows.AmdFeatures.RestoreAfterSession(services.Paths);
             if (FitzLauncher.Windows.RyzenAdjClient.Find(services.Settings.RyzenAdjPath) is { } adj)
                 new FitzLauncher.Windows.RyzenAdjClient(adj, services.Paths).RecoverIfNeeded();

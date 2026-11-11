@@ -54,6 +54,20 @@ public sealed class GameSession(
         return ok;
     }
 
+    // ---- resource guard: background apps held back, paused or closed for this session (all put back at the end)
+    /// <summary>Your choices and the history of what helped; null = the guard is off for this session.</summary>
+    public ResourceMemory? ResourceMemory { get; init; }
+    /// <summary>Steps to take before the game starts (automatic ones plus what you picked).</summary>
+    public IReadOnlyList<PlannedAction> ResourceLaunchActions { get; init; } = [];
+    /// <summary>Extra processes the guard must leave alone (a trainer started with the game).</summary>
+    public Func<IEnumerable<int>>? ResourceProtectedPids { get; set; }
+    /// <summary>What the guard did, for the log and the end-of-session note.</summary>
+    public List<string> ResourceReport { get; } = [];
+    /// <summary>The "this helped / this made it worse" lines from live checks, for the end-of-session note.</summary>
+    public List<string> ResourceVerdicts { get; } = [];
+    /// <summary>The steps that were actually applied before launch ("name|action"), for judging them afterwards.</summary>
+    public List<PlannedAction> ResourceLaunchApplied { get; } = [];
+
     /// <summary>One-launch options from the display plan (e.g. Unity's -screen-width).</summary>
     public string ExtraArguments { get; init; } = "";
     /// <summary>Cap for the active screen; null = the game's own target.</summary>
@@ -406,6 +420,33 @@ public sealed class GameSession(
             foreach (var line in await Task.Run(() => gameMode.ActivatePreLaunch(settings.GameMode, tuning, settings.CoreParkingOff), ct)) Status?.Invoke(line);
         }
 
+        // Resource guard: free GPU, CPU and memory before the game loads. Everything is recorded first and undone at the end.
+        var applier = ResourceMemory is not null && useGameMode ? new ResourceApplier(paths, line => Trace?.Invoke(line)) : null;
+        if (applier is not null && ResourceLaunchActions.Count > 0)
+        {
+            await Task.Run(() =>
+            {
+                foreach (var a in ResourceLaunchActions)
+                {
+                    if (applier.Apply(a.App, a.Action) == 0) continue;
+                    ResourceLaunchApplied.Add(a);
+                    Trace?.Invoke("Resource guard: " + a.Reason);
+                }
+            }, ct).ConfigureAwait(false);
+            if (ResourceLaunchApplied.Count > 0)
+            {
+                string Names(FreeAction action) => string.Join(", ", ResourceLaunchApplied.Where(a => a.Action == action).Select(a => a.App.Name).Distinct(StringComparer.OrdinalIgnoreCase));
+                var parts = new List<string>();
+                if (Names(FreeAction.Restrain) is { Length: > 0 } held) parts.Add($"held back {held}");
+                if (Names(FreeAction.Pause) is { Length: > 0 } paused) parts.Add($"paused {paused}");
+                if (Names(FreeAction.Close) is { Length: > 0 } closed) parts.Add($"closed {closed}");
+                if (Names(FreeAction.TrimMemory) is { Length: > 0 } trimmed) parts.Add($"freed idle memory from {trimmed}");
+                var line = "Resource guard: " + string.Join("; ", parts);
+                ResourceReport.Add(line);
+                Status?.Invoke(line);
+            }
+        }
+
         // Cooling: CPU boost mode for the session (restored afterwards, or at the next start after a crash).
         var cooling = Cooling is { BoostMode: { } boost } ? new CoolingController(paths) : null;
         if (cooling is not null && cooling.ApplyBoost(Cooling!.BoostMode!.Value))
@@ -433,6 +474,7 @@ public sealed class GameSession(
         }
         catch
         {
+            applier?.RestoreAll();
             if (useGameMode) gameMode.Restore();
             throw;
         }
@@ -571,7 +613,14 @@ public sealed class GameSession(
         var priorityRaised = new HashSet<int>(tracker.Pids);
         using var crashWatch = new CrashDetector.Watch();
         crashWatch.Track(tracker.Pids);
-        var limiter = settings.BackgroundLimiter ? new BackgroundLimiter() : null;
+        // The live resource resGuard watches GPU, CPU and memory together and takes over from the CPU-only limiter.
+        var resGuard = applier is not null && settings.ResourceGuard.LiveGuard ? new ResourceGuardLive(ResourceMemory!, game.Name) : null;
+        var sampler = resGuard is not null ? new ProcessResourceSampler() : null;
+        foreach (var a in ResourceLaunchApplied.Where(a => a.Action == FreeAction.Restrain)) resGuard?.MarkRestrained(a.App.Name);
+        (string? Name, double Cpu) guardTop = (null, 0);
+        var guardStutters = 0;
+        double? guardTemp = null;
+        var limiter = settings.BackgroundLimiter && resGuard is null ? new BackgroundLimiter() : null;
         if (limiter is not null) limiter.Throttled += msg => Status?.Invoke(msg);
         var idleGov = settings.AdaptiveCap && rtss is not null ? new IdleCapGovernor(settings.AdaptiveIdleSeconds, settings.AdaptiveIdleCap) : null;
         var idleCapUsed = false;
@@ -597,6 +646,37 @@ public sealed class GameSession(
                     crashWatch.Track(tracker.Pids);
                     _gamePids = [.. tracker.Pids];
                     limiter?.Tick(tracker.Pids);
+                    if (resGuard is not null && sampler is not null && applier is not null)
+                    {
+                        var keep = new HashSet<int>(tracker.Pids) { Environment.ProcessId };
+                        foreach (var extra in ResourceProtectedPids?.Invoke() ?? []) keep.Add(extra);
+                        var apps = ResourcePlanner.Group(sampler.Sample(), keep);
+                        var busiest = apps.Where(a => AppClassifier.MayTouch(a.Name)).MaxBy(a => a.CpuPercent);
+                        guardTop = (busiest?.Name, busiest?.CpuPercent ?? 0);
+                        // Judge only real play: not the first half minute, a benchmark, or the idle cap.
+                        if (graceOver && idleGov is not { Idle: true } && BenchmarkSecondsLeft() is null)
+                        {
+                            var recNow = fps.PrimaryRecorder;
+                            var (frames, avgFps, lowFps) = recNow?.RecentStats(4) ?? (0, 0, 0);
+                            var stutters = recNow?.StutterEventCount ?? 0;
+                            var mem = MemoryCleaner.Snapshot();
+                            ThermalGovernor? capGuard;
+                            lock (_capLock) capGuard = _guard;
+                            var result = resGuard.Tick(DateTimeOffset.UtcNow, apps, new MachineState(mem.TotalMb, mem.FreeMb),
+                                new PerfSample(frames > 0 ? avgFps : 0, lowFps, guardTemp, Math.Max(0, stutters - guardStutters), capGuard?.CurrentCap ?? Cap));
+                            guardStutters = stutters;
+                            foreach (var a in result.Apply)
+                            {
+                                if (applier.Apply(a.App, a.Action) == 0) continue;
+                                ResourceReport.Add(a.Reason);
+                                Trace?.Invoke("Resource guard: " + a.Reason);
+                            }
+                            foreach (var u in result.Undo) applier.Undo(u.Name);
+                            foreach (var n in result.Notes) { ResourceReport.Add(n); ResourceVerdicts.Add(n); Trace?.Invoke("Resource guard: " + n); }
+                        }
+                        // Apps that are held back stay held back when they start new processes (browser tabs).
+                        foreach (var a in apps.Where(a => resGuard.Restrained.Contains(a.Name))) applier.Apply(a, FreeAction.Restrain);
+                    }
                     if (useGameMode && settings.GameMode.RaiseGamePriority)
                     {
                         var fresh = tracker.Pids.Where(priorityRaised.Add).ToList();
@@ -605,6 +685,7 @@ public sealed class GameSession(
                 }
 
                 var r = temps.Read();
+                guardTemp = r.CpuTempC is null && r.GpuTempC is null ? null : Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
                 if (r.CpuTempC is { } c) { maxCpu = Math.Max(maxCpu ?? 0, c); sumCpu += c; cpuSamples++; }
                 if (r.GpuTempC is { } g) { maxGpu = Math.Max(maxGpu ?? 0, g); sumGpu += g; gpuSamples++; }
                 if (r.GpuLoad is { } gl) { gpuLoadSum += gl; gpuLoadSamples++; }
@@ -612,7 +693,7 @@ public sealed class GameSession(
                 Push(gpuHistory, new ThermalSample(r.GpuTempC, r.GpuLoad, r.GpuPowerW));
                 if (_samples.Count < 20_000)
                 {
-                    var top = limiter?.LastTop ?? (null, 0);
+                    var top = limiter?.LastTop ?? guardTop;
                     _samples.Add(new FitzLauncher.Core.Fps.ContextSample(DateTimeOffset.UtcNow, r.CpuTempC, r.GpuTempC, r.CpuLoad, r.GpuLoad,
                         MemoryCleaner.FreePercent(), top.Name, top.Cpu, _guard?.IsThrottling == true,
                         _disk.BusyPercent(), (DateTimeOffset.UtcNow - _lastPowerChange).TotalSeconds < 4));
@@ -768,6 +849,7 @@ public sealed class GameSession(
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
         limiter?.RestoreAll();
+        if (applier is not null) foreach (var line in applier.RestoreAll()) { ResourceReport.Add(line); Status?.Invoke(line); }
         if (endGuard is { IsThrottling: true } || capChanged || _quickCap is not null || idleCapUsed)
         {
             // Put back what should stay: an in-game choice, the optimised cap, or no cap if none was set.

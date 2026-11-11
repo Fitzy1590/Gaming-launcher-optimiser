@@ -66,10 +66,33 @@
                         <CheckBox Content="Run the game at High priority" IsChecked="{Binding G.RaiseGamePriority}" />
                         <CheckBox Content="Lower the priority of browsers and other background apps" IsChecked="{Binding G.LowerBackgroundPriority}" />
                         <CheckBox Content="Background CPU limiter: throttle any app that grabs a lot of CPU while you play, until it calms down" IsChecked="{Binding S.BackgroundLimiter}" />
+                        <CheckBox Content="Resource guard: free up GPU, CPU and memory for the game, and keep watching while you play" IsChecked="{Binding S.ResourceGuard.Enabled}" />
+                        <CheckBox Content="Resource guard: ask me before launch about optional steps (pausing or closing heavy apps)" IsChecked="{Binding S.ResourceGuard.AskAtLaunch}" Margin="24,0,0,0" />
+                        <CheckBox Content="Resource guard: keep freeing resources during play, and undo anything that makes the game run worse" IsChecked="{Binding S.ResourceGuard.LiveGuard}" Margin="24,0,0,0" />
                         <CheckBox Content="Keep all CPU cores awake while playing (core parking off; skipped on X3D CPUs, which rely on it)" IsChecked="{Binding S.CoreParkingOff}" />
                         <CheckBox Content="0.5 ms timer resolution (Windows 10 only; Windows 11 handles this per game)" IsChecked="{Binding G.HighResolutionTimer}" />
                     </StackPanel>
                     <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
+                    <TextBlock Text="What the resource guard has learned" FontWeight="SemiBold" Margin="0,16,0,4" />
+                    <TextBlock Text="Apps it always handles or never touches, and what helped or didn't. It never touches Windows, security software, game launchers, anti-cheat or overlay tools." Style="{StaticResource Wrap}" />
+                    <ItemsControl ItemsSource="{Binding ResourceRules}" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <DockPanel Margin="0,2">
+                                    <Button DockPanel.Dock="Right" Content="Forget" Command="{Binding ForgetCommand}" MinHeight="32" Padding="12,4" AutomationProperties.Name="Forget this choice" />
+                                    <TextBlock VerticalAlignment="Center" TextWrapping="Wrap"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="Medium" /><Run Text=" · " /><Run Text="{Binding Text, Mode=OneWay}" /></TextBlock>
+                                </DockPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding ResourceHistory}" Margin="0,8,0,0">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource Wrap}" Margin="0,2"><Run Text="{Binding Name, Mode=OneWay}" FontWeight="Medium" /><Run Text=" · " /><Run Text="{Binding Text, Mode=OneWay}" /></TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Forget everything it has learned" HorizontalAlignment="Left" Margin="0,8,0,0" MinHeight="32" Padding="12,4" Command="{Binding ResetResourceGuardCommand}" />
                 </StackPanel>
             </Border>
 

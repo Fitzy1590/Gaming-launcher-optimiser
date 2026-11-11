@@ -52,6 +52,10 @@ public sealed class AppPaths(string root)
     public string Hardware => Path.Combine(Root, "hardware.json");
     public string Sessions => Path.Combine(Root, "sessions.jsonl");
     public string GameModeState => Path.Combine(Root, "gamemode-restore.json");
+    /// <summary>Background apps the resource guard changed (priorities, paused apps), so a crash can't leave them that way.</summary>
+    public string ResourceGuardState => Path.Combine(Root, "resource-guard-restore.json");
+    /// <summary>Resource guard choices and the history of what helped.</summary>
+    public string ResourceGuardMemory => Path.Combine(Root, "resource-guard.json");
     public string Benchmarks => Path.Combine(Root, "benchmarks.jsonl");
     public string Presets => Path.Combine(Root, "presets.json");
     public string SaveBackupDir => Path.Combine(Root, "save-backups");

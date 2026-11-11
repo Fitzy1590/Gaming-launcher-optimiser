@@ -88,6 +88,9 @@ public sealed partial class MainViewModel : ObservableObject
     public event Action? SessionEnded;
     /// <summary>Asks the view to open the edit dialog; returns true if saved.</summary>
     public Func<Game, bool>? EditGameDialog { get; set; }
+    /// <summary>Shows the "free up resources before launch" choices; true = start the game.</summary>
+    public Func<ResourceSuggestionsViewModel, bool>? ResourceChoicesDialog { get; set; }
+    private bool _choosingResources;
     public Func<string, bool>? Confirm { get; set; }
     public Action? OpenBigPicture { get; set; }
 
@@ -419,7 +422,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task PlayAsync(GameViewModel vm)
     {
-        if (IsPlaying) { ShowToast("A game is already running."); return; }
+        if (IsPlaying || _choosingResources) { ShowToast("A game is already running."); return; }
         if (!File.Exists(vm.Game.ExePath)) { ShowToast($"Can't find {vm.Game.ExePath}. Use Edit to fix the path."); return; }
         if (vm.Game.Platform is not null && await Task.Run(() => Emulation.Service.PrepareLaunch(vm.Game)) is { } emuProblem) ShowToast(emuProblem);
 
@@ -436,6 +439,10 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
         }
+
+        // Resource guard: see what is using the GPU, CPU and memory, do the safe things, and offer the rest.
+        var (resourceActions, resourceMemory) = await PlanResourcesAsync(vm.Game);
+        if (resourceActions is null) return; // you cancelled in the prompt
 
         var game = vm.Game;
         IsPlaying = true;
@@ -510,6 +517,8 @@ public sealed partial class MainViewModel : ObservableObject
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
+            ResourceMemory = resourceMemory,
+            ResourceLaunchActions = resourceActions,
         };
         using var quick = _s.Settings.QuickSwitch || _s.Settings.QuickMenu || _s.Settings.AdaptiveCap || _s.Settings.IdleSleepInGame ? new QuickSwitchWatcher() : null;
         if (quick is not null)
@@ -577,6 +586,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (_s.Settings.GameHelpWithGames && !SafeMode)
             session.Launched += () => _ = Task.Run(async () =>
                 gameHelp = await _s.GameHelp.StartWithGameAsync(() => session.GamePids, line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); }, trainerCts.Token));
+        session.ResourceProtectedPids = () => new[] { trainer, gameHelp }.Where(p => p is { HasExited: false }).Select(p => p!.Id);
         FitzLauncher.Windows.WindowsActions.TrainerAndGame = () => (trainer is { HasExited: false } tp ? tp.Id : null, session.GamePids);
         if (abTest is not null)
             session.BenchmarkCompleted += b => Ui(() =>
@@ -597,6 +607,7 @@ public sealed partial class MainViewModel : ObservableObject
             game.TotalPlayTime += summary.Duration;
             if (summary.HasFpsData || game.LastSession is null) game.LastSession = summary;
             var crashNote = RecordCrashOrClean(game, summary, session.UndervoltApplied);
+            var resourceNote = LearnResources(game, session, summary);
             var emuNote = string.Join(" ", new[] { Emulation.Service.AfterSession(game, summary) }.Concat(emuAdviceLong).Where(t => !string.IsNullOrEmpty(t)));
             var tune = await Task.Run(() => AutoTune(game, summary));
             var notes = new List<string?> { tune, DisplayPlanner.Learn(game, summary, display?.EffectiveCap ?? game.FpsTarget),
@@ -604,7 +615,7 @@ public sealed partial class MainViewModel : ObservableObject
                     : coolingPlan.PowerScale < 1 ? null
                     : session.LearnedWatts is { } lw && session.LearnedTarget is { } powerTarget ? PowerTuner.LearnLive(game, powerTarget, lw, _s.Settings)
                     : PowerTuner.Learn(game, summary, _s.Settings),
-                PacingTuner.Learn(game, summary), crashNote, emuNote };
+                PacingTuner.Learn(game, summary), crashNote, emuNote, resourceNote };
             if (session.FinalTarget is { } kept && game.CapPerDevice && screen is not null)
             {
                 DeviceCaps.Save(game, Environment.MachineName, screen, kept);
@@ -647,6 +658,66 @@ public sealed partial class MainViewModel : ObservableObject
             if (Details?.Card == vm) Details.Reload();
             SessionEnded?.Invoke();
         }
+    }
+
+    /// <summary>
+    /// Measures what background apps use, applies the safe steps and asks about the optional ones.
+    /// Returns null actions if you cancelled. Never throws: if measuring fails the game simply starts without it.
+    /// </summary>
+    private async Task<(IReadOnlyList<PlannedAction>? Actions, ResourceMemory? Memory)> PlanResourcesAsync(Game game)
+    {
+        var rg = _s.Settings.ResourceGuard;
+        if (SafeMode || !rg.Enabled || !_s.Settings.GameMode.Enabled || !game.UseGameMode) return ([], null);
+        _choosingResources = true;
+        try
+        {
+            var memory = _s.ResourceMemory;
+            LiveText = "Checking what is using your GPU, CPU and memory…";
+            var (apps, machine) = await Task.Run(async () =>
+            {
+                var usage = await new ProcessResourceSampler().MeasureAsync(CancellationToken.None).ConfigureAwait(false);
+                var mem = MemoryCleaner.Snapshot();
+                return (ResourcePlanner.Group(usage, new HashSet<int> { Environment.ProcessId }), new MachineState(mem.TotalMb, mem.FreeMb));
+            });
+            var plan = ResourcePlanner.PlanLaunch(apps, machine, memory, rg.AskAtLaunch && ResourceChoicesDialog is not null);
+            var actions = new List<PlannedAction>(plan.Automatic);
+            if (plan.Suggestions.Count > 0 && ResourceChoicesDialog is { } show)
+            {
+                var rvm = new ResourceSuggestionsViewModel(game.Name, plan);
+                if (!show(rvm)) { LiveText = ""; return (null, memory); }
+                actions.AddRange(rvm.Commit(memory, DateTimeOffset.Now));
+                await Task.Run(_s.SaveResourceMemory);
+            }
+            return (actions, memory);
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception or IOException or UnauthorizedAccessException)
+        {
+            _s.Log.Write($"[{game.Name}] resource guard skipped: {e.Message}");
+            return ([], null);
+        }
+        finally { _choosingResources = false; }
+    }
+
+    /// <summary>After a session: compare with the last one, save what was learned, and say what happened.</summary>
+    private string? LearnResources(Game game, GameSession session, SessionSummary summary)
+    {
+        if (session.ResourceMemory is not { } memory) return null;
+        var lines = new List<string>();
+        foreach (var line in session.ResourceReport) _s.Log.Write($"[{game.Name}] resource guard: {line}");
+        lines.AddRange(session.ResourceVerdicts.Take(2));
+        // Launch steps are compared with the last long session of this game (live steps were judged as they happened).
+        if (summary.HasFpsData && summary.Duration >= TimeSpan.FromMinutes(5) && summary.AverageFps > 0)
+        {
+            var temp = new[] { summary.AvgCpuTempC, summary.AvgGpuTempC }.Where(t => t is not null).Select(t => t!.Value).DefaultIfEmpty(double.NaN).Max();
+            var run = new PerfWindow(summary.AverageFps, summary.OnePercentLowFps, double.IsNaN(temp) ? null : temp, summary.StutterCount / Math.Max(1, summary.Duration.TotalMinutes));
+            var steps = session.ResourceLaunchApplied.Select(a => (a.App.Name, a.Action)).ToList();
+            if (memory.JudgeLaunch(game.Id.ToString(), steps, run, DateTimeOffset.Now) is { Verdict: not OutcomeVerdict.NoChange } v)
+                lines.Add(v.Verdict == OutcomeVerdict.Hurt
+                    ? $"{ResourcePlanner.Verb(v.Action)} {v.Name} looks like it made {game.Name} run worse than last time, so it is noted."
+                    : $"{ResourcePlanner.Verb(v.Action)} {v.Name} looks like it helped {game.Name}, so it is noted.");
+        }
+        _s.SaveResourceMemory();
+        return lines.Count == 0 ? null : string.Join(" ", lines);
     }
 
     /// <summary>
