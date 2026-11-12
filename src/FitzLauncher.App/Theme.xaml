@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:controls="clr-namespace:FitzLauncher.App.Controls">
     <!--
       Fitz Launcher design system: "Console".
       Direction (picked from the awesome-design-md mockups): a console dashboard. The selected game's art fills the
@@ -519,6 +520,27 @@
                         <Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="2" />
                         <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2" HorizontalAlignment="Left" />
                     </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Main-story progress: a ring with the whole-number percent in the middle (sizes: 44 on cards and details, 72 in Big Picture) -->
+    <Style TargetType="controls:ProgressRing">
+        <Setter Property="Width" Value="44" />
+        <Setter Property="Height" Value="44" />
+        <Setter Property="Thickness" Value="5" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="Background" Value="{StaticResource Surface2}" />
+        <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="controls:ProgressRing">
+                    <TextBlock Text="{TemplateBinding Label}" Foreground="{TemplateBinding Foreground}" Typography.NumeralAlignment="Tabular"
+                               HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

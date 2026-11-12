@@ -62,7 +62,7 @@ public sealed class Game
     public List<string> Tags { get; set; } = [];
     public bool Hidden { get; set; }
     public PlayStatus Status { get; set; }
-    /// <summary>User-entered length of the main story, used for the progress bar.</summary>
+    /// <summary>User-entered length of the main story, used for the progress ring.</summary>
     public double? MainStoryHours { get; set; }
     /// <summary>Manual completion override (0-100). Wins over the hours-based estimate.</summary>
     public int? CompletionPercent { get; set; }
@@ -145,12 +145,9 @@ public sealed class Game
     [JsonIgnore]
     public string ExeName => Path.GetFileName(ExePath);
 
-    /// <summary>0-100 progress: manual value, else hours played vs. main-story length.</summary>
+    /// <summary>0-100 main-story progress (see <see cref="Stats.MainStoryProgress"/>); achievements do not count.</summary>
     [JsonIgnore]
-    public double? ProgressPercent => CompletionPercent is { } c ? Math.Clamp(c, 0, 100)
-        : Status == PlayStatus.Completed ? 100
-        : Achievements is { Total: > 0 } a ? Math.Min(100, a.Earned * 100.0 / a.Total!.Value)
-        : MainStoryHours is > 0 ? Math.Min(100, TotalPlayTime.TotalHours / MainStoryHours.Value * 100) : null;
+    public double? ProgressPercent => Stats.MainStoryProgress.For(this)?.Percent;
 }
 
 public sealed class CrashInfo

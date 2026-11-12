@@ -2,6 +2,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using FitzLauncher.App.Services;
 using FitzLauncher.Core.Models;
+using FitzLauncher.Core.Stats;
 
 namespace FitzLauncher.App.ViewModels;
 
@@ -26,8 +27,11 @@ public sealed partial class GameViewModel : ObservableObject
     public string FpsBadge => Game.LastSession is { HasFpsData: true } s ? $"{s.AverageFps:0} FPS" : "";
     public bool HasFpsBadge => FpsBadge.Length > 0;
     public bool IsOptimized => Game.OptimizedAt is not null && Game.AppliedChanges.Count > 0;
-    public double ProgressValue => Game.ProgressPercent ?? 0;
-    public bool HasProgress => Game.ProgressPercent is > 0;
+    private MainStoryProgress? Story => MainStoryProgress.For(Game);
+    public double ProgressValue => Story?.Percent ?? 0;
+    public bool HasProgress => Story is { Percent: > 0 };
+    public string ProgressRingText => Story?.RingText ?? "";
+    public string ProgressLabel => Story is { Percent: > 0 } p ? $"{p.PercentText} main story" : "";
     public double CardOpacity => Game.Hidden ? 0.45 : 1;
     public bool IsFavourite => Game.Favourite;
     public string TargetText => Game.FpsTarget is { } t ? $"{t} FPS target" : "Uncapped";

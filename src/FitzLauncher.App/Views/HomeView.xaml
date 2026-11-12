@@ -1,7 +1,8 @@
 <UserControl x:Class="FitzLauncher.App.Views.HomeView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:vm="clr-namespace:FitzLauncher.App.ViewModels">
+             xmlns:vm="clr-namespace:FitzLauncher.App.ViewModels"
+             xmlns:controls="clr-namespace:FitzLauncher.App.Controls">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel Margin="32,24,32,48" MaxWidth="1280" HorizontalAlignment="Left">
             <TextBlock Text="{Binding Greeting}" Style="{StaticResource H1}" />
@@ -56,8 +57,14 @@
                                 </Border>
                                 <StackPanel Grid.Column="1" Margin="16,12,12,12" VerticalAlignment="Center">
                                     <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Medium" />
-                                    <TextBlock Text="{Binding PlayTimeText}" Style="{StaticResource MutedText}" Margin="0,4,0,0" />
-                                    <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,8,0,0" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                                    <DockPanel Margin="0,8,0,0">
+                                        <controls:ProgressRing DockPanel.Dock="Left" Margin="0,0,12,0" Value="{Binding ProgressValue, Mode=OneWay}" Label="{Binding ProgressRingText}"
+                                                               AutomationProperties.Name="{Binding ProgressLabel}" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding ProgressLabel}" Style="{StaticResource Wrap}" FontSize="12" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                                            <TextBlock Text="{Binding PlayTimeText}" Style="{StaticResource MutedText}" />
+                                        </StackPanel>
+                                    </DockPanel>
                                     <Button Style="{StaticResource PlayButton}" Padding="16,8" FontSize="13" HorizontalAlignment="Left" Margin="0,12,0,0"
                                             Command="{Binding DataContext.PlayCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
                                         <StackPanel Orientation="Horizontal"><TextBlock Style="{StaticResource Icon}" Text="&#xE768;" FontSize="12" /><TextBlock Text="Play" Margin="8,0,0,0" /></StackPanel>

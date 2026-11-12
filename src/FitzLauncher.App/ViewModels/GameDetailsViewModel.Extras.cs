@@ -138,7 +138,10 @@ public sealed partial class GameDetailsViewModel
             var result = st.ResultLow is { } rl ? $"1% low {st.BaselineLow:0} → {rl:0}" : $"waiting for next session (baseline 1% low {st.BaselineLow:0})";
             AutoTuneSteps.Add(new AutoTuneRow(st.Title, result, st.Outcome switch
             {
-                AutoTuneOutcome.Kept => "Kept", AutoTuneOutcome.Reverted => "Reverted", AutoTuneOutcome.Skipped => "Skipped", _ => "Testing",
+                AutoTuneOutcome.Kept => "Kept",
+                AutoTuneOutcome.Reverted => "Reverted",
+                AutoTuneOutcome.Skipped => "Skipped",
+                _ => "Testing",
             }, st.Outcome == AutoTuneOutcome.Kept));
         }
         AutoTuneStatus = !Game.AutoTune.Enabled ? "Off. Turn it on to let the launcher test graphics changes between sessions."
@@ -200,11 +203,12 @@ public sealed partial class GameDetailsViewModel
     public bool Hidden { get => Game.Hidden; set { Game.Hidden = value; SaveAndRefresh(); } }
     public bool Favourite { get => Game.Favourite; set { Game.Favourite = value; SaveAndRefresh(); } }
 
-    public double ProgressValue => Game.ProgressPercent ?? 0;
-    public bool HasProgress => Game.ProgressPercent is not null;
-    public string ProgressText => Game.ProgressPercent is { } p
-        ? $"{p:0}% · {LibraryStats.FormatHours(Game.TotalPlayTime.TotalHours)} played" + (Game.MainStoryHours is { } m && Game.CompletionPercent is null ? $" of ~{m:0} h main story" : "")
-        : $"{LibraryStats.FormatHours(Game.TotalPlayTime.TotalHours)} played. Enter the main-story length for a progress bar.";
+    private MainStoryProgress? Story => MainStoryProgress.For(Game);
+    public double ProgressValue => Story?.Percent ?? 0;
+    public bool HasProgress => Story is not null;
+    public string ProgressRingText => Story?.RingText ?? "";
+    public string ProgressHeadline => Story is { } p ? $"{p.PercentText} of the main story" : "";
+    public string ProgressText => MainStoryProgress.Detail(Game, Story);
 
     [RelayCommand]
     private void SetStatus(ChoiceOption<PlayStatus> option)
@@ -220,6 +224,8 @@ public sealed partial class GameDetailsViewModel
         OnPropertyChanged(nameof(ProgressValue));
         OnPropertyChanged(nameof(HasProgress));
         OnPropertyChanged(nameof(ProgressText));
+        OnPropertyChanged(nameof(ProgressRingText));
+        OnPropertyChanged(nameof(ProgressHeadline));
         Card.Refresh();
         _refreshMeta();
     }

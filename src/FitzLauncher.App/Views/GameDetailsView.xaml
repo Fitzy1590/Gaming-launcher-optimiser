@@ -1,7 +1,8 @@
 <UserControl x:Class="FitzLauncher.App.Views.GameDetailsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:views="clr-namespace:FitzLauncher.App.Views">
+             xmlns:views="clr-namespace:FitzLauncher.App.Views"
+             xmlns:controls="clr-namespace:FitzLauncher.App.Controls">
     <ScrollViewer VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <!-- Hero: the game's art, Console style -->
@@ -146,8 +147,14 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
-                <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Margin="0,8,0,4" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
-                <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" />
+                <DockPanel Margin="0,12,0,0">
+                    <controls:ProgressRing DockPanel.Dock="Left" Margin="0,0,12,0" Value="{Binding ProgressValue, Mode=OneWay}" Label="{Binding ProgressRingText}"
+                                           AutomationProperties.Name="{Binding ProgressHeadline}" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ProgressHeadline}" Style="{StaticResource Wrap}" Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" />
+                        <TextBlock Text="{Binding ProgressText}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </DockPanel>
                 <DockPanel Margin="0,8,0,0">
                     <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Command="{Binding RefreshAchievementsCommand}" ToolTip="Read achievements again">
                         <TextBlock Style="{StaticResource Icon}" Text="&#xE72C;" FontSize="12" />
@@ -168,11 +175,11 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="Main story (h)" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-                        <TextBox Text="{Binding MainStoryHoursText, UpdateSourceTrigger=LostFocus}" ToolTip="Roughly how long the main story is. The progress bar compares this with your playtime." />
+                        <TextBox Text="{Binding MainStoryHoursText, UpdateSourceTrigger=LostFocus}" ToolTip="Roughly how long the main story is. The progress ring compares this with your playtime to estimate how far through you are." />
                     </StackPanel>
                     <StackPanel Grid.Column="4">
                         <TextBlock Text="Done %" Style="{StaticResource MutedText}" Margin="0,0,0,4" />
-                        <TextBox Text="{Binding CompletionText, UpdateSourceTrigger=LostFocus}" ToolTip="Optional: type the completion % from the game's menu. It overrides the hours estimate." />
+                        <TextBox Text="{Binding CompletionText, UpdateSourceTrigger=LostFocus}" ToolTip="Optional: how far through the main story you are, if the game shows it. It replaces the estimate from playtime." />
                     </StackPanel>
                 </Grid>
                 <StackPanel Orientation="Horizontal" Margin="0,8,0,0">

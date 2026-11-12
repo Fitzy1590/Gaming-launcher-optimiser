@@ -133,7 +133,7 @@ click-through overlay that never steals focus, and plays a sound that also works
 - **"Why is it hot?"** — heat alerts explain whether the chip is working flat out (lower the cap or power) or is
   hot at low load (cooling: dust, vents, room, fan curve).
 - **Achievement progress for repacks:** read from Goldberg/GSE and CODEX/RUNE files. The total comes from the
-  repack or Steam, and it feeds the progress bar.
+  repack or Steam, and it shows on the game's page (it does not move the main-story ring).
 - **ReShade/ENB on/off** per game: renames only the mod's own DLL (never DXVK or loaders).
 - **Sync library and settings** through Google Drive for desktop. Newer data from another PC is offered at start-up.
 - **Verify a repack download** before installing (the *Not installed* rows in Scan game folders).
@@ -280,8 +280,8 @@ A plain-language guide in the left pane (F1): what each feature does, a three-st
 ### Library, progress & Big Picture
 - Status (Backlog / Playing / Beaten / 100% / Dropped), **tags**, favourites, hidden games, and sorting by recent,
   most played, A–Z, added or progress.
-- **Hours totals** (all-time / this week) and a **progress bar** per game: hours played against the main-story length you
-  enter, or a completion % you type in.
+- **Hours totals** (all-time / this week) and a **main-story progress ring** per game: 100 % once marked Beaten or 100 %,
+  else the Done % you type in, else an estimate (shown with ~, capped at 99 %) from hours played against the main-story length.
 - **Big Picture mode (F11):** fullscreen and controller-first. Ⓐ Play, Ⓧ Optimise, LB/RB change the FPS
   target (1-click optimise), Ⓨ Favourite, Ⓑ Exit. Works with Xbox pads, and PlayStation pads via Steam Input or DS4Windows.
 - **No UAC prompt** (optional desktop shortcut) and **start with Windows** (minimised), both via elevated Task Scheduler tasks.

@@ -37,10 +37,10 @@ public class AchievementTests
     }
 
     [Fact]
-    public void Achievements_feed_progress_unless_overridden()
+    public void Achievements_do_not_move_main_story_progress()
     {
         var g = new Game { Achievements = new AchievementSnapshot { Earned = 15, Total = 60 } };
-        Assert.Equal(25, g.ProgressPercent);
+        Assert.Null(g.ProgressPercent);
         g.CompletionPercent = 80;
         Assert.Equal(80, g.ProgressPercent);
     }
@@ -117,7 +117,9 @@ public class GameMoverTests
         d.File("SD/Games/Hollow/Saves/s1.sav", "s");
         var game = new Game
         {
-            ExePath = Path.Combine(src, "hollow.exe"), InstallDir = src, SaveDirs = [Path.Combine(src, "Saves"), d.Path_("Elsewhere")],
+            ExePath = Path.Combine(src, "hollow.exe"),
+            InstallDir = src,
+            SaveDirs = [Path.Combine(src, "Saves"), d.Path_("Elsewhere")],
             AppliedChanges = [new AppliedChange { Action = new FileReplaceAction { TargetPath = Path.Combine(src, "libxess.dll") } }],
         };
         var r = GameMover.Move(game, d.Dir("NVMe/Games"), freeBytes: 10_000_000_000, deleteSource: true);
@@ -167,8 +169,15 @@ public class TunerTests
 {
     private static SessionSummary S(double avg, double low, double at, int? watts = null, int? mode = null) => new()
     {
-        HasFpsData = true, AverageFps = avg, OnePercentLowFps = low, TimeAtTarget = at, TargetFps = 117,
-        PowerWatts = watts, LimiterMode = mode, Start = DateTimeOffset.Now.AddMinutes(-20), End = DateTimeOffset.Now,
+        HasFpsData = true,
+        AverageFps = avg,
+        OnePercentLowFps = low,
+        TimeAtTarget = at,
+        TargetFps = 117,
+        PowerWatts = watts,
+        LimiterMode = mode,
+        Start = DateTimeOffset.Now.AddMinutes(-20),
+        End = DateTimeOffset.Now,
     };
 
     [Fact]
