@@ -205,6 +205,28 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void ASecondWarmUpWhileStillCutDoesNotLowerTheCeilingForTheClimbBack()
+    {
+        // From a real session log (The Witcher 3, 100 FPS target, trigger 87 °C): heat at 49 W was cut to 26 W, the chip cooled, then warmed
+        // again briefly at 26 W. That counted as heat "starting" at 26 W, so the climb back stopped at 29-30 W: 3 minutes at 70 FPS and 67 °C.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 49, thermalTriggerC: 87);
+        AutoTdpSample At(double temp)
+        {
+            var fps = Math.Min(100, 2.4 * g.Current); // 30 W → 72 FPS, as logged; 42 W holds the target
+            return new AutoTdpSample(500, fps, fps * 0.75, g.Current, TempC: temp);
+        }
+        var t = 0;
+        void Tick(double temp) { g.Update(At(temp), T0.AddSeconds(t)); t += 2; }
+        for (var i = 0; i < 6; i++) Tick(85);
+        for (var i = 0; i < 26; i++) Tick(95);                          // CPU spike: cut from 49 W to 26 W
+        // As logged from 2652 s: cools briefly (the episode ends), warms again at 26 W, then cools for good.
+        foreach (var c in new double[] { 86, 80, 78, 76, 76, 83, 87, 89, 87, 89, 89, 88, 88, 88, 86, 86, 87, 83, 75, 71, 70, 69, 69 }) Tick(c);
+        for (var i = 0; i < 60; i++) Tick(67);                           // clearly cool, FPS well under the target
+        Assert.True(g.Current >= 42, $"stuck at {g.Current} W at 67 °C and {2.4 * g.Current:0} FPS");
+        Assert.True(g.Current <= 44);                                    // still not straight back to the 49 W that heated it
+    }
+
+    [Fact]
     public void ItDoesNotCutPowerForHeatWhileFpsHasAlreadyCollapsedUnlessItIsWellOverTheTrigger()
     {
         var g = new AutoTdpGovernor(110, 25, 60, startWatts: 40, thermalTriggerC: 86);

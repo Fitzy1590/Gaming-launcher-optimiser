@@ -211,7 +211,10 @@ public sealed class AutoTdpGovernor
             // Cooled down: don't climb straight back to the power that heated it. But the ceiling follows where the heat started (a little
             // under it), not where the cuts ended: "+4 W above the 26 W floor" held a cool chip at 30 W for 4 minutes at 90 FPS.
             _hotEpisode = false;
-            _coolCeiling = Math.Min(_max, Math.Max(Current + 4, _hotStart - 5));
+            // A second warm-up soon after (inside the window) starts from the cut-down limit, so it must not lower the ceiling the first one set.
+            // From a real log: heat at 49 W was cut to 26 W, a brief re-warm at 26 W set the ceiling to 29-30 W, held for minutes at 67 °C and 70 FPS.
+            var ceilingAfter = Math.Min(_max, Math.Max(Current + 4, _hotStart - 5));
+            _coolCeiling = now < _coolCeilingUntil ? Math.Max(_coolCeiling, ceilingAfter) : ceilingAfter;
             _coolCeilingUntil = now.AddMinutes(5);
         }
 
