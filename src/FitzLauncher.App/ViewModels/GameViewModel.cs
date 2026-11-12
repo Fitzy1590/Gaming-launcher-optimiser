@@ -38,6 +38,11 @@ public sealed partial class GameViewModel : ObservableObject
     public string PlayTimeText => Game.TotalPlayTime.TotalMinutes < 1 ? "Not played yet"
         : Game.TotalPlayTime.TotalHours >= 1 ? $"{Game.TotalPlayTime.TotalHours:0.#} h played" : $"{Game.TotalPlayTime.TotalMinutes:0} min played";
 
+    /// <summary>Second line of the library row: hours and last played, or the status when never played.</summary>
+    public string RowLine => GameSummaryText.RowLine(Game.Status, Game.TotalPlayTime, Game.LastPlayed);
+    /// <summary>Facts under the title in the details header.</summary>
+    public string Facts => GameSummaryText.Facts(Game.TotalPlayTime, Game.LastPlayed, Game.LastSession is { HasFpsData: true } s ? s.AverageFps : null);
+
     public async Task LoadCoverAsync()
     {
         ImageLoader.Invalidate(Game.ArtworkPath);

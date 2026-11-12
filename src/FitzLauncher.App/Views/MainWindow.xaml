@@ -274,16 +274,19 @@
                                     </Border>
                                 </Grid>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" FontWeight="Medium" FontSize="13" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Text="{Binding PlayTimeText}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding RowLine}" Style="{StaticResource MutedText}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                    <!-- Main-story progress, only when known -->
+                                    <ProgressBar Value="{Binding ProgressValue, Mode=OneWay}" Maximum="100" Height="3" Margin="0,4,0,0" Foreground="{DynamicResource Accent}"
+                                                 Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" ToolTip="{Binding ProgressLabel}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,4,0">
                                     <TextBlock Text="{Binding FpsBadge}" Style="{StaticResource Figure}" FontSize="12" Margin="0,0,8,0" Visibility="{Binding HasFpsBadge, Converter={StaticResource Vis}}" ToolTip="Average FPS, last session" />
                                     <TextBlock Style="{StaticResource Icon}" Text="&#xE945;" FontSize="12" Margin="0,0,6,0" ToolTip="Optimised" Visibility="{Binding IsOptimized, Converter={StaticResource Vis}}" />
                                     <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Margin="0,0,6,0" ToolTip="Favourite" Visibility="{Binding IsFavourite, Converter={StaticResource Vis}}" />
-                                    <Border Background="{DynamicResource Accent}" CornerRadius="6" Padding="6,1" Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" ToolTip="A newer official version is out">
-                                        <TextBlock Text="Update" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource OnAccent}" />
-                                    </Border>
+                                    <!-- Update available: an arrow, not a loud pill; the details pane has the Update button -->
+                                    <TextBlock Style="{StaticResource Icon}" Text="&#xE74A;" FontSize="14" Foreground="{DynamicResource Accent}" Margin="0,0,0,0"
+                                               Visibility="{Binding HasUpdate, Converter={StaticResource Vis}}" ToolTip="A newer official version is out" />
                                     <Border Background="{DynamicResource Accent}" CornerRadius="6" Padding="6,1" Margin="6,0,0,0" Visibility="{Binding IsRunning, Converter={StaticResource Vis}}">
                                         <TextBlock Text="Playing" FontSize="12" FontWeight="Medium" Foreground="{StaticResource OnAccent}" />
                                     </Border>

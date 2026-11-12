@@ -66,7 +66,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     }
 
     public string Name => Game.Name;
-    public string Subtitle => $"{Card.PlayTimeText}{(Game.LastPlayed is { } lp ? $" · last played {lp:d MMM}" : "")}";
+    public string Subtitle => Card.Facts;
     public bool HasSuggestions => Suggestions.Count > 0;
     public bool HasNotes => Notes.Count > 0;
     public bool HasChanges => Game.AppliedChanges.Count > 0;
