@@ -225,6 +225,8 @@
                         <Style TargetType="ListBoxItem">
                             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                             <Setter Property="Margin" Value="0,0,0,4" />
+                            <!-- Text inherits its colour from the item; without this it falls back to black on the dark row -->
+                            <Setter Property="Foreground" Value="{StaticResource Text}" />
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <!-- Selected or focused row gets an accent ring (drawn by the triggers below); no animation -->
