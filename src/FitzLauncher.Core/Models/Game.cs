@@ -70,6 +70,10 @@ public sealed class Game
     // ---- performance automation
     public CorePinning CorePinning { get; set; } = CorePinning.Auto;
     public bool ThermalGuard { get; set; } = true;
+    /// <summary>Smooth mode: the settings that help the 1% lows are applied for this game (see <c>SmoothMode</c>).</summary>
+    public bool SmoothMode { get; set; }
+    /// <summary>What each Smooth mode change replaced (empty = the setting was unset), so it can be put back.</summary>
+    public Dictionary<string, string> SmoothUndo { get; set; } = [];
     /// <summary>This game's own overlay layout (null: the global one).</summary>
     public OverlaySettings? Overlay { get; set; }
     public AutoTuneState AutoTune { get; set; } = new();

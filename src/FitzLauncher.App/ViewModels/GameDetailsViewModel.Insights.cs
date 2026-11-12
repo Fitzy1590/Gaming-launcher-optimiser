@@ -157,6 +157,7 @@ public sealed partial class GameDetailsViewModel
     private void LoadInsights()
     {
         LoadStutters();
+        RefreshSmooth();
         if (AbOptionsA.Count == 0) BuildAbOptions();
         RefreshAb();
     }

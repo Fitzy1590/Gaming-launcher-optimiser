@@ -352,6 +352,32 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Smooth mode -->
+                <TextBlock Text="Smooth mode" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <CheckBox Content="Smooth mode: use the settings that help the 1% lows in heavy scenes (fights, cities). Switch off to put everything back" IsChecked="{Binding SmoothModeOn}" />
+                        <TextBlock Text="{Binding SmoothResult}" Style="{StaticResource Wrap}" Margin="0,4,0,0" Visibility="{Binding SmoothResult, Converter={StaticResource HasValue}}" />
+                        <ItemsControl ItemsSource="{Binding SmoothRows}" Margin="0,8,0,0">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                                        <TextBlock Text="{Binding Why}" Style="{StaticResource Wrap}" />
+                                        <Button Content="{Binding ButtonLabel}" Command="{Binding ToggleCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Text="Also worth doing (Fitz won't change these for you)" Style="{StaticResource MutedText}" Margin="0,4,0,4" />
+                        <ItemsControl ItemsSource="{Binding SmoothAdvice}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Margin="0,0,0,4" /></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+
                 <!-- Stutter detective -->
                 <TextBlock Text="Stutter detective" Style="{StaticResource H2}" />
                 <Border Style="{StaticResource Card}">
