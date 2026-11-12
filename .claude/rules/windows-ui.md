@@ -46,3 +46,10 @@ Everything must be usable with keyboard and controller alone; `GamepadNavigator`
 - Posters load lazily from the disk cache with a token-coloured placeholder; never block scrolling on a download.
 - Every action in the drawer (Play, Update, Tune, Mods) is reachable by pad: D-pad moves tile to tile, A opens the drawer, B closes it, LB/RB switch platforms.
 - Advisor and update notices use the non-activating toast path, one at a time, never over a running game's focus.
+
+## Library split view and instant navigation (SPEC §11)
+- Library = compact list (left, ~240 px, virtualised) + inspector (right, fills the rest). Selecting a row updates the inspector in place; Play is the single accent action.
+- **Zero animation:** no `Storyboard`, `DoubleAnimation`, easing or scale-on-focus in tiles, rows, page switches or the inspector. State changes apply instantly (WPF equivalent of WinUI `SuppressNavigationTransitionInfo` and no `*ThemeTransition`).
+- Page switching stays `Visibility`-based or a `ContentControl` swap. Never add a `Frame` with transitions.
+- Focus ring on the selected row and every inspector control: accent border, 3:1 contrast, no size change.
+- Pad: D-pad up/down moves the list, right moves into the inspector, left/B returns to the list.

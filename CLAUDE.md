@@ -57,6 +57,8 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 - Git:
   - Commit as `Fitzy1590 <fitzy151290@hotmail.com>`.
   - Push to `main` (it publishes a release). No PRs unless asked.
+- **Navigation is instant:** no transitions, storyboards or scale-on-focus animations. Pages switch via `Visibility`/`ContentControl`, never an animated `Frame`. App is WPF, so WinUI rules apply as their WPF equivalents.
+- **Library layout** is the split view voted in `SPEC.md` §11; the `reviewer` subagent (`.claude/agents/reviewer.md`, read-only) audits UI diffs against it.
 - Don't restyle the app wholesale. Visual rules are in `.claude/rules/windows-ui.md`.
 - Multi-step procedures live in `.claude/skills/` (`release`, `auto-tdp-log-review`, `add-emulator`) and load only when needed.
 

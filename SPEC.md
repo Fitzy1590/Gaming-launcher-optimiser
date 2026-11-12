@@ -190,3 +190,17 @@ Values marked **VERIFY** come from research without a live Windows test and need
 
 ### 10.4 Settings
 `GameModeOptions`: `DeferDefenderScans`, `HoldMaintenance` (both default on only where Game Mode is on), `ShowApuMemoryWarning` (default on). Plain-English labels in Settings → Game Mode.
+
+## 11. Library layout (vote recorded 2026-11-12)
+
+Options shown with mock screenshots; the user chose:
+- [ ] **A** High-density Fluent grid dashboard (not chosen now)
+- [x] **B** Split-view studio inspector (chosen)
+- [ ] **C** Dual mode, desktop plus controller Fullscreen (not chosen now)
+
+**B definition**
+- Left: compact virtualised game list (cover thumb, title, one-line status such as "60 FPS profile" / "Not optimised"), search, filter chips.
+- Right: inspector for the selected game: hero, status chips (profile applied, grade, store), buttons PLAY NOW (accent), Optimise, Studio tab, Revert; stats row (avg FPS, power limit, battery estimate). Reuses `GameDetailsView` and the existing `Details` view model; no new logic in code-behind.
+- Instant navigation, zero animation (see `.claude/rules/windows-ui.md`). Removes the current tile scale animation (`MainWindow.xaml` ~242-254) and the non-virtualised `WrapPanel` grid.
+- Keyboard and pad: list up/down, right enters the inspector, B/left returns. Selected row keeps the accent ring.
+- Out of scope: grid/list toggle (A) and Fullscreen restyle (C). Revisit later by ticking them here.
