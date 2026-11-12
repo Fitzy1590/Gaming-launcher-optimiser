@@ -64,6 +64,14 @@
         <Setter Property="FontFamily" Value="{StaticResource UiFont}" />
         <Setter Property="TextTrimming" Value="CharacterEllipsis" />
     </Style>
+    <!-- WPF's stock list styles set the text colour to black, which every row then inherits (unreadable on the dark theme).
+         Setting it here fixes every list in the app, including row templates that don't set their own colour. -->
+    <Style TargetType="ListBox">
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+    </Style>
+    <Style TargetType="ListView">
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+    </Style>
     <Style x:Key="H1" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
         <Setter Property="FontFamily" Value="{StaticResource DisplayFont}" />
         <Setter Property="FontSize" Value="28" />
