@@ -68,6 +68,16 @@ public sealed class AutoTdpGovernor
     private const double CollapseHeatC = 3;
     private static readonly TimeSpan HitchMemory = TimeSpan.FromMinutes(10);
     private DateTime _hitchProvenAt = DateTime.MinValue;
+    // A raise for a 1% low dip with the average already on the target is judged 6 s later, by which time a hitch has usually passed by itself,
+    // so it looked like the watts helped. If the 1% low then dips as deep again at the raised limit within this window, the watts go back.
+    // From a real log: 49 → 57 W for a 1% low of 47 at the 100 FPS cap, "helped" (89) 6 s later, 49 again at 57 W 14 s after the raise, then
+    // 95 °C and the thermal guard took the cap to 80. The same raise came before 10 of 13 heat spikes in that session.
+    private static readonly TimeSpan RelapseWindow = TimeSpan.FromSeconds(40);
+    private const double RelapseMargin = 1.05;
+    /// <summary>The FPS window is 6 s: until then it still holds frames from before a change, so a change is judged no sooner.</summary>
+    private static readonly TimeSpan JudgeAfter = TimeSpan.FromSeconds(6);
+    /// <summary>Raises made for a 1% low dip at the target: when to start and stop judging, where they started, where they got to, and the dip they were for.</summary>
+    private (DateTime from, DateTime until, int prev, int raisedTo, double low)? _hitchWatch;
 
     private int _target;
     private readonly int _min, _max;
@@ -226,16 +236,24 @@ public sealed class AutoTdpGovernor
             var helped = s.Fps >= g.fps * 1.02 || s.LowFps >= g.low * 1.03;
             if (distress && !helped)
             {
-                _gainFails++;
                 if (s.Fps >= _target * HitchAvg) _hitchProvenAt = now; // on target and more watts changed nothing: the 1% low is hitching, not a power shortage
-                var holdSeconds = Math.Min(120, 30 * (1 << Math.Min(_gainFails - 1, 3))); // 30, 60, 120 s: retried soon, never parked for minutes
-                _ceiling = g.prev; _ceilingUntil = now.AddSeconds(holdSeconds);
-                return Change(g.prev, now, raised: false, $"extra watts didn't improve FPS ({s.Fps:0}, 1% low {s.LowFps:0}); back to {g.prev} W, trying again in {holdSeconds} s");
+                return GiveBack(g.prev, now, $"extra watts didn't improve FPS ({s.Fps:0}, 1% low {s.LowFps:0})");
             }
             if (helped)
             {
-                _gainFails = 0;
+                if (_hitchWatch is null) _gainFails = 0; // a hitch raise has to keep the 1% low up for the whole window before it counts
                 if (g.probe && (s.Fps >= g.fps * 1.05 || s.LowFps >= g.low * 1.08)) _drawUntrusted = true;
+            }
+        }
+        if (_hitchWatch is { } hw)
+        {
+            if (Current != hw.raisedTo) _hitchWatch = null; // already moved (heat, a further step): nothing left to judge
+            else if (now >= hw.until) { _hitchWatch = null; _gainFails = 0; } // the 1% low stayed up: the watts really helped
+            else if (now >= hw.from && s.Fps >= _target * HitchAvg && s.LowFps <= hw.low * RelapseMargin)
+            {
+                _gain = null;
+                _hitchProvenAt = now;
+                return GiveBack(hw.prev, now, $"the 1% low dipped to {s.LowFps:0} again at {Current} W, as low as before the extra watts: that's hitching, not a power shortage");
             }
         }
 
@@ -333,6 +351,16 @@ public sealed class AutoTdpGovernor
         return s.LowFps < _target * 0.80 ? 8 : 5;
     }
 
+    /// <summary>Extra watts didn't help: go back, and hold off asking again for 30, 60, then 120 s (retried soon, never parked for minutes).</summary>
+    private AutoTdpDecision GiveBack(int prev, DateTime now, string why)
+    {
+        _gainFails++;
+        _hitchWatch = null;
+        var holdSeconds = Math.Min(120, 30 * (1 << Math.Min(_gainFails - 1, 3)));
+        _ceiling = prev; _ceilingUntil = now.AddSeconds(holdSeconds);
+        return Change(prev, now, raised: false, $"{why}; back to {prev} W, trying again in {holdSeconds} s");
+    }
+
     private AutoTdpDecision? Note(string text)
     {
         if (text == _lastNote) return null;
@@ -354,7 +382,14 @@ public sealed class AutoTdpGovernor
             _needLevel = watts; _needAt = now;
             _floor = watts; _floorDecayAt = now.AddSeconds(20);
             _healthySince = null;
-            if (!_simulated) _gain = (now.AddSeconds(6), fpsBefore, lowBefore, prev, probe);
+            if (!_simulated) _gain = (now + JudgeAfter, fpsBefore, lowBefore, prev, probe);
+            // Only the 1% low was short (the average is on the target): watch for the same dip coming back. Raises in a row for it keep the
+            // level they started from and the deepest dip, so all of them go back together.
+            if (!_simulated && fpsBefore >= _target * HitchAvg)
+            {
+                var (from, deepest) = _hitchWatch is { } w && w.raisedTo == prev && now < w.until ? (w.prev, Math.Min(w.low, lowBefore)) : (prev, lowBefore);
+                _hitchWatch = (now + JudgeAfter, now + RelapseWindow, from, watts, deepest);
+            }
         }
         else _healthySince = now;
         return new AutoTdpDecision(watts, $"{(watts > prev ? "+" : "−")}{Math.Abs(watts - prev)} W → {watts} W: {why}");
