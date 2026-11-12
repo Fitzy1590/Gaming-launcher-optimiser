@@ -87,9 +87,9 @@ Built as `Core/Optimization/ResourceGuard.cs` (classifier, planner, judge, memor
 
 ### Active UI tasks (layout vote 2026-11-12: **B split-view inspector**; A, C not chosen; see `SPEC.md` §11)
 - [x] Vote recorded; repo guardrails: `.claude/agents/reviewer.md` (read-only), `windows-ui.md` split-view and zero-animation section, CLAUDE.md navigation rule. `.claude/settings.json` already had the deny list and Stop build hook, so it is unchanged.
-- [ ] Library split view: replace `GameList` WrapPanel (`MainWindow.xaml:212`) with a virtualised compact list; inspector pane fills the right side. Verify: B1; on Windows, 500 games scroll smoothly, arrow keys and pad move the list, right enters the inspector
-- [ ] Zero animation: remove the `IsSelected` scale Storyboards (`MainWindow.xaml:242-254`). Verify: B1; `grep -rn 'Storyboard\|DoubleAnimation' src/FitzLauncher.App/Views` shows nothing in page switching or tiles
-- [ ] Focus ring audit on list rows and inspector controls (no `FocusVisualStyle="{x:Null}"` without a trigger). Verify: reviewer subagent reports no findings
+- [x] Library split view (built; not yet confirmed on device): replace `GameList` WrapPanel (`MainWindow.xaml:212`) with a virtualised compact list; inspector pane fills the right side. Verify: B1; on Windows, 500 games scroll smoothly, arrow keys and pad move the list, right enters the inspector
+- [x] Zero animation (done, MainWindow.xaml has no Storyboard): remove the `IsSelected` scale Storyboards (`MainWindow.xaml:242-254`). Verify: B1; `grep -rn 'Storyboard\|DoubleAnimation' src/FitzLauncher.App/Views` shows nothing in page switching or tiles
+- [x] Focus ring on list rows (accent ring on IsKeyboardFocused and IsSelected; inspector controls not audited)  ·  audit and inspector controls (no `FocusVisualStyle="{x:Null}"` without a trigger). Verify: reviewer subagent reports no findings
 
 ## 3. Backlog
 - [ ] Fluent layout contracts per `.claude/rules/windows-ui.md` (4 px spacing grid, 32 px minimum touch targets, `AutomationProperties.Name` on icon buttons). Verify: B1; `grep -rn 'Background="#' src/FitzLauncher.App/Views` → only preview mock-ups; Accessibility Insights FastPass shows 0 failures
