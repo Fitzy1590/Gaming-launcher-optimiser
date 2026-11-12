@@ -155,6 +155,43 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AHitchAtTheCapThatComesBackJustAsDeepAfterARaiseGivesTheWattsBack()
+    {
+        // From a real Witcher 3 log (100 FPS cap, trigger 87 °C): 1% low 47 with the average on the cap raised 49 → 57 W. Six seconds later
+        // the hitch had passed by itself (1% low 89), which counted as "helped"; 14 s after the raise it dipped to 49 again at 57 W,
+        // the CPU went to 95 °C and the thermal guard took the cap down to 80. The same pattern came before 10 of 13 heat spikes.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 49, thermalTriggerC: 87);
+        var t = 0;
+        for (; t < 30; t += 2) g.Update(new AutoTdpSample(600, 100, 92, 49, TempC: 81), T0.AddSeconds(t));
+        Assert.Equal(49, g.Current);
+        Assert.Equal(57, g.Update(new AutoTdpSample(600, 100, 47.0, 49, TempC: 81.8), T0.AddSeconds(t))?.Watts); t += 2;   // the raise in the log
+        // At 57 W, as logged: the hitch passes, then comes back as deep as before.
+        foreach (var (low, temp) in new[] { (47.0, 83.0), (81.6, 83), (88.8, 83), (92.0, 83), (91.0, 85), (61.2, 85), (49.1, 92) })
+        {
+            g.Update(new AutoTdpSample(600, 100, low, g.Current, TempC: temp), T0.AddSeconds(t));
+            t += 2;
+        }
+        Assert.Equal(49, g.Current);
+        // More hitches straight after don't buy the watts back.
+        for (var end = t + 30; t < end; t += 2) g.Update(new AutoTdpSample(600, 100, t % 6 == 0 ? 52 : 90, g.Current, TempC: 84), T0.AddSeconds(t));
+        Assert.Equal(49, g.Current);
+    }
+
+    [Fact]
+    public void ARaiseAtTheCapThatKeepsTheOnePercentLowUpIsKept()
+    {
+        // The other side: after a raise the 1% low stays well above where it was, so the extra watts did help and stay.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 49, thermalTriggerC: 87);
+        var t = 0;
+        for (; t < 30; t += 2) g.Update(new AutoTdpSample(600, 100, 92, 49, TempC: 78), T0.AddSeconds(t));
+        Assert.Equal(54, g.Update(new AutoTdpSample(600, 100, 84, 49, TempC: 78), T0.AddSeconds(t))?.Watts); t += 2;
+        // The 6 s FPS window still holds the dip just after the raise; that is not the dip coming back.
+        g.Update(new AutoTdpSample(600, 100, 84, 54, TempC: 78), T0.AddSeconds(t)); t += 2;
+        for (var end = t + 40; t < end; t += 2) g.Update(new AutoTdpSample(600, 100, 91, g.Current, TempC: 78), T0.AddSeconds(t));
+        Assert.Equal(54, g.Current);
+    }
+
+    [Fact]
     public void AFailedTestRaiseIsRetriedWithinTwoMinutesNotParkedForMinutes()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 25);
