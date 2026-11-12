@@ -59,6 +59,12 @@ public sealed class AutoTdpGovernor
     // A low 1% low alone (average already above the target) is a hitch (loading, streaming), not a power shortage: extra watts don't fix it
     // and cost heat. From a real log: two +8 W raises to 57 W for hitches at 117 FPS against a 110 target.
     private const double SmoothFloor = 0.90, AvgFloor = 0.95, RoomLow = 0.94, RoomAvg = 0.98;
+    // At the FPS cap the average can't rise above the target, so a ragged 1% low there looks like a shortage forever. Once extra watts have
+    // been tried and didn't help, a 1% low down to 60 % of the target with the average on the target counts as hitching (not power) for 10 minutes.
+    // From a real log: 14 minutes at 55 W holding a 100 FPS cap, 1% low 60-98, never trimmed; the same scene was smooth at 44-49 W.
+    private const double HitchAvg = 0.98, HitchLow = 0.60;
+    private static readonly TimeSpan HitchMemory = TimeSpan.FromMinutes(10);
+    private DateTime _hitchProvenAt = DateTime.MinValue;
 
     private int _target;
     private readonly int _min, _max;
@@ -151,6 +157,8 @@ public sealed class AutoTdpGovernor
 
         var binding = _drawUntrusted || s.DrawnWatts is not { } d || d >= Current - (_simulated ? 1.5 : 2.5); // unknown draw: assume the limit is what's holding it
         var distress = _simulated ? s.DrawnWatts is { } sd && sd >= Current - 1.5 : (s.LowFps < _target * SmoothFloor && s.Fps < _target * 1.03) || s.Fps < _target * AvgFloor;
+        var hitchOnly = !_simulated && now - _hitchProvenAt < HitchMemory && s.Fps >= _target * HitchAvg && s.LowFps >= _target * HitchLow;
+        if (hitchOnly) { distress = false; _hitchProvenAt = now; } // refreshed while the pattern lasts, so it can't lapse mid-trim and raise power again
         // Far under the target (a loading hitch aside, something is badly wrong): power must not be the thing that is held back.
         var severe = !_simulated && s.Fps < _target * 0.60;
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
@@ -213,6 +221,7 @@ public sealed class AutoTdpGovernor
             if (distress && !helped)
             {
                 _gainFails++;
+                if (s.Fps >= _target * HitchAvg) _hitchProvenAt = now; // on target and more watts changed nothing: the 1% low is hitching, not a power shortage
                 var holdSeconds = Math.Min(120, 30 * (1 << Math.Min(_gainFails - 1, 3))); // 30, 60, 120 s: retried soon, never parked for minutes
                 _ceiling = g.prev; _ceilingUntil = now.AddSeconds(holdSeconds);
                 return Change(g.prev, now, raised: false, $"extra watts didn't improve FPS ({s.Fps:0}, 1% low {s.LowFps:0}); back to {g.prev} W, trying again in {holdSeconds} s");
@@ -266,7 +275,7 @@ public sealed class AutoTdpGovernor
 
         // Room to spare: the usual bar, or clearly above the target (6 %+) with a 1% low that is still smooth: a 1% low a few points
         // under 94 % kept restarting the clock while the game ran 10 % over the target.
-        var room = _simulated || (s.LowFps >= _target * RoomLow && s.Fps >= _target * RoomAvg)
+        var room = _simulated || hitchOnly || (s.LowFps >= _target * RoomLow && s.Fps >= _target * RoomAvg)
                    || (s.Fps >= _target * 1.06 && s.LowFps >= _target * SmoothFloor);
         if (!room) { _healthySince = null; return null; } // fine, but not by much: hold
         _healthySince ??= now;

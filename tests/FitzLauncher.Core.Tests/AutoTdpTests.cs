@@ -33,6 +33,20 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void HitchingAtTheCapWhenMoreWattsDidNotHelpDoesNotPinThePowerLimit()
+    {
+        // From a real session log: 100 FPS cap held exactly, 1% low 60-98 from streaming hitches, limit pinned at 55 W for 14 minutes
+        // (a raise had already been tried and changed nothing). The game was smooth at 44-49 W.
+        var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 55);
+        for (double t = 0; t < 2400; t += 2)
+        {
+            var low = Target * (0.70 + 0.04 * ((t / 2) % 3)); // ragged but not improving with power: 70-78 % of the target
+            g.Update(new AutoTdpSample(600, Target, low, g.Current), T0.AddSeconds(t));
+        }
+        Assert.True(g.Current <= 48, $"still pinned at {g.Current} W");
+    }
+
+    [Fact]
     public void SettlesJustAboveWhatTheGameNeedsWithAFewShortDips()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 45);
