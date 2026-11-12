@@ -131,3 +131,15 @@ Built 2026-11-12 (build 0 errors, 465 tests pass). **Not confirmed on device.** 
 - [x] 5.7 App: Settings → Game Mode toggles; game details badge; `PlayAsync` pre-launch line. Verify: B1; on a handheld, the badge shows with advice
 
 **Device test list (Windows, admin):** (1) play a game: `Get-MpPreference` shows ScanOnlyIfIdleEnabled/low CPU/catch-up off, `Get-ScheduledTask ScheduledDefrag` is Disabled; after exit both are back. (2) kill Fitz mid-game, start it again: both restored ("Recovered Game Mode" in the log). (3) Tamper Protection on / work PC: the "left alone" message, no restore file. (4) Handheld: badge appears with 8 GB reserved on 16 GB; DXGI numbers match Task Manager. (5) Does `Stop-ScheduledTask` end a running ScheduledDefrag; does `MSchedExe.exe Stop` exist on this build.
+
+## 6. Closed-loop telemetry engine (spec `SPEC.md` §12; votes 2026-11-12: A, 1, Y)
+Order matters. Tick a stage only when its Verify line passes (B1, B2 always). Values marked VERIFY in the spec are checked in the stage that uses them. Rules: `.claude/rules/telemetry.md`.
+- [x] **T0** Vote, spec, guardrails recorded (SPEC §12, CLAUDE.md, telemetry rule, reviewer). Verify: B1
+- [ ] **T1** `Core/Telemetry/RollingFrameStats` (60 s window, 1 s buckets, 1% low, stall handling). Verify: `--filter RollingFrameStatsTests`
+- [ ] **T2** `Core/Telemetry/ClosedLoopTuner` (4 rules, 3 s hold, cooldowns, priority, release, caps per session, defers to Auto TDP and `ThermalGovernor`). Verify: `--filter ClosedLoopTunerTests` (no rapid toggling over a 10 min synthetic run)
+- [ ] **T3** `Windows/EtwFpsTracker` feeds per-frame records; VERIFY ETW event IDs, then CPU/GPU busy. Verify: B1; on Windows, the frame-time log matches the RTSS counter within 3 %
+- [ ] **T4** `Windows/Telemetry` applier over existing classes + `closed-loop-restore.json` + `RecoverIfNeeded`. Verify: B1; on Windows, kill Fitz mid-session, restart, priorities and caps are back
+- [ ] **T5** App: Telemetry page and nav item, mode switch (Off / Watch only / On), log. Verify: B1; reviewer subagent reports no findings; page switch is instant
+- [ ] **T6** Device test: Watch only first, read the log, then On. Verify: log shows each rule firing and releasing once, no toggle loops
+
+**Handoff (resume here after `/clear`):** T0 done. Next is T1. Read `SPEC.md` §12 and `.claude/rules/telemetry.md`, then `Windows/EtwFpsTracker`, `Core/Fps/FrameTimeRecorder` and `Core/Optimization/AutoTdp.cs` before touching code. Nothing in this section is built or confirmed on device.

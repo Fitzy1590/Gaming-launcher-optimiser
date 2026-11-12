@@ -204,3 +204,45 @@ Options shown with mock screenshots; the user chose:
 - Instant navigation, zero animation (see `.claude/rules/windows-ui.md`). Removes the current tile scale animation (`MainWindow.xaml` ~242-254) and the non-virtualised `WrapPanel` grid.
 - Keyboard and pad: list up/down, right enters the inspector, B/left returns. Selected row keeps the accent ring.
 - Out of scope: grid/list toggle (A) and Fullscreen restyle (C). Revisit later by ticking them here.
+
+## 12. Closed-loop telemetry and per-game auto-tuning (vote recorded 2026-11-12)
+
+Options shown as mock screenshots; the user chose:
+- Vote 1, engine: [x] **A** closed-loop auto-tuner · [ ] B advisory dashboard · [ ] C suggest-then-apply (not chosen now)
+- Vote 2, frame source: [x] **1** extend `EtwFpsTracker` (TraceEvent, in-process) · [ ] 2 bundle PresentMon console · [ ] 3 PresentMon 2.x service
+- Vote 3, placement: [x] **Y** separate Telemetry page in the left nav · [ ] X panel in game details (was the recommendation; user chose Y)
+
+**Decisions that follow from the vote**
+- Off by default; modes Off / Watch only (decides and logs, changes nothing) / On, global with a per-game override, like Auto TDP. Watch only is the first thing to try on device.
+- No new top-level project. Pure logic in `Core/Telemetry`; ETW and appliers in `Windows/Telemetry` and `Windows/Optimization`; page in `App/Views/Telemetry`. (The brief named `Services/Optimization/ClosedLoopTuner.cs`; this repo has no `Services` folder, so it is `Core/Telemetry/ClosedLoopTuner.cs`.)
+- Reuse, do not duplicate: `CpuAffinityPlanner`, `ResourceApplier`, `GameModeController.RaiseGamePriority`, `MemoryCleaner`, `PacingTuner`/`RtssClient`, `ThermalGovernor`, `AutoTdpGovernor`, `TemperatureMonitor`, `SystemAdvisor` (HAGS).
+
+### 12.1 Frame source (extends `Windows/EtwFpsTracker`)
+- Per-frame record `(timestampMs, frameMs, cpuBusyMs?, gpuBusyMs?)`. Stage 1 has frame time only; busy metrics come once the DxgKrnl queue-packet matching is verified. VERIFY: provider GUIDs and event IDs were recalled from memory, not read from source. Check against PresentMon's source and a live trace before use.
+- `Core/Telemetry/RollingFrameStats` (pure): time-based window of 60 s, not a frame count. One-second buckets: average FPS, 1% low = 1000 / p99 frame time, min FPS, median CPU busy and GPU busy. Frames over 1 s are stalls (counted, left out of averages). First 5 s after launch ignored. FPS above the cap is clamped to the cap, as the Auto TDP governor already does.
+- If busy metrics are unavailable (not elevated, or events missing), Rules 1 and 2 report "can't tell" and do nothing. Rules 3 and 4 still run.
+
+### 12.2 Decision matrix (`Core/Telemetry/ClosedLoopTuner`, pure, `Update(sample, now) -> actions`)
+Evaluated every 1 s. A rule fires only after its condition holds for 3 consecutive one-second buckets. Priority 4 > 3 > 1 / 2; while Rule 4 is active the others hold.
+
+| Rule | Condition | Action (reusing existing code) | Cooldown | Releases when |
+|---|---|---|---|---|
+| 1 CPU-bound | CPU busy / GPU busy > 1.15 | High priority (`RaiseGamePriority`), P-core affinity (`CpuAffinityPlanner`), hold back background apps (`ResourceApplier`) | 60 s | ratio < 1.05 for 15 s, or game exit |
+| 2 GPU-bound | GPU busy / CPU busy > 1.15 | Raise the power profile where the machine has one; HAGS is checked and advised only (`SystemAdvisor`), never changed | 60 s | ratio < 1.05 for 15 s |
+| 3 Micro-stutter | 1% low < 70 % of average | Frame cap at monitor Hz − 3 (`PacingTuner`), trim working sets (`MemoryCleaner`) | 30 s | 1% low ≥ 80 % of average for 30 s |
+| 4 Thermal | CPU or GPU > 85 °C (`TemperatureMonitor`, existing 16 s averaging) | Back to stock power profile, non-activating toast (`TempAlertWindow`) | 20 s | < 80 °C for 30 s |
+
+- Deviation from the brief: "suspend non-essential background services" is replaced by lowering background app priority via `ResourceApplier`. Suspending services is not revertible enough for this app.
+- When Auto TDP is On it owns the watts: Rule 2 becomes advice only, and Rule 4 defers to `ThermalGovernor` (no second thermal path).
+- Anti-cheat games: no priority, affinity or memory actions (same skip list as DLL swaps). Telemetry (passive ETW) still runs.
+- Max 3 applications per rule per session, so a rule that does not help stops trying. A change that made 1% low or temperature worse over the next 16 s is undone and not retried this session.
+- Thread safety: one sampler thread calls `Update` under a lock; the tuner holds no references to UI. Returned actions run on `Task.Run` with a `CancellationToken`; results come back through the VM with `Dispatcher.BeginInvoke`. Appliers never throw out of the background thread.
+- Revertible: a restore record (`closed-loop-restore.json`) is written before each action, undone at session end, and `RecoverIfNeeded` runs at start-up.
+
+### 12.3 Telemetry page (vote Y)
+- New left-nav item "Telemetry" (`NavButton`), page switched by `Visibility`/`ContentControl` swap. No `Frame`, no Storyboard, no transitions (WPF equivalent of `SuppressNavigationTransitionInfo`).
+- Shows: live tiles (FPS, 1% low, CPU busy, GPU busy, CPU/GPU °C), frame-time graph (last 60 s), the four rules with state and cooldown, an action log with Revert, mode switch (Off / Watch only / On), and a "why it isn't running" line.
+- Bindings come from one VM that updates once a second; tokens only (see `.claude/rules/windows-ui.md`).
+
+### 12.4 Not in scope
+PresentMon bundling or service (votes 2 and 3), suggest-then-apply (vote C), HAGS changes, service suspension, any hook or injection into games.

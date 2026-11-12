@@ -71,3 +71,17 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 - **Overlay:** reuse RTSS/ETW. No hooks or injection into emulators.
 - **Providers** (SteamGridDB, IGDB, ScreenScraper, GameBanana, Nexus): a missing key disables that provider with a settings hint, never an exception. Rate-limit per provider, cache on disk, keys DPAPI-encrypted.
 - **Token hygiene:** keep this file under 200 lines; use subagents for repo-wide searches; `/clear` at about 80% context and resume from `FEATURE_PROGRESS.md`.
+
+## Telemetry engine (see `SPEC.md` §12, stages in `FEATURE_PROGRESS.md` §6; rules in `.claude/rules/telemetry.md`)
+
+- **Voted:** closed-loop tuner (A), frame source extends `EtwFpsTracker` (1), separate Telemetry page in the nav (Y). Off by default; Off / Watch only / On.
+- **Where it goes:** pure logic in `Core/Telemetry` (rolling stats, `ClosedLoopTuner`), ETW and appliers in `Windows/Telemetry` and `Windows/Optimization`, page in `App/Views/Telemetry`. Reuse existing planners, governors and appliers; no second path to the same setting.
+- **Telemetry page navigation is instant:** `Visibility`/`ContentControl` swap, no `Frame`, Storyboard or transitions.
+- **ETW only:** no hooks, no injection. Event IDs and GUIDs in the spec are unverified until a stage marks them verified.
+
+## Coding guardrails
+
+1. **Minimal delta:** change the few lines the task needs; never reformat untouched code.
+2. **No unasked abstractions:** no new interfaces, base classes or options the task did not ask for.
+3. **No silent assumptions:** read the ViewModel, controller or planner you touch, and the existing class that owns the setting, before editing. State what you could not verify.
+4. **Read before touch:** open the target file first; use a subagent for repo-wide searches.
