@@ -79,6 +79,7 @@ public sealed partial class GameDetailsViewModel : ObservableObject
     private async Task LoadAsync()
     {
         Hero = await ImageLoader.LoadAsync(Game.HeroPath ?? Game.ArtworkPath, 900);
+        _ = LoadMemoryBadgeAsync();
         LoadHistory();
         InitExtras();
         if (Game.LastScan is null)

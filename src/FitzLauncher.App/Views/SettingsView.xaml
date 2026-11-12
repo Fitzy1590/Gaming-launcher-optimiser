@@ -71,6 +71,9 @@
                         <CheckBox Content="Resource guard: keep freeing resources during play, and undo anything that makes the game run worse" IsChecked="{Binding S.ResourceGuard.LiveGuard}" Margin="24,0,0,0" IsEnabled="{Binding S.ResourceGuard.Enabled}" />
                         <CheckBox Content="Keep all CPU cores awake while playing (core parking off; skipped on X3D CPUs, which rely on it)" IsChecked="{Binding S.CoreParkingOff}" />
                         <CheckBox Content="0.5 ms timer resolution (Windows 10 only; Windows 11 handles this per game)" IsChecked="{Binding G.HighResolutionTimer}" />
+                        <CheckBox Content="Keep Windows Defender's scheduled and catch-up scans gentle and idle-only while you play (real-time protection stays on; put back afterwards)" IsChecked="{Binding G.DeferDefenderScans}" />
+                        <CheckBox Content="Pause Windows maintenance and the scheduled drive optimise (TRIM/defrag) while you play, then resume" IsChecked="{Binding G.HoldMaintenance}" />
+                        <CheckBox Content="Warn before launch if the memory reserved for graphics leaves too little for the game (handhelds and APUs; advice only)" IsChecked="{Binding G.ShowApuMemoryWarning}" />
                     </StackPanel>
                     <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
                     <TextBlock Text="What the resource guard has learned" FontWeight="SemiBold" Margin="0,16,0,4" />

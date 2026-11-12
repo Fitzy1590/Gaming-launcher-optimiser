@@ -163,3 +163,30 @@ Unknown emulator version: show the planned edits as a preview, apply only on con
 2. Switch: Ryujinx fork (Ryubing) and Yuzu-style forks. Repos and asset patterns are chosen and verified at the Switch stage; until then their `source.type` is `manual` (user points at the exe).
 3. N64: RMG and Project64 both.
 4. Archives: `.zip` and `.7z` (SharpCompress; check licence before adding).
+
+## 10. Session holds and APU memory diagnostic (approved: option A, minimal wrapper)
+
+Added 2026-11-12. Approach: pure planners in `Core/Optimization`, OS appliers in `Windows/Optimization`, restore state added to the existing `GameModeRestoreState` (`gamemode-restore.json`) so `GameModeController.Restore()` / `RecoverIfNeeded()` cover crashes. No new NuGet, no new UAC (manifest is already `requireAdministrator`). The folder `Services/Optimization/` does not exist; the layout above replaces it.
+
+Values marked **VERIFY** come from research without a live Windows test and need a device check.
+
+### 10.1 Defender scan deferral
+- Never touch real-time protection (`DisableRealtimeMonitoring` is read, never written) and never use the policy registry route (permanent, overrides user/GPO).
+- Snapshot via `Get-MpPreference` (powershell.exe, `UseShellExecute=false`, timeout): `ScanOnlyIfIdleEnabled`, `ScanAvgCPULoadFactor`, `EnableLowCpuPriority`, `DisableCatchupFullScan`, `DisableCatchupQuickScan`. Write the restore record first, then `Set-MpPreference` to: idle-only on, CPU load 20, low CPU priority on, catch-up scans off.
+- Re-read after writing. If a value did not stick (Tamper Protection, GPO/MDM), leave scans alone, record nothing, and show "Windows Defender is managed by your organisation or protected by Tamper Protection, so scans were left alone." **VERIFY** which settings Tamper Protection blocks.
+- Restore: put back only values we changed and only if the current value still equals what we applied. Running scans are not cancelled (an opt-in `MpCmdRun -Cancel` is out of scope for now).
+- Pure Core: `SessionHoldPlanner` builds the change list from a snapshot and the restore list from snapshot + current.
+
+### 10.2 Scheduled maintenance hold
+- Targets: scheduled task `\Microsoft\Windows\Defrag\ScheduledDefrag` (drive TRIM/defrag) and the automatic maintenance run. Built with the PowerShell ScheduledTasks cmdlets (`Get/Disable/Enable/Stop-ScheduledTask`), not `schtasks.exe`: the task State is a locale-independent enum name. One shared `PowerShellRunner` (no window, encoded command, hard timeout) serves both holds and the Defender read/write.
+- `MSchedExe.exe Stop` ends a running maintenance session (best effort). `MaintenanceDisabled` registry value is not used (unreliable, persistent). **VERIFY** `/End` stops a running ScheduledDefrag, and that Windows does not re-enable the task mid-session.
+- Store/Update: do not stop or reconfigure services (Windows restarts them; risks security patches). Existing Game Mode service list is unchanged.
+- Restore record first (task was enabled? was running?). Re-enable only if we disabled it and it is still disabled. Shares the same `GameModeController.Restore()` hook as 10.1.
+
+### 10.3 APU memory pre-launch diagnostic (advice only, never changes BIOS)
+- Inputs (Windows): `GlobalMemoryStatusEx` (`ullTotalPhys` already excludes the UMA carve-out, never subtract VRAM again), DXGI `IDXGIAdapter1.GetDesc1` (DedicatedVideoMemory = carve-out, SharedSystemMemory = ceiling), `IDXGIAdapter3.QueryVideoMemoryInfo` non-local usage = GPU spill into RAM. Interop via raw vtable calls (`CreateDXGIFactory1`, `EnumAdapters1` slot 12, `GetDesc1` slot 10), no NuGet. `IDXGIAdapter3::QueryVideoMemoryInfo` is deliberately not called: a wrong vtable index would be an uncatchable crash and it can't be tested off-device; **VERIFY** vtable order against dxgi1_4.h. Any failure returns "unknown", never throws. Software adapters (`Flags & 2`) skipped.
+- Pure Core `ApuMemoryDiagnostic.Evaluate(snapshot, gameRecommendedRamGb?)` returns `Ok | Tight | Low | Unknown`, the numbers, and plain-English UK advice. Unknown game need = 8 GB. Headroom = available RAM − need; ≥ 2 GB Ok, 0-2 GB Tight, < 0 Low. Red flag: 16 GB device with ≥ 8 GB carve-out. Advice names the BIOS or vendor tool path in general terms (Armoury Crate on ROG Ally; BIOS "UMA Frame Buffer Size" on Legion Go/GPD). Thresholds are heuristics.
+- Reuses and does not duplicate the `apu-vram` tweak in `SystemAdvisor`. UI: badge in the game details Notes list and a line in the `PlayAsync` pre-launch checks.
+
+### 10.4 Settings
+`GameModeOptions`: `DeferDefenderScans`, `HoldMaintenance` (both default on only where Game Mode is on), `ShowApuMemoryWarning` (default on). Plain-English labels in Settings → Game Mode.

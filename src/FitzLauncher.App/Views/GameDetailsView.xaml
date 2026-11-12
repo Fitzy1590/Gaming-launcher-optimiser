@@ -80,6 +80,15 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <!-- Memory badge: advice only, Fitz never changes the BIOS -->
+                <Border Visibility="{Binding HasMemoryBadge, Converter={StaticResource Vis}}" Background="{StaticResource Surface2}" BorderBrush="{StaticResource Warn}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,8,0,0"
+                        AutomationProperties.Name="Memory warning">
+                    <StackPanel>
+                        <TextBlock Text="{Binding MemoryBadgeTitle}" FontWeight="SemiBold" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                        <TextBlock Text="{Binding MemoryBadgeText}" Style="{StaticResource Wrap}" Foreground="{StaticResource Muted}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Notes -->
                 <ItemsControl ItemsSource="{Binding Notes}" Visibility="{Binding HasNotes, Converter={StaticResource Vis}}" Margin="0,8,0,0">
                     <ItemsControl.ItemTemplate>

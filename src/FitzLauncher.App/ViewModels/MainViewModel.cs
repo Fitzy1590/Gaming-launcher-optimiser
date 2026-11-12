@@ -440,6 +440,13 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
+        // Memory reserved for graphics (APUs/handhelds): a heads-up only, never blocks the launch.
+        if (!SafeMode && _s.Settings.GameMode.ShowApuMemoryWarning && _s.Hardware?.IsApu == true)
+        {
+            var mem = await Task.Run(_s.CheckApuMemory);
+            if (mem.Level == FitzLauncher.Core.Optimization.MemoryLevel.Low) ShowToast($"{mem.Headline}. {mem.Advice}");
+        }
+
         // Resource guard: see what is using the GPU, CPU and memory, do the safe things, and offer the rest.
         var (resourceActions, resourceMemory) = await PlanResourcesAsync(vm.Game);
         if (resourceActions is null) return; // you cancelled in the prompt

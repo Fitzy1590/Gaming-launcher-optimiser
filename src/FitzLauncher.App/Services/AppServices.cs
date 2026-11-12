@@ -20,6 +20,12 @@ public sealed class AppServices : IDisposable
     public LibraryData Library { get; }
     public LauncherSettings Settings { get; }
     public HardwareProfile? Hardware { get; set; }
+
+    /// <summary>Pre-launch check of the memory reserved for graphics on APUs/handhelds. Advice only; reads RAM and DXGI, so call it off the UI thread.</summary>
+    public ApuMemoryReport CheckApuMemory() =>
+        Settings.GameMode.ShowApuMemoryWarning && Hardware?.IsApu == true
+            ? ApuMemoryDiagnostic.Evaluate(Hardware, DxgiMemoryProbe.Read())
+            : ApuMemoryReport.Unknown;
     public TweakEngine Tweaks { get; }
     public GameScanner Scanner { get; }
     public OptimizationPlanner Planner { get; } = new();

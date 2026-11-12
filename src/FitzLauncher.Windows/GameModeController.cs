@@ -21,6 +21,12 @@ public sealed class GameModeRestoreState
     public int? PreviousCoreParkingMin { get; set; }
     /// <summary>Same, on battery (DC index).</summary>
     public int? PreviousCoreParkingMinDc { get; set; }
+    /// <summary>Defender scan settings Fitz changed (name, value before, value set). Empty = untouched.</summary>
+    public List<HoldChange> DefenderChanges { get; set; } = [];
+    /// <summary>Fitz disabled the scheduled drive-optimise task for the session.</summary>
+    public bool DefragTaskDisabled { get; set; }
+    /// <summary>Failed attempts to put the Defender/maintenance holds back; gives up after a few.</summary>
+    public int HoldRestoreAttempts { get; set; }
 }
 
 /// <summary>
@@ -83,32 +89,32 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
         {
             var closed = 0;
             foreach (var name in o.CloseProcesses)
-            foreach (var p in ByName(name))
-            {
-                using (p)
+                foreach (var p in ByName(name))
                 {
-                    try { p.Kill(); closed++; } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                    using (p)
+                    {
+                        try { p.Kill(); closed++; } catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+                    }
                 }
-            }
             if (closed > 0) report.Add($"Closed {closed} background updater(s)");
 
             var suspended = 0;
             foreach (var name in o.SuspendProcesses)
-            foreach (var p in ByName(name))
-            {
-                using (p)
+                foreach (var p in ByName(name))
                 {
-                    var h = Native.OpenProcess(Native.PROCESS_SUSPEND_RESUME, false, p.Id);
-                    if (h == 0) continue;
-                    if (Native.NtSuspendProcess(h) == 0)
+                    using (p)
                     {
-                        _state.SuspendedPids.Add(p.Id);
-                        if (!_state.SuspendedProcessNames.Contains(name)) _state.SuspendedProcessNames.Add(name);
-                        suspended++;
+                        var h = Native.OpenProcess(Native.PROCESS_SUSPEND_RESUME, false, p.Id);
+                        if (h == 0) continue;
+                        if (Native.NtSuspendProcess(h) == 0)
+                        {
+                            _state.SuspendedPids.Add(p.Id);
+                            if (!_state.SuspendedProcessNames.Contains(name)) _state.SuspendedProcessNames.Add(name);
+                            suspended++;
+                        }
+                        Native.CloseHandle(h);
                     }
-                    Native.CloseHandle(h);
                 }
-            }
             if (suspended > 0) report.Add($"Paused {string.Join(", ", _state.SuspendedProcessNames.Select(Path.GetFileNameWithoutExtension))} (sync)");
             Persist();
         }
@@ -151,28 +157,34 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
             if (stopped.Count > 0) report.Add($"Paused {stopped.Count} background service(s): updates, downloads, indexing, telemetry");
         }
 
+        if (o.DeferDefenderScans || o.HoldMaintenance)
+        {
+            var state = _state;
+            report.AddRange(await Task.Run(() => new SessionHolds(log).Apply(o, state, Persist), ct).ConfigureAwait(false));
+        }
+
         if (o.RaiseGamePriority) report.AddRange(RaiseGamePriority(gamePids));
 
         if (o.LowerBackgroundPriority)
         {
             var lowered = 0;
             foreach (var name in o.LowPriorityProcesses)
-            foreach (var p in ByName(name))
-            {
-                using (p)
+                foreach (var p in ByName(name))
                 {
-                    try
+                    using (p)
                     {
-                        if (p.PriorityClass is ProcessPriorityClass.Normal or ProcessPriorityClass.AboveNormal)
+                        try
                         {
-                            _state.LoweredPriorities[p.Id] = p.PriorityClass;
-                            p.PriorityClass = ProcessPriorityClass.BelowNormal;
-                            lowered++;
+                            if (p.PriorityClass is ProcessPriorityClass.Normal or ProcessPriorityClass.AboveNormal)
+                            {
+                                _state.LoweredPriorities[p.Id] = p.PriorityClass;
+                                p.PriorityClass = ProcessPriorityClass.BelowNormal;
+                                lowered++;
+                            }
                         }
+                        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                     }
-                    catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
                 }
-            }
             Persist();
             if (lowered > 0) report.Add($"Lowered priority of {lowered} background app process(es)");
         }
@@ -246,17 +258,23 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
         var state = _state ?? Json.Load<GameModeRestoreState>(paths.GameModeState);
         _state = null;
         if (state is null) return [];
-        var report = RestoreState(state);
-        try { File.Delete(paths.GameModeState); } catch (IOException) { }
+        var report = RestoreState(state, out var pendingHolds);
+        try
+        {
+            if (pendingHolds is null) File.Delete(paths.GameModeState);
+            else Json.Save(paths.GameModeState, pendingHolds); // keep only the holds, retried at the next start
+        }
+        catch (IOException) { }
         return report;
     }
 
     /// <summary>Call at launcher start: undoes a Game Mode left active by a crash or power loss.</summary>
     public List<string> RecoverIfNeeded() => File.Exists(paths.GameModeState) ? Restore() : [];
 
-    private List<string> RestoreState(GameModeRestoreState s)
+    private List<string> RestoreState(GameModeRestoreState s, out GameModeRestoreState? pendingHolds)
     {
         var report = new List<string>();
+        pendingHolds = null;
         if (s.PreviousPowerScheme is { } plan && PowerPlans.SetActive(plan)) report.Add("Power plan restored");
         if (s.PreviousOverlay is { } overlay && PowerPlans.SetOverlay(overlay)) report.Add("Power mode restored");
 
@@ -281,6 +299,17 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
 
         if (s.TimerResolutionSet) Native.NtSetTimerResolution(5000, false, out _);
         if (s.PreviousCoreParkingMin is { } park && PowerPlans.SetCoreParkingMin(park, s.PreviousCoreParkingMinDc)) report.Add("Core parking restored");
+
+        if (!new SessionHolds(log).Restore(s, report))
+        {
+            s.HoldRestoreAttempts++;
+            if (s.HoldRestoreAttempts < 3)
+            {
+                pendingHolds = new GameModeRestoreState { Started = s.Started, DefenderChanges = s.DefenderChanges, DefragTaskDisabled = s.DefragTaskDisabled, HoldRestoreAttempts = s.HoldRestoreAttempts };
+                report.Add("Defender/maintenance settings could not be confirmed back; will retry at next start");
+            }
+            else log?.Invoke("Gave up restoring Defender/maintenance holds after 3 tries; check Windows Security and Task Scheduler");
+        }
 
         // Restart services in the background; nothing is waiting on them.
         var services = s.StoppedServices.ToList();

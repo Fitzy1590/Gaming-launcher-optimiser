@@ -233,6 +233,12 @@ public sealed class GameModeOptions
     public bool RaiseGamePriority { get; set; } = true;
     public bool LowerBackgroundPriority { get; set; } = true;
     public bool HighResolutionTimer { get; set; } = true;
+    /// <summary>Make Defender's scheduled and catch-up scans gentle and idle-only during play. Real-time protection stays on.</summary>
+    public bool DeferDefenderScans { get; set; } = true;
+    /// <summary>Pause the scheduled drive optimise (TRIM/defrag) task and Automatic Maintenance during play.</summary>
+    public bool HoldMaintenance { get; set; } = true;
+    /// <summary>Warn before launch when the memory reserved for graphics leaves too little for the game (APUs and handhelds).</summary>
+    public bool ShowApuMemoryWarning { get; set; } = true;
 
     /// <summary>Services stopped while playing and restarted afterwards (only ones that were running).</summary>
     public List<string> Services { get; set; } =

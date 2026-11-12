@@ -113,3 +113,15 @@ Decisions (`SPEC.md` §9): local + emulator-native update info only; Switch = Ry
 - [x] Per-emulator FPS tracking: each game keeps its own average, 1% low, time on target and sessions per emulator (`EmulatorAdvisor.Record`), shown on the game panel
 - [x] Better-emulator suggestion only when established: measured ahead by 15%+ with at least 2 sessions and 10 minutes each; a discontinued emulator with an installed successor (Lime3DS → Azahar); or a labelled trial when the game misses its target at the lowest quality. Switch button keeps the results so the two can be compared
 - Not built: ScreenScraper, collections UI, in-app mod browsing (GameBanana/GitHub/Nexus), online update/DLC lookup (by decision), advisor edits from the toast, virtualised grid, detail drawer, light theme, N64 and Yuzu-style tuning keys
+
+## 5. Session holds + APU memory diagnostic (spec `SPEC.md` §10; option A voted 2026-11-12)
+Built 2026-11-12 (build 0 errors, 465 tests pass). **Not confirmed on device.** VERIFY items are in the spec. Deviations: PowerShell ScheduledTasks cmdlets instead of schtasks; `QueryVideoMemoryInfo` not called (see spec 10.3). New Game Mode toggles default on (`DeferDefenderScans`, `HoldMaintenance`, `ShowApuMemoryWarning`), so existing users get them when Game Mode is on.
+- [x] 5.1 Core: `SessionHoldPlanner` (Defender + maintenance change/restore lists) + tests. Verify: B2, `--filter SessionHoldTests`
+- [x] 5.2 Core: `ApuMemoryDiagnostic` + tests (extend `apu-vram` logic, no duplicate). Verify: B2, `--filter ApuMemoryTests`
+- [x] 5.3 Core: `GameModeOptions` toggles + `GameModeRestoreState` fields. Verify: B1, B2
+- [x] 5.4 Windows/Optimization: `DefenderScanDeferral` (powershell, record-first, re-read) hooked into `GameModeController` Persist/Restore/RecoverIfNeeded. Verify: B1; on Windows, `Get-MpPreference` after the game = before
+- [x] 5.5 Windows/Optimization: `MaintenanceHold` (schtasks) on the same hook. Verify: B1; on Windows, `schtasks /Query /TN \Microsoft\Windows\Defrag\ScheduledDefrag` Ready after the game
+- [x] 5.6 Windows/Optimization: `DxgiMemoryProbe` (GlobalMemoryStatusEx + DXGI, never throws). Verify: B1; on Windows, numbers match Task Manager
+- [x] 5.7 App: Settings → Game Mode toggles; game details badge; `PlayAsync` pre-launch line. Verify: B1; on a handheld, the badge shows with advice
+
+**Device test list (Windows, admin):** (1) play a game: `Get-MpPreference` shows ScanOnlyIfIdleEnabled/low CPU/catch-up off, `Get-ScheduledTask ScheduledDefrag` is Disabled; after exit both are back. (2) kill Fitz mid-game, start it again: both restored ("Recovered Game Mode" in the log). (3) Tamper Protection on / work PC: the "left alone" message, no restore file. (4) Handheld: badge appears with 8 GB reserved on 16 GB; DXGI numbers match Task Manager. (5) Does `Stop-ScheduledTask` end a running ScheduledDefrag; does `MSchedExe.exe Stop` exist on this build.
