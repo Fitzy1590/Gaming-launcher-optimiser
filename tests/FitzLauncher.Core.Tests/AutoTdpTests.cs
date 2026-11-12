@@ -180,6 +180,31 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AFpsCollapseDuringASuddenCpuHeatSpikeGetsNoExtraPowerAndIsCutSooner()
+    {
+        // From a real session log (The Witcher 3, 100 FPS target, trigger 87 °C): the CPU jumped 85 → 94 °C in 6 s and FPS fell to 34.
+        // The 16 s average lagged the spike, so it added 5 W at 91 °C, then held 6 s more before the first hard cut at 107 s.
+        (int t, double fps, double low, double drawn, double temp)[] rows =
+        [
+            (73, 100.0, 96.6, 36.5, 83), (75, 100.0, 94.6, 33.7, 84), (77, 100.0, 93.3, 36.7, 84), (79, 100.0, 93.1, 33.1, 84),
+            (81, 100.0, 93.1, 31.8, 84), (83, 99.0, 94.0, 33.4, 84), (85, 100.0, 95.1, 34.0, 84), (87, 100.0, 97.4, 36.6, 85),
+            (89, 100.0, 100.1, 42.9, 85), (91, 100.0, 99.4, 44.1, 85), (93, 100.0, 55.6, 46.7, 86), (95, 93.6, 33.7, 46.6, 86),
+            (97, 71.4, 33.6, 45.8, 87), (99, 46.4, 28.1, 45.8, 91), (101, 34.5, 29.8, 50.7, 94), (103, 34.5, 28.8, 48.0, 91),
+            (105, 34.6, 29.8, 48.2, 90), (107, 34.8, 33.3, 48.0, 91),
+        ];
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 47, thermalTriggerC: 87);
+        int highest = g.Current, at103 = g.Current;
+        foreach (var (t, fps, low, drawn, temp) in rows)
+        {
+            g.Update(new AutoTdpSample(600, fps, low, Math.Min(drawn, g.Current), TempC: temp), T0.AddSeconds(t));
+            highest = Math.Max(highest, g.Current);
+            if (t == 103) at103 = g.Current;
+        }
+        Assert.Equal(47, highest);       // no power added while the chip is 4 °C over the trigger and climbing
+        Assert.True(at103 <= 39, $"still {at103} W at 103 s: the hard cut should not wait for the 16 s average");
+    }
+
+    [Fact]
     public void ItDoesNotCutPowerForHeatWhileFpsHasAlreadyCollapsedUnlessItIsWellOverTheTrigger()
     {
         var g = new AutoTdpGovernor(110, 25, 60, startWatts: 40, thermalTriggerC: 86);

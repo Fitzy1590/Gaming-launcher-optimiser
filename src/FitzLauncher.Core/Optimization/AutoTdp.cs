@@ -63,6 +63,9 @@ public sealed class AutoTdpGovernor
     // been tried and didn't help, a 1% low down to 60 % of the target with the average on the target counts as hitching (not power) for 10 minutes.
     // From a real log: 14 minutes at 55 W holding a 100 FPS cap, 1% low 60-98, never trimmed; the same scene was smooth at 44-49 W.
     private const double HitchAvg = 0.98, HitchLow = 0.60;
+    // With FPS collapsed, a reading this far over the trigger means heat is the cause, not a power shortage. The CPU can jump 85 → 94 °C in
+    // a few seconds and the 16 s average lags it: from a real log, it added 5 W at 91 °C and held 6 s more before cutting; FPS sat at 34 for 20 s.
+    private const double CollapseHeatC = 3;
     private static readonly TimeSpan HitchMemory = TimeSpan.FromMinutes(10);
     private DateTime _hitchProvenAt = DateTime.MinValue;
 
@@ -179,7 +182,7 @@ public sealed class AutoTdpGovernor
             if (!_hotEpisode) _hotStart = Current;
             _hotEpisode = true;
             _healthySince = null;
-            if (severe && smooth < _trigger + 2)
+            if (severe && smooth < _trigger + 2 && temp < _trigger + CollapseHeatC)
                 return Note($"{smooth:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
             if (severe && Current > _min)
             {
@@ -239,6 +242,7 @@ public sealed class AutoTdpGovernor
         {
             _healthySince = null;
             if ((s.ThermalHold && !deepCool) || (warm && !severe)) return Note("dipping, but it's warm: not adding power");
+            if (warm && temp >= _trigger + CollapseHeatC) return Note($"FPS fell to {s.Fps:0} with the chip at {temp:0} °C: that's heat, not a power shortage, so no extra power");
             if (!binding)
             {
                 var cap = Math.Min(_max, ceiling);
