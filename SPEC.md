@@ -259,7 +259,8 @@ Builds on `Core/Upscalers` (`UpscalerLibrary`, `UpscalerAdvisor` OptiScaler plan
 ### 13.2 Upscaler central store
 `<data>/upscalers/optiscaler/<version>/` holds the downloaded release (SHA-256 checked against the asset `digest` when present, zip-slip guarded extract, host allow-list = OptiScaler GitHub Releases) and a `OptiScaler.ini` template. Per game, the ini is generated from the template (key-level, `Dx12Upscaler`, `[FSR] UpscalerIndex`, `[QualityOverrides]` ratios). Not under `Assets/`: that folder ships inside the app and can't hold a downloaded GPL binary. VERIFY before build: proxy DLL names and uninstall steps (OptiScaler wiki).
 
-### 13.3 Toggle pipeline (pure plan in `Core/Upscalers`, apply in `Windows/Optimization`)
+### 13.3 Toggle pipeline
+Update 2026-11-13: install and Revert already run through `OptiScalerTweak` + `TweakEngine` (`.bak`, `AppliedChange` ledger). Reuse them; add only the gaps (settings, anti-cheat refusal, hash re-check, recovery). The separate `upscaler-restore.json` below is not built unless the ledger proves insufficient.
 1. Refuse when anti-cheat is found, the install dir is unwritable, or the exe is running; say why in plain English.
 2. Write `upscaler-restore.json` (per game: files added, files replaced, `.bak` paths, SHA-256 of each) before any copy.
 3. Copy `.bak` first, then the proxy DLL, then the generated `OptiScaler.ini`. Temp-then-replace.

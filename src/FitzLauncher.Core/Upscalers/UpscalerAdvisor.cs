@@ -115,7 +115,7 @@ public static partial class UpscalerAdvisor
     /// (dxgi.dll, or winmm.dll / version.dll when dxgi.dll is taken by ReShade/DXVK), plus its other files.
     /// Returned as revertible file replacements.
     /// </summary>
-    public static Tweak? OptiScalerTweak(string optiDir, string gameExeDir, Func<string, bool> existsInExeDir)
+    public static Tweak? OptiScalerTweak(string optiDir, string gameExeDir, Func<string, bool> existsInExeDir, GpuFamily family = GpuFamily.Unknown, UpscaleMode? mode = null)
     {
         var main = Directory.Exists(optiDir) ? Directory.EnumerateFiles(optiDir, "OptiScaler.dll", SearchOption.AllDirectories).FirstOrDefault() : null;
         if (main is null) return null;
@@ -130,6 +130,10 @@ public static partial class UpscalerAdvisor
                 || name.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) continue;
             actions.Add(new FileReplaceAction { TargetPath = Path.Combine(gameExeDir, rel), SourcePath = f, NewVersion = "OptiScaler" });
         }
+        // Per-game settings go in after the copy, so Revert undoes them first (newest first) and then removes the file.
+        if (actions.OfType<FileReplaceAction>().Any(a => Path.GetFileName(a.TargetPath).Equals("OptiScaler.ini", StringComparison.OrdinalIgnoreCase)))
+            foreach (var (section, key, value) in OptiScalerSettings.For(family, mode))
+                actions.Add(new IniSetAction { FilePath = Path.Combine(gameExeDir, "OptiScaler.ini"), Section = section, Key = key, Value = value, CreateIfMissing = false });
         return new Tweak
         {
             Id = "optiscaler",

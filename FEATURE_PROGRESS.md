@@ -147,11 +147,11 @@ Order matters. Tick a stage only when its Verify line passes (B1, B2 always). Va
 ## 7. Per-game upscaler engine (spec `SPEC.md` §13; votes 2026-11-13: 1A, 2A, 3A)
 Tick a stage only when its Verify line passes (B1, B2 always). Rules: `.claude/rules/upscaler-engine.md`.
 - [x] **U0** Vote, spec, guardrails recorded (SPEC §13, upscaler rule, reviewer check 11). Verify: B1
-- [ ] **U1** Core: `UpscalerToggler` plan (add/replace/restore lists, refusals) + `OptiScalerIniBuilder` + tests. Verify: B2, `--filter UpscalerToggle`
-- [ ] **U2** VERIFY OptiScaler proxy names + uninstall (wiki), then Windows/Optimization applier + `upscaler-restore.json` + `RecoverIfNeeded`. Verify: B1; on Windows, toggle on/off leaves the game folder byte-identical
+- [x] **U1** (done 2026-11-13; scope cut: the toggle already exists as `UpscalerAdvisor.OptiScalerTweak` + `TweakEngine` (`.bak`, ledger, Revert), so no new toggler or second restore file) `Core/Upscalers/OptiScalerSettings` (ini keys per GPU and mode, keys checked against OptiScaler's own ini) added to `OptiScalerTweak` as `IniSetAction`s; anti-cheat refusal added to `InstallOptiScalerAsync`. Verify: B2, `--filter OptiScalerSettingsTests`
+- [ ] **U2** VERIFY OptiScaler proxy names + uninstall (wiki). Gaps only: hash re-check at launch (Steam patch overwrote files), crash recovery if Fitz dies mid-install (ledger is saved after Apply), running-exe check. Verify: B1; on Windows, toggle on/off leaves the game folder byte-identical
 - [ ] **U3** OptiScaler download from official Releases (digest, zip-slip, allow-list). Verify: B1, tests with synthetic zips
 - [ ] **U4** App: toggle on `GameDetailsViewModel.Upscaling.cs` + GameDetailsView; anti-cheat reason shown. Verify: B1; reviewer reports no findings
 - [ ] **U5** Telemetry: mode label + `AbTest` before/after on the game panel. Verify: B1, B2
 - [ ] **U6** Device test on a non-anti-cheat game. Verify: FPS and 1% low change shown; kill Fitz mid-toggle, restart, files restored
 
-**Handoff:** U0 done. Nothing built yet. Next: U1.
+**Handoff:** U0, U1 done (build 0 errors, tests pass). OptiScaler install/Revert, download (`EnsureOptiScalerAsync`) and the Game details buttons already existed, so U3 and most of U4 shrink to: pick the quality mode and pass `GpuFamily`/`UpscaleMode` into `OptiScalerTweak` from the VM (not wired yet, defaults leave the ini alone), then U5 labels. Next: wire mode/GPU in `InstallOptiScalerAsync`, then U2 gaps.

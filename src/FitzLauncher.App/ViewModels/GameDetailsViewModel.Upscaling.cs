@@ -62,6 +62,8 @@ public sealed partial class GameDetailsViewModel
         {
             var dir = await _s.Upscalers.EnsureOptiScalerAsync();
             var exeDir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath)!;
+            if (await Task.Run(() => GameModLayout.Detect(GameScanner.ResolveInstallRoot(Game), Game.ExePath).HasAntiCheat))
+            { Status = "OptiScaler isn't installed: this game has anti-cheat, which can ban for injected DLLs."; return; }
             var tweak = UpscalerAdvisor.OptiScalerTweak(dir, exeDir, name => File.Exists(Path.Combine(exeDir, name)));
             if (tweak is null) { Status = "The OptiScaler download didn't contain OptiScaler.dll."; return; }
             var r = await Task.Run(() => _s.Tweaks.Apply(Game.AppliedChanges, tweak, Game));
