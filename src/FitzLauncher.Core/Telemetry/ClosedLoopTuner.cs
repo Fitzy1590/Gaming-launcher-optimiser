@@ -48,7 +48,8 @@ public readonly record struct TunerSample(FrameBucket Bucket, double? CpuTempC, 
 /// <item>A rule fires only after 3 consecutive buckets. Cooldown runs from the last change (apply or release).</item>
 /// <item>Thermal beats the rest: while it is active nothing else moves. Max 3 applications per rule per session.</item>
 /// <item>A change that made 1% low (or temperature) worse over the next 16 s is undone and not retried.</item>
-/// <item>No busy metrics means Rules 1 and 2 do nothing and say so once. Missing temperatures mean Rule 4 does nothing. It never guesses.</item>
+/// <item>No busy metrics means Rules 1 and 2 do nothing and say so once. Missing temperatures mean Rule 4 does nothing. It never guesses.
+/// If an active rule's input vanishes, Rules 1 to 3 are put back after their normal release time; Rule 4 stays until it reads cool or the game ends.</item>
 /// </list>
 /// </summary>
 public sealed class ClosedLoopTuner
@@ -108,7 +109,7 @@ public sealed class ClosedLoopTuner
             return output;
         }
 
-        // Rules 1 and 2: need both busy numbers.
+        // Rules 1 and 2: need both busy numbers. If they vanish while a rule is on, that counts as "clear" so it is put back after the normal release time.
         var cpu = b.MedianCpuBusyMs;
         var gpu = b.MedianGpuBusyMs;
         double? ratio = hasFrames && cpu is > 0 && gpu is > 0 ? cpu / gpu : null;
@@ -125,15 +126,15 @@ public sealed class ClosedLoopTuner
 
         var cpuOverGpu = ratio ?? 0;
         var gpuOverCpu = ratio is > 0 ? 1 / ratio.Value : 0;
-        Step(TunerRule.CpuBound, ratio is not null && cpuOverGpu > BoundRatio, ratio is not null && cpuOverGpu < BoundReleaseRatio, now, output,
+        Step(TunerRule.CpuBound, ratio is not null && cpuOverGpu > BoundRatio, ratio is null || cpuOverGpu < BoundReleaseRatio, now, output,
             () => CpuAction(ctx, cpuOverGpu));
-        Step(TunerRule.GpuBound, ratio is not null && gpuOverCpu > BoundRatio, ratio is not null && gpuOverCpu < BoundReleaseRatio, now, output,
+        Step(TunerRule.GpuBound, ratio is not null && gpuOverCpu > BoundRatio, ratio is null || gpuOverCpu < BoundReleaseRatio, now, output,
             () => GpuAction(ctx, gpuOverCpu));
 
         // Rule 3: 1% low against the average.
         var avg = b.AvgFps;
         var low = b.OnePercentLowFps;
-        Step(TunerRule.MicroStutter, hasFrames && avg > 0 && low < StutterTrigger * avg, hasFrames && avg > 0 && low >= StutterRelease * avg, now, output,
+        Step(TunerRule.MicroStutter, hasFrames && avg > 0 && low < StutterTrigger * avg, !hasFrames || avg <= 0 || low >= StutterRelease * avg, now, output,
             () => StutterAction(ctx, low, avg));
         return output;
     }
@@ -206,7 +207,8 @@ public sealed class ClosedLoopTuner
         var thermal = rule == TunerRule.Thermal;
         if (Mean(thermal ? _temps : _lows) is not { } current) return;
         var worse = thermal ? current > j.baseline + WorseTempC : current < j.baseline * WorseFraction;
-        if (!worse) return;
+        // Never take cooling away while it is still too hot: a power profile that has not yet helped is better than none.
+        if (!worse || (thermal && current > HotC)) return;
 
         output.Add(new TunerAction(rule, TunerActionType.Undo, r.Applied, null,
             thermal ? "The change didn't cool things down, so it was undone and won't be tried again this session."

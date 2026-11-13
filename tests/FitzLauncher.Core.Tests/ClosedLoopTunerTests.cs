@@ -238,6 +238,47 @@ public class ClosedLoopTunerTests
     }
 
     [Fact]
+    public void An_active_rule_is_put_back_if_its_input_vanishes()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => CpuBound());
+        var acts = Run(t, 3, 20, _ => S(cpu: null, gpu: null));
+        Assert.Contains(acts, x => x.a.Rule == TunerRule.CpuBound && x.a.Type == TunerActionType.Release);
+
+        var s = new ClosedLoopTuner();
+        Run(s, 0, 3, _ => S(avg: 60, low: 30));
+        var empty = new TunerSample(default, null, null, Plain);
+        Assert.Contains(Run(s, 3, 40, _ => empty), x => x.a.Rule == TunerRule.MicroStutter && x.a.Type == TunerActionType.Release);
+    }
+
+    [Fact]
+    public void Thermal_stays_on_if_the_sensor_vanishes()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => S(temp: 92));
+        Assert.Empty(Run(t, 3, 120, _ => S(temp: null)));
+    }
+
+    [Fact]
+    public void Rules_that_were_already_active_stay_held_while_thermal_is_active()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => CpuBound());
+        Run(t, 3, 3, _ => S(temp: 92));
+        // Plenty of clear conditions for rule 1, but thermal is active, so no release until it clears.
+        var acts = Run(t, 6, 25, _ => S(temp: 92, cpu: 8, gpu: 8));
+        Assert.DoesNotContain(acts, x => x.a.Rule == TunerRule.CpuBound);
+    }
+
+    [Fact]
+    public void Thermal_is_not_undone_while_still_hot_even_if_the_temperature_rose()
+    {
+        var t = new ClosedLoopTuner();
+        var acts = Run(t, 0, 60, i => S(temp: i < 3 ? 88 : 95));
+        Assert.DoesNotContain(acts, x => x.a.Type == TunerActionType.Undo);
+    }
+
+    [Fact]
     public void Ending_the_session_releases_whatever_is_active_once()
     {
         var t = new ClosedLoopTuner();
