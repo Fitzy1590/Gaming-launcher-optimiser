@@ -135,11 +135,11 @@ Built 2026-11-12 (build 0 errors, 465 tests pass). **Not confirmed on device.** 
 ## 6. Closed-loop telemetry engine (spec `SPEC.md` §12; votes 2026-11-12: A, 1, Y)
 Order matters. Tick a stage only when its Verify line passes (B1, B2 always). Values marked VERIFY in the spec are checked in the stage that uses them. Rules: `.claude/rules/telemetry.md`.
 - [x] **T0** Vote, spec, guardrails recorded (SPEC §12, CLAUDE.md, telemetry rule, reviewer). Verify: B1
-- [ ] **T1** `Core/Telemetry/RollingFrameStats` (60 s window, 1 s buckets, 1% low, stall handling). Verify: `--filter RollingFrameStatsTests`
+- [x] **T1** `Core/Telemetry/RollingFrameStats` (60 s window, 1 s buckets, 1% low, stall handling). Verify: `--filter RollingFrameStatsTests`
 - [ ] **T2** `Core/Telemetry/ClosedLoopTuner` (4 rules, 3 s hold, cooldowns, priority, release, caps per session, defers to Auto TDP and `ThermalGovernor`). Verify: `--filter ClosedLoopTunerTests` (no rapid toggling over a 10 min synthetic run)
 - [ ] **T3** `Windows/EtwFpsTracker` feeds per-frame records; VERIFY ETW event IDs, then CPU/GPU busy. Verify: B1; on Windows, the frame-time log matches the RTSS counter within 3 %
 - [ ] **T4** `Windows/Telemetry` applier over existing classes + `closed-loop-restore.json` + `RecoverIfNeeded`. Verify: B1; on Windows, kill Fitz mid-session, restart, priorities and caps are back
 - [ ] **T5** App: Telemetry page and nav item, mode switch (Off / Watch only / On), log. Verify: B1; reviewer subagent reports no findings; page switch is instant
 - [ ] **T6** Device test: Watch only first, read the log, then On. Verify: log shows each rule firing and releasing once, no toggle loops
 
-**Handoff (resume here after `/clear`):** T0 done. Next is T1. Read `SPEC.md` §12 and `.claude/rules/telemetry.md`, then `Windows/EtwFpsTracker`, `Core/Fps/FrameTimeRecorder` and `Core/Optimization/AutoTdp.cs` before touching code. Nothing in this section is built or confirmed on device.
+**Handoff (resume here after `/clear`):** T0 and T1 done (`Core/Telemetry/RollingFrameStats`, 10 tests). Next is T2. Read `SPEC.md` §12 and `.claude/rules/telemetry.md`, then `Windows/EtwFpsTracker`, `Core/Fps/FrameTimeRecorder` and `Core/Optimization/AutoTdp.cs` before touching code. Nothing in this section is built or confirmed on device.
