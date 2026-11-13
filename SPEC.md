@@ -223,7 +223,7 @@ Options shown as mock screenshots; the user chose:
 - If busy metrics are unavailable (not elevated, or events missing), Rules 1 and 2 report "can't tell" and do nothing. Rules 3 and 4 still run.
 
 ### 12.2 Decision matrix (`Core/Telemetry/ClosedLoopTuner`, pure, `Update(sample, now) -> actions`)
-Evaluated every 1 s. A rule fires only after its condition holds for 3 consecutive one-second buckets. Priority 4 > 3 > 1 / 2; while Rule 4 is active the others hold.
+Evaluated every 1 s. While the temperature is over 85 °C the other rules also hold, even if Rule 4 is in cooldown or out of tries (decided 2026-11-13). A rule fires only after its condition holds for 3 consecutive one-second buckets. Priority 4 > 3 > 1 / 2; while Rule 4 is active the others hold.
 
 | Rule | Condition | Action (reusing existing code) | Cooldown | Releases when |
 |---|---|---|---|---|
@@ -235,7 +235,7 @@ Evaluated every 1 s. A rule fires only after its condition holds for 3 consecuti
 - Deviation from the brief: "suspend non-essential background services" is replaced by lowering background app priority via `ResourceApplier`. Suspending services is not revertible enough for this app.
 - When Auto TDP is On it owns the watts: Rule 2 becomes advice only, and Rule 4 defers to `ThermalGovernor` (no second thermal path).
 - Anti-cheat games: no priority, affinity or memory actions (same skip list as DLL swaps). Telemetry (passive ETW) still runs.
-- Max 3 applications per rule per session, so a rule that does not help stops trying. A change that made 1% low or temperature worse over the next 16 s is undone and not retried this session.
+- Max 3 applications per rule per session, so a rule that does not help stops trying. A change that made 1% low or temperature worse over the next 16 s is undone and not retried this session. Exception (decided 2026-11-13): Rule 4 is never undone while the temperature is still over 85 °C, because removing cooling on a hot machine is worse than a change that hasn't helped yet.
 - Thread safety: one sampler thread calls `Update` under a lock; the tuner holds no references to UI. Returned actions run on `Task.Run` with a `CancellationToken`; results come back through the VM with `Dispatcher.BeginInvoke`. Appliers never throw out of the background thread.
 - Revertible: a restore record (`closed-loop-restore.json`) is written before each action, undone at session end, and `RecoverIfNeeded` runs at start-up.
 

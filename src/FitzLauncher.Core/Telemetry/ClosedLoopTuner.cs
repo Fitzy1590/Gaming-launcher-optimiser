@@ -46,7 +46,7 @@ public readonly record struct TunerSample(FrameBucket Bucket, double? CpuTempC, 
 /// <list type="bullet">
 /// <item>Call <see cref="Update"/> once per second with the newest one-second bucket, from one sampler thread under a lock.</item>
 /// <item>A rule fires only after 3 consecutive buckets. Cooldown runs from the last change (apply or release).</item>
-/// <item>Thermal beats the rest: while it is active nothing else moves. Max 3 applications per rule per session.</item>
+/// <item>Thermal beats the rest: while it is active, or the machine is over the limit, nothing else moves. Max 3 applications per rule per session.</item>
 /// <item>A change that made 1% low (or temperature) worse over the next 16 s is undone and not retried.</item>
 /// <item>No busy metrics means Rules 1 and 2 do nothing and say so once. Missing temperatures mean Rule 4 does nothing. It never guesses.
 /// If an active rule's input vanishes, Rules 1 to 3 are put back after their normal release time; Rule 4 stays until it reads cool or the game ends.</item>
@@ -103,7 +103,8 @@ public sealed class ClosedLoopTuner
         // Rule 4 first: it beats every other rule.
         var thermal = State(TunerRule.Thermal);
         Step(TunerRule.Thermal, temp is > HotC, temp is < CoolC, now, output, () => ThermalAction(ctx, temp));
-        if (thermal.Active)
+        // Too hot also holds the others, even when Rule 4 itself can't act (cooldown, or out of tries).
+        if (thermal.Active || temp is > HotC)
         {
             foreach (var r in new[] { TunerRule.CpuBound, TunerRule.GpuBound, TunerRule.MicroStutter }) State(r).Hold = 0;
             return output;

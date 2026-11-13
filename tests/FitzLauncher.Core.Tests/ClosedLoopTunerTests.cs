@@ -279,6 +279,23 @@ public class ClosedLoopTunerTests
     }
 
     [Fact]
+    public void Others_wait_while_over_the_limit_even_when_thermal_is_in_cooldown_or_used_up()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => S(temp: 90));            // thermal fires at 2 s
+        Run(t, 3, 5, _ => S(temp: 78));            // clear for a few seconds, still active
+        // Hot again (over 85) with CPU-bound: thermal is active, so held.
+        Assert.Empty(Run(t, 8, 10, _ => S(temp: 90, cpu: 12, gpu: 8)));
+
+        // Fully released, then in cooldown (20 s) and hot again: others must still wait.
+        var u = new ClosedLoopTuner();
+        Run(u, 0, 3, _ => S(temp: 90));
+        Run(u, 3, 31, _ => S(temp: 70));           // releases at 33 s
+        var acts = Run(u, 34, 10, _ => S(temp: 90, cpu: 12, gpu: 8)); // cooldown to 53 s
+        Assert.DoesNotContain(acts, x => x.a.Rule is TunerRule.CpuBound or TunerRule.GpuBound or TunerRule.MicroStutter);
+    }
+
+    [Fact]
     public void Ending_the_session_releases_whatever_is_active_once()
     {
         var t = new ClosedLoopTuner();
