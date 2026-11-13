@@ -94,7 +94,7 @@ public sealed partial class TelemetryViewModel : ObservableObject
 
         foreach (var st in s.Rules)
         {
-            var row = Rules.First(r => r.Rule == st.Rule);
+            if (Rules.FirstOrDefault(r => r.Rule == st.Rule) is not { } row) continue;
             row.State = st.Active ? "Active"
                 : st.GivenUp ? "Stopped for this session"
                 : st.CooldownLeft > TimeSpan.Zero ? $"Cooling down, {Math.Ceiling(st.CooldownLeft.TotalSeconds):0} s"
@@ -103,7 +103,8 @@ public sealed partial class TelemetryViewModel : ObservableObject
             row.CanRevert = st.Active && s.Mode == ClosedLoopMode.On;
         }
 
-        if (Log.Count != s.Log.Count)
+        // The session keeps at most 200 lines, so once full the count stops changing: compare the newest line too.
+        if (Log.Count != s.Log.Count || (s.Log.Count > 0 && Log[0].Text != s.Log[^1].Text) || (s.Log.Count > 0 && Log[0].Time != s.Log[^1].At.ToString("HH:mm:ss", CultureInfo.CurrentCulture)))
         {
             Log.Clear();
             foreach (var e in s.Log.Reverse()) // newest first

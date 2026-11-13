@@ -159,8 +159,34 @@ public sealed class ClosedLoopSession
         if (_loop is not null) { try { await _loop.ConfigureAwait(false); } catch (OperationCanceledException) { } }
         List<TunerAction> ending;
         lock (_lock) ending = [.. _tuner.EndSession()];
-        foreach (var a in ending) AddLog(a, _mode == ClosedLoopMode.On && _applier.Apply(a));
-        if (_mode == ClosedLoopMode.On) _applier.Finish();
+        try
+        {
+            foreach (var a in ending)
+            {
+                var applied = false;
+                if (_mode == ClosedLoopMode.On)
+                {
+                    try { applied = _applier.Apply(a); }
+                    catch (Exception e) when (e is InvalidOperationException or IOException or Win32Exception or ArgumentException or UnauthorizedAccessException)
+                    {
+                        _hooks.Log?.Invoke("Telemetry restore step failed: " + e.Message);
+                    }
+                }
+                AddLog(a, applied);
+            }
+        }
+        finally
+        {
+            // Finish puts back anything still recorded and removes the restore file; it must run even if a step above failed.
+            if (_mode == ClosedLoopMode.On)
+            {
+                try { _applier.Finish(); }
+                catch (Exception e) when (e is InvalidOperationException or IOException or Win32Exception or ArgumentException or UnauthorizedAccessException)
+                {
+                    _hooks.Log?.Invoke("Telemetry final restore failed; it will be retried at the next start: " + e.Message);
+                }
+            }
+        }
         _cts?.Dispose();
         _cts = null;
         List<ClosedLoopLogEntry> log;

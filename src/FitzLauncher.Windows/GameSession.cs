@@ -597,7 +597,8 @@ public sealed class GameSession(
                 Context = () => new TunerContext(_auto is not null && !_autoSimulated, _guard?.IsThrottling == true, antiCheat, hasPowerProfile, Display?.MaxRefreshHz ?? 0),
                 Temperatures = () => { lock (_tempLock) return _lastTemps; },
                 GetCap = () => _guard?.CurrentCap ?? Cap,
-                SetCap = n => { lock (_capLock) return _rtss is not null && _rtss.SetFramerateLimit(_renderExe, n); },
+                // While the thermal guard is cooling things down it owns the cap: the tuner doesn't touch it then.
+                SetCap = n => { lock (_capLock) return _rtss is not null && _guard?.IsThrottling != true && _rtss.SetFramerateLimit(_renderExe, n); },
                 BackgroundApps = () =>
                 {
                     var keep = new HashSet<int>(_gamePids) { Environment.ProcessId };

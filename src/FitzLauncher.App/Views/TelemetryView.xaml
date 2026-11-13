@@ -79,7 +79,7 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <TextBlock Text="Frame rate, last 60 seconds" Style="{StaticResource H2}" Margin="0,0,0,8" />
-                    <Polyline Points="{Binding Graph}" Stretch="Fill" Height="80" Stroke="{StaticResource Secondary}" StrokeThickness="2" />
+                    <Polyline Points="{Binding Graph}" Stretch="Fill" Height="80" AutomationProperties.Name="Frame rate, last 60 seconds" Stroke="{StaticResource Secondary}" StrokeThickness="2" />
                 </StackPanel>
             </Border>
 

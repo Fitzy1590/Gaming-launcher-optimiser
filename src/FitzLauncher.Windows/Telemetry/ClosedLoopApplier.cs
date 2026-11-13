@@ -153,7 +153,8 @@ public sealed class ClosedLoopApplier(AppPaths paths, ClosedLoopHooks hooks, Res
     {
         var (current, _) = PowerPlans.GetActive();
         var overlay = PowerPlans.GetOverlay();
-        var target = PowerPlans.EnsureHighPerformance();
+        // Look for an existing fast plan; never create one here, because a new plan would not be in the restore record.
+        var target = PowerPlans.ListSchemes().Select(s => (Guid?)s.guid).FirstOrDefault(g => g == PowerPlans.UltimatePerformance || g == PowerPlans.HighPerformance);
         if (target is { } t && current != t)
         {
             RecordPower(rule, current, overlay);
@@ -263,8 +264,10 @@ public sealed class ClosedLoopApplier(AppPaths paths, ClosedLoopHooks hooks, Res
     public static List<string> RecoverIfNeeded(AppPaths paths)
     {
         if (!File.Exists(paths.ClosedLoopState)) return [];
-        var state = Json.Load<ClosedLoopRestoreState>(paths.ClosedLoopState);
         var report = new List<string>();
+        ClosedLoopRestoreState? state;
+        try { state = Json.Load<ClosedLoopRestoreState>(paths.ClosedLoopState); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { return report; }
         if (state is not null)
         {
             state.HeldBack = [];
