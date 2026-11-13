@@ -9,11 +9,12 @@ using FitzLauncher.App.Services;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Optimization;
 using FitzLauncher.Core.Stats;
+using FitzLauncher.Core.Telemetry;
 using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About, Emulation }
+public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About, Emulation, Telemetry }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -30,6 +31,7 @@ public sealed partial class MainViewModel : ObservableObject
     public HomeViewModel Home { get; }
     public StorageViewModel Storage { get; }
     public EmulationViewModel Emulation { get; }
+    public TelemetryViewModel Telemetry { get; }
     public ModsOverviewViewModel ModsOverview { get; }
     public AppServices Services => _s;
 
@@ -175,6 +177,7 @@ public sealed partial class MainViewModel : ObservableObject
         Home = new HomeViewModel(services, this);
         Storage = new StorageViewModel(services, this);
         Emulation = new EmulationViewModel(services, this);
+        Telemetry = new TelemetryViewModel(services, rule => _session?.RevertTelemetryAsync(rule) ?? Task.CompletedTask);
         ModsOverview = new ModsOverviewViewModel(services, OpenMods);
         if (Games.Count == 0) _page = Page.Library;
         Home.Reload();
@@ -518,6 +521,7 @@ public sealed partial class MainViewModel : ObservableObject
             PowerWatts = ryzenAdj is null || autoTdp == AutoTdpMode.Observe ? null // observe changes nothing
                 : autoTdp == AutoTdpMode.On ? autoStart
                 : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
+            ClosedLoop = SafeMode ? ClosedLoopMode.Off : game.ClosedLoop ?? _s.Settings.ClosedLoop,
             AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
             AutoTdpFallbackTarget = _s.Settings.DefaultFpsTarget,
             AutoTdpLearnedTypical = autoTarget is { } lt && game.AutoTdpProfiles.TryGetValue(lt, out var lp) && lp.Typical > 0 ? lp.Typical : null, AutoTdpWhyNot = autoWhyNot,
@@ -572,6 +576,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
         session.Live += l => Ui(() => LiveText = FormatLive(vm, l));
         session.Alert += a => Ui(() => TempAlertRaised?.Invoke(a));
+        session.ClosedLoopUpdated += snap => Ui(() => Telemetry.Apply(snap));
         // Trainer: started a little after the game, closed with it.
         System.Diagnostics.Process? trainer = null;
         var trainerCts = new CancellationTokenSource();

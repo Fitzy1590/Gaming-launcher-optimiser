@@ -278,6 +278,18 @@
                     <TextBlock Text="{Binding AutoTdpText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
                 </StackPanel>
 
+                <!-- Telemetry tuner -->
+                <StackPanel>
+                    <TextBlock Text="Telemetry tuner" Style="{StaticResource H2}" Margin="0,24,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameclosedloop" Content="My default" IsChecked="{Binding ClosedLoopChoice, Converter={StaticResource Eq}, ConverterParameter=Default}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameclosedloop" Content="Off" IsChecked="{Binding ClosedLoopChoice, Converter={StaticResource Eq}, ConverterParameter=Off}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameclosedloop" Content="Watch only" IsChecked="{Binding ClosedLoopChoice, Converter={StaticResource Eq}, ConverterParameter=WatchOnly}" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="gameclosedloop" Content="On" IsChecked="{Binding ClosedLoopChoice, Converter={StaticResource Eq}, ConverterParameter=On}" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ClosedLoopText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,4,0,0" />
+                </StackPanel>
+
                 <!-- ReShade / ENB -->
                 <StackPanel Visibility="{Binding HasMods, Converter={StaticResource Vis}}">
                     <DockPanel Margin="0,24,0,8">

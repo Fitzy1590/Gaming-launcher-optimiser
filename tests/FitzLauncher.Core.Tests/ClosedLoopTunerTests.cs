@@ -325,6 +325,19 @@ public class ClosedLoopTunerTests
     }
 
     [Fact]
+    public void Revert_puts_one_rule_back_and_stops_it_acting_again()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => CpuBound());
+        var a = t.Revert(TunerRule.CpuBound);
+        Assert.NotNull(a);
+        Assert.Equal(TunerActionType.Release, a.Type);
+        Assert.True(a.Effects.HasFlag(TunerEffect.HighPriority));
+        Assert.Null(t.Revert(TunerRule.CpuBound)); // not active any more
+        Assert.Empty(Run(t, 3, 300, _ => CpuBound())); // and not retried
+    }
+
+    [Fact]
     public void Ending_the_session_releases_whatever_is_active_once()
     {
         var t = new ClosedLoopTuner();

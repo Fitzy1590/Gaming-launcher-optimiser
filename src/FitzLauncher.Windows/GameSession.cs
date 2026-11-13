@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using FitzLauncher.Core.Fps;
 using FitzLauncher.Core.Models;
+using FitzLauncher.Core.Mods;
 using FitzLauncher.Core.Optimization;
 using FitzLauncher.Core.Scanning;
 using FitzLauncher.Core.Storage;
+using FitzLauncher.Core.Telemetry;
 
 namespace FitzLauncher.Windows;
 
@@ -84,6 +86,16 @@ public sealed class GameSession(
 
     // ---- auto TDP (handhelds): off, observe (log only) or on
     public AutoTdpMode AutoTdp { get; init; }
+    /// <summary>Closed-loop telemetry tuner for this session (already resolved from the game's and the global choice). Off by default.</summary>
+    public ClosedLoopMode ClosedLoop { get; init; }
+    /// <summary>Raised once a second while the tuner runs (from a background thread). Used by the Telemetry page.</summary>
+    public event Action<ClosedLoopSnapshot>? ClosedLoopUpdated;
+    private ClosedLoopSession? _telemetry;
+    private (double? Cpu, double? Gpu) _lastTemps;
+    private readonly Lock _tempLock = new();
+
+    /// <summary>The Telemetry page's Revert button.</summary>
+    public Task RevertTelemetryAsync(TunerRule rule) => _telemetry is { } t ? t.RevertAsync(rule, CancellationToken.None) : Task.CompletedTask;
     public int AutoTdpMinWatts { get; init; } = 25;
     public int AutoTdpMaxWatts { get; init; } = 60;
     /// <summary>What auto TDP learned this session (the range that held the target), for next time; null if too short.</summary>
@@ -570,6 +582,41 @@ public sealed class GameSession(
         RestoreOsdLeftOff(rtss);
         if (StartOverlayHidden && rtss is not null) ToggleOverlayHidden();
 
+        // ---------------------------------------------------------------- closed-loop telemetry (SPEC §12)
+        ClosedLoopSession? telemetry = null;
+        ResourceApplier? telemetryResources = null;
+        if (ClosedLoop != ClosedLoopMode.Off && settings.TrackFps)
+        {
+            var (antiCheat, hasPowerProfile) = await Task.Run(() => (GameModLayout.Detect(installDir, game.ExePath).HasAntiCheat, PowerPlans.GetActive().guid is not null), ct).ConfigureAwait(false);
+            var sampler2 = new ProcessResourceSampler();
+            sampler2.Sample(); // the first reading has no CPU figures; take it now so the next one does
+            telemetryResources = applier ?? new ResourceApplier(paths, line => Trace?.Invoke(line));
+            var hooks = new ClosedLoopHooks
+            {
+                GamePids = () => _gamePids,
+                Context = () => new TunerContext(_auto is not null && !_autoSimulated, _guard?.IsThrottling == true, antiCheat, hasPowerProfile, Display?.MaxRefreshHz ?? 0),
+                Temperatures = () => { lock (_tempLock) return _lastTemps; },
+                GetCap = () => _guard?.CurrentCap ?? Cap,
+                SetCap = n => { lock (_capLock) return _rtss is not null && _rtss.SetFramerateLimit(_renderExe, n); },
+                BackgroundApps = () =>
+                {
+                    var keep = new HashSet<int>(_gamePids) { Environment.ProcessId };
+                    foreach (var extra in ResourceProtectedPids?.Invoke() ?? []) keep.Add(extra);
+                    return ResourcePlanner.Group(sampler2.Sample(), keep);
+                },
+                RtssPath = hardware?.RtssPath ?? "",
+                RenderExe = renderExe,
+                Toast = a => Alert?.Invoke(a),
+                Log = line => Trace?.Invoke(line),
+            };
+            telemetry = new ClosedLoopSession(ClosedLoop, hooks, new ClosedLoopApplier(paths, hooks, telemetryResources, cpuTopology), () => fps.Error);
+            telemetry.Updated += snap => ClosedLoopUpdated?.Invoke(snap);
+            fps.SetFrameListener(telemetry.OnFrame);
+            _telemetry = telemetry;
+            telemetry.Start(ct);
+            Status?.Invoke(ClosedLoop == ClosedLoopMode.WatchOnly ? "Telemetry tuner: watching only, nothing will be changed." : "Telemetry tuner: on.");
+        }
+
         // ---------------------------------------------------------------- CPU pinning
         var affinity = CpuAffinityPlanner.Plan(cpuTopology, game.CorePinning);
         var pinned = new HashSet<int>();
@@ -685,6 +732,7 @@ public sealed class GameSession(
                 }
 
                 var r = temps.Read();
+                lock (_tempLock) _lastTemps = (r.CpuTempC, r.GpuTempC);
                 guardTemp = r.CpuTempC is null && r.GpuTempC is null ? null : Math.Max(r.CpuTempC ?? 0, r.GpuTempC ?? 0);
                 if (r.CpuTempC is { } c) { maxCpu = Math.Max(maxCpu ?? 0, c); sumCpu += c; cpuSamples++; }
                 if (r.GpuTempC is { } g) { maxGpu = Math.Max(maxGpu ?? 0, g); sumGpu += g; gpuSamples++; }
@@ -846,6 +894,13 @@ public sealed class GameSession(
         if (overlay) RtssClient.ClearOsd();
         if (_osdTurnedOff && rtss is not null) { rtss.SetOsdEnabled(renderExe, true); _osdTurnedOff = false; } // never leave RTSS's OSD off
         ClearOsdMarker();
+        if (telemetry is not null)
+        {
+            // Before the RTSS handle is dropped below: putting back a frame cap needs it.
+            _telemetry = null;
+            await telemetry.EndAsync().ConfigureAwait(false);
+            if (applier is null && telemetryResources is not null) foreach (var line in telemetryResources.RestoreAll()) Status?.Invoke(line);
+        }
         ThermalGovernor? endGuard;
         lock (_capLock) { endGuard = _guard; _rtss = null; }
         limiter?.RestoreAll();

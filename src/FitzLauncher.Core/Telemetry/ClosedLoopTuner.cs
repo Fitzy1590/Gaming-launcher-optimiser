@@ -148,6 +148,20 @@ public sealed class ClosedLoopTuner
         return output;
     }
 
+    /// <summary>The user pressed Revert: puts one active rule back and stops it acting again this session. Null if it wasn't active.</summary>
+    public TunerAction? Revert(TunerRule rule)
+    {
+        var r = State(rule);
+        if (!r.Active) return null;
+        var action = new TunerAction(rule, TunerActionType.Release, r.Applied, null, "Reverted by you, so it won't act again this session.");
+        r.Active = false;
+        r.Disabled = true;
+        r.Applied = TunerEffect.None;
+        r.Judge = null;
+        r.ClearSince = null;
+        return action;
+    }
+
     /// <summary>The game ended: everything that is active is released. Safe to call more than once.</summary>
     public IReadOnlyList<TunerAction> EndSession()
     {

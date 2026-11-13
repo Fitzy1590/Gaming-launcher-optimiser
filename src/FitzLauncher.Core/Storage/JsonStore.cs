@@ -54,6 +54,8 @@ public sealed class AppPaths(string root)
     public string GameModeState => Path.Combine(Root, "gamemode-restore.json");
     /// <summary>Background apps the resource guard changed (priorities, paused apps), so a crash can't leave them that way.</summary>
     public string ResourceGuardState => Path.Combine(Root, "resource-guard-restore.json");
+    /// <summary>What the closed-loop telemetry tuner changed (priorities, affinity, power profile, frame cap), so a crash can't leave it that way.</summary>
+    public string ClosedLoopState => Path.Combine(Root, "closed-loop-restore.json");
     /// <summary>Resource guard choices and the history of what helped.</summary>
     public string ResourceGuardMemory => Path.Combine(Root, "resource-guard.json");
     public string Benchmarks => Path.Combine(Root, "benchmarks.jsonl");

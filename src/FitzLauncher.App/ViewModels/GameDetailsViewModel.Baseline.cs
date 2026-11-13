@@ -32,6 +32,24 @@ public sealed partial class GameDetailsViewModel
         }
     }
 
+    // ---- closed-loop telemetry tuner (SPEC §12)
+
+    /// <summary>"Default" (the global setting), "Off", "WatchOnly" or "On".</summary>
+    public string ClosedLoopChoice
+    {
+        get => Game.ClosedLoop?.ToString() ?? "Default";
+        set
+        {
+            Game.ClosedLoop = Enum.TryParse<FitzLauncher.Core.Telemetry.ClosedLoopMode>(value, out var m) ? m : null;
+            _s.SaveLibrary();
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ClosedLoopText));
+        }
+    }
+
+    public string ClosedLoopText =>
+        $"Now: {FitzLauncher.Core.Telemetry.ClosedLoopAdvice.Name(Game.ClosedLoop ?? _s.Settings.ClosedLoop)}. See the Telemetry page for what it does. Applies from the next time you play.";
+
     public string AutoTdpText
     {
         get

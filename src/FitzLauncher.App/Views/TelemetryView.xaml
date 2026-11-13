@@ -1,0 +1,151 @@
+<UserControl x:Class="FitzLauncher.App.Views.TelemetryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- SPEC §12.3. Shows what the closed-loop tuner publishes once a second; decides nothing. No animation. -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Margin="28,24,28,24" MaxWidth="1100" HorizontalAlignment="Left">
+            <TextBlock Text="Telemetry" Style="{StaticResource H1}" />
+            <TextBlock Style="{StaticResource Wrap}" Margin="0,4,0,16"
+                       Text="Watches your frame times and temperatures while you play. When you let it, it makes small, reversible changes to keep games smooth, and puts everything back when the game ends." />
+
+            <!-- Mode -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Mode" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                    <WrapPanel>
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="telemetryMode" Content="Off"
+                                     IsChecked="{Binding Mode, Converter={StaticResource Eq}, ConverterParameter=Off}"
+                                     AutomationProperties.Name="Telemetry tuner off" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="telemetryMode" Content="Watch only"
+                                     IsChecked="{Binding Mode, Converter={StaticResource Eq}, ConverterParameter=WatchOnly}"
+                                     AutomationProperties.Name="Telemetry tuner watch only" />
+                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="telemetryMode" Content="On"
+                                     IsChecked="{Binding Mode, Converter={StaticResource Eq}, ConverterParameter=On}"
+                                     AutomationProperties.Name="Telemetry tuner on" />
+                    </WrapPanel>
+                    <TextBlock Text="{Binding ModeNote}" Style="{StaticResource Wrap}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Why it isn't running -->
+            <Border Style="{StaticResource Card}" Visibility="{Binding HasWhyNot, Converter={StaticResource Vis}}">
+                <StackPanel>
+                    <TextBlock Text="Why it isn't running" Style="{StaticResource H2}" Margin="0,0,0,4" />
+                    <TextBlock Text="{Binding WhyNotRunning}" Style="{StaticResource Wrap}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Live tiles -->
+            <WrapPanel Margin="0,0,0,0">
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="FPS" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding FpsText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="1% low FPS" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding LowText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="Processor busy" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding CpuBusyText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="Graphics busy" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding GpuBusyText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="Processor temperature" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding CpuTempText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="Graphics temperature" Style="{StaticResource MutedText}" />
+                        <TextBlock Text="{Binding GpuTempText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
+                    </StackPanel>
+                </Border>
+            </WrapPanel>
+
+            <!-- Graph -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="Frame rate, last 60 seconds" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                    <Polyline Points="{Binding Graph}" Stretch="Fill" Height="80" Stroke="{StaticResource Secondary}" StrokeThickness="2" />
+                </StackPanel>
+            </Border>
+
+            <!-- Rules -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="The four rules" Style="{StaticResource H2}" Margin="0,0,0,8" />
+                    <ItemsControl ItemsSource="{Binding Rules}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" MinWidth="200" />
+                                        <ColumnDefinition Width="Auto" MinWidth="88" />
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Margin="0,0,16,0">
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource Text}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding What}" Style="{StaticResource Wrap}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                        <TextBlock Text="{Binding State}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Count}" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                                    </StackPanel>
+                                    <Button Grid.Column="2" Content="Revert" Style="{StaticResource GhostButton}" VerticalAlignment="Top" MinHeight="32"
+                                            Visibility="{Binding CanRevert, Converter={StaticResource Vis}}"
+                                            Command="{Binding DataContext.RevertCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding Rule}"
+                                            AutomationProperties.Name="Revert this rule" ToolTip="Put back what this rule changed and stop it acting again this session" />
+                                </Grid>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- Log -->
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock Text="What it decided" Style="{StaticResource H2}" Margin="0,0,0,4" />
+                    <TextBlock Style="{StaticResource MutedText}" Margin="0,0,0,8" Text="Newest first. In Watch only, lines starting “Would” were not carried out." />
+                    <TextBlock Style="{StaticResource Wrap}" Text="Nothing yet. Decisions appear here while a game is running."
+                               Visibility="{Binding HasLog, Converter={StaticResource NotVis}}" />
+                    <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+                                  Visibility="{Binding HasLog, Converter={StaticResource Vis}}">
+                        <ItemsControl ItemsSource="{Binding Log}" Focusable="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="72" />
+                                            <ColumnDefinition Width="140" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" MinWidth="112" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Time}" Style="{StaticResource Figure}" Foreground="{StaticResource Muted}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Rule}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                        <TextBlock Grid.Column="2" Text="{Binding Text}" Style="{StaticResource Wrap}" Margin="0,0,12,0" />
+                                        <TextBlock Grid.Column="3" Text="{Binding Outcome}" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
