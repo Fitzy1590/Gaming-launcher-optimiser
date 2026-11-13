@@ -58,4 +58,19 @@ public class OptiScalerSettingsTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public void Status_ReadsModeAndMissingFilesFromLedger()
+    {
+        var ledger = new List<AppliedChange>
+        {
+            new() { TweakId = "optiscaler", Action = new FileReplaceAction { TargetPath = Path.Combine("g", "dxgi.dll") } },
+            new() { TweakId = "optiscaler", Action = new IniSetAction { Key = "QualityRatioBalanced" } },
+            new() { TweakId = "other", Action = new FileReplaceAction { TargetPath = Path.Combine("g", "x.dll") } },
+        };
+        Assert.Equal("Balanced (1.7x)", OptiScalerStatus.ConfiguredMode(ledger));
+        Assert.Equal(["dxgi.dll"], OptiScalerStatus.MissingFiles(ledger, _ => false));
+        Assert.Empty(OptiScalerStatus.MissingFiles(ledger, _ => true));
+        Assert.Null(OptiScalerStatus.ConfiguredMode([]));
+    }
 }

@@ -40,3 +40,25 @@ public static class OptiScalerSettings
         return s;
     }
 }
+
+/// <summary>What the installed OptiScaler is set to, read back from the change ledger (no extra state to save).</summary>
+public static class OptiScalerStatus
+{
+    /// <summary>Mode label such as "Quality (1.5x)", or null when no ratio was configured.</summary>
+    public static string? ConfiguredMode(IEnumerable<Models.AppliedChange> ledger)
+    {
+        foreach (var c in ledger)
+        {
+            if (c.TweakId != "optiscaler" || c.Action is not Models.IniSetAction { Key: var k }) continue;
+            foreach (var m in Enum.GetValues<UpscaleMode>())
+                if (k == $"QualityRatio{m}") return OptiScalerSettings.Label(m);
+        }
+        return null;
+    }
+
+    /// <summary>Files OptiScaler placed that are no longer there, e.g. after a game update (Steam verify/patch).</summary>
+    public static IReadOnlyList<string> MissingFiles(IEnumerable<Models.AppliedChange> ledger, Func<string, bool> exists) =>
+        ledger.Where(c => c.TweakId == "optiscaler" && c.Action is Models.FileReplaceAction)
+              .Select(c => ((Models.FileReplaceAction)c.Action).TargetPath)
+              .Where(p => !exists(p)).Select(Path.GetFileName).Where(n => n is not null).Select(n => n!).ToList();
+}

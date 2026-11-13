@@ -19,6 +19,10 @@ public sealed partial class GameDetailsViewModel
     [ObservableProperty] private bool _suggestOptiScaler;
     [ObservableProperty] private bool _hasUpscalerDlls;
 
+    public static IReadOnlyList<string> OptiScalerModes { get; } = [.. Enum.GetValues<UpscaleMode>().Select(OptiScalerSettings.Label)];
+    [ObservableProperty] private int _optiScalerModeIndex;
+    [ObservableProperty] private string _optiScalerStatus = "";
+
     public bool OptiScalerInstalled => Game.AppliedChanges.Any(c => c.TweakId == "optiscaler");
 
     private void LoadUpscaling()
@@ -42,6 +46,16 @@ public sealed partial class GameDetailsViewModel
         }
         HasUpscalerDlls = UpscalerDllLines.Count > 0;
         OnPropertyChanged(nameof(OptiScalerInstalled));
+        OptiScalerStatus = BuildOptiScalerStatus();
+    }
+
+    private string BuildOptiScalerStatus()
+    {
+        if (!OptiScalerInstalled) return "";
+        var missing = FitzLauncher.Core.Upscalers.OptiScalerStatus.MissingFiles(Game.AppliedChanges, File.Exists);
+        var mode = FitzLauncher.Core.Upscalers.OptiScalerStatus.ConfiguredMode(Game.AppliedChanges);
+        var line = mode is null ? "Installed." : $"Installed. Set to {mode}; the game's own quality setting can still override this.";
+        return missing.Count == 0 ? line : $"{line} Missing now: {string.Join(", ", missing)}. A game update probably removed them, so remove OptiScaler and install it again.";
     }
 
     [RelayCommand]
@@ -64,7 +78,8 @@ public sealed partial class GameDetailsViewModel
             var exeDir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath)!;
             if (await Task.Run(() => GameModLayout.Detect(GameScanner.ResolveInstallRoot(Game), Game.ExePath).HasAntiCheat))
             { Status = "OptiScaler isn't installed: this game has anti-cheat, which can ban for injected DLLs."; return; }
-            var tweak = UpscalerAdvisor.OptiScalerTweak(dir, exeDir, name => File.Exists(Path.Combine(exeDir, name)));
+            var tweak = UpscalerAdvisor.OptiScalerTweak(dir, exeDir, name => File.Exists(Path.Combine(exeDir, name)),
+                UpscalerAdvisor.Family(_s.Hardware?.PrimaryGpu), (UpscaleMode)OptiScalerModeIndex);
             if (tweak is null) { Status = "The OptiScaler download didn't contain OptiScaler.dll."; return; }
             var r = await Task.Run(() => _s.Tweaks.Apply(Game.AppliedChanges, tweak, Game));
             _s.SaveLibrary();
