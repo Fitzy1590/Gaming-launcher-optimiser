@@ -73,4 +73,20 @@ public class OptiScalerSettingsTests
         Assert.Empty(OptiScalerStatus.MissingFiles(ledger, _ => true));
         Assert.Null(OptiScalerStatus.ConfiguredMode([]));
     }
+
+    [Fact]
+    public void Tweak_NeverTargetsOutsideTheGameFolder()
+    {
+        var root = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var opti = Path.Combine(root, "opti"); var game = Path.Combine(root, "game");
+            Directory.CreateDirectory(opti); Directory.CreateDirectory(game);
+            File.WriteAllText(Path.Combine(opti, "OptiScaler.dll"), "x");
+            File.WriteAllText(Path.Combine(opti, "extra.dll"), "x");
+            var t = UpscalerAdvisor.OptiScalerTweak(opti, game, _ => false)!;
+            Assert.All(t.Actions.OfType<FileReplaceAction>(), a => Assert.StartsWith(Path.GetFullPath(game), a.TargetPath));
+        }
+        finally { Directory.Delete(root, true); }
+    }
 }

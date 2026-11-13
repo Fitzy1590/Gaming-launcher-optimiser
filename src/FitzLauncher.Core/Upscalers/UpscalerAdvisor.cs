@@ -128,7 +128,9 @@ public static partial class UpscalerAdvisor
             var name = Path.GetFileName(f);
             if (name.Equals("OptiScaler.dll", StringComparison.OrdinalIgnoreCase) || rel.StartsWith("Licenses", StringComparison.OrdinalIgnoreCase)
                 || name.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) continue;
-            actions.Add(new FileReplaceAction { TargetPath = Path.Combine(gameExeDir, rel), SourcePath = f, NewVersion = "OptiScaler" });
+            var target = Path.GetFullPath(Path.Combine(gameExeDir, rel));
+            if (!target.StartsWith(Path.GetFullPath(gameExeDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue; // stays inside the game folder
+            actions.Add(new FileReplaceAction { TargetPath = target, SourcePath = f, NewVersion = "OptiScaler" });
         }
         // Per-game settings go in after the copy, so Revert undoes them first (newest first) and then removes the file.
         if (actions.OfType<FileReplaceAction>().Any(a => Path.GetFileName(a.TargetPath).Equals("OptiScaler.ini", StringComparison.OrdinalIgnoreCase)))

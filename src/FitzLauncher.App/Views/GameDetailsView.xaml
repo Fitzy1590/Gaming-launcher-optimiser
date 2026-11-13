@@ -721,10 +721,10 @@
                             <StackPanel>
                                 <TextBlock Text="OptiScaler" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
                                 <TextBlock Text="{Binding OptiScalerWhy}" Style="{StaticResource Wrap}" Margin="0,4,0,8" />
-                                <StackPanel Orientation="Horizontal" Visibility="{Binding OptiScalerInstalled, Converter={StaticResource NotVis}}" Margin="0,0,0,8">
+                                <WrapPanel Visibility="{Binding OptiScalerInstalled, Converter={StaticResource NotVis}}" Margin="0,0,0,8">
                                     <TextBlock Text="Quality mode" VerticalAlignment="Center" Margin="0,0,8,0" Style="{StaticResource MutedText}" />
                                     <ComboBox ItemsSource="{Binding OptiScalerModes}" SelectedIndex="{Binding OptiScalerModeIndex, Mode=TwoWay}" MinHeight="32" MinWidth="170" AutomationProperties.Name="OptiScaler quality mode" />
-                                </StackPanel>
+                                </WrapPanel>
                                 <TextBlock Text="{Binding OptiScalerStatus}" Style="{StaticResource Wrap}" Margin="0,0,0,8" Visibility="{Binding OptiScalerStatus, Converter={StaticResource HasValue}}" />
                                 <StackPanel Orientation="Horizontal">
                                     <Button Content="Install OptiScaler" Style="{StaticResource PrimaryButton}" Command="{Binding InstallOptiScalerCommand}" Visibility="{Binding OptiScalerInstalled, Converter={StaticResource NotVis}}" />

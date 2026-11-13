@@ -74,12 +74,12 @@ public sealed partial class GameDetailsViewModel
         if (IsPlayingCheck?.Invoke() == true) { Status = "Close the game first."; return; }
         try
         {
-            var dir = await _s.Upscalers.EnsureOptiScalerAsync();
-            var exeDir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath)!;
             if (await Task.Run(() => GameModLayout.Detect(GameScanner.ResolveInstallRoot(Game), Game.ExePath).HasAntiCheat))
             { Status = "OptiScaler isn't installed: this game has anti-cheat, which can ban for injected DLLs."; return; }
+            var dir = await _s.Upscalers.EnsureOptiScalerAsync();
+            var exeDir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath)!;
             var tweak = UpscalerAdvisor.OptiScalerTweak(dir, exeDir, name => File.Exists(Path.Combine(exeDir, name)),
-                UpscalerAdvisor.Family(_s.Hardware?.PrimaryGpu), (UpscaleMode)OptiScalerModeIndex);
+                UpscalerAdvisor.Family(_s.Hardware?.PrimaryGpu), Enum.IsDefined((UpscaleMode)OptiScalerModeIndex) ? (UpscaleMode)OptiScalerModeIndex : UpscaleMode.Quality);
             if (tweak is null) { Status = "The OptiScaler download didn't contain OptiScaler.dll."; return; }
             var r = await Task.Run(() => _s.Tweaks.Apply(Game.AppliedChanges, tweak, Game));
             _s.SaveLibrary();
@@ -87,7 +87,7 @@ public sealed partial class GameDetailsViewModel
                 ? "OptiScaler installed. In the game choose DLSS (or its FSR/XeSS option), then press Insert in-game to pick XeSS or FSR 3.1 in OptiScaler's menu."
                 : $"Couldn't install OptiScaler: {r.Message}";
         }
-        catch (Exception e) when (e is Services.Mods.StoreException or System.Net.Http.HttpRequestException or IOException or InvalidDataException or SharpCompress.Common.SharpCompressException or TaskCanceledException)
+        catch (Exception e) when (e is Services.Mods.StoreException or System.Net.Http.HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException or SharpCompress.Common.SharpCompressException or TaskCanceledException)
         {
             Status = $"Couldn't get OptiScaler: {e.Message}";
         }
