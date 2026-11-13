@@ -246,3 +246,29 @@ Evaluated every 1 s. While the temperature is over 85 °C the other rules also h
 
 ### 12.4 Not in scope
 PresentMon bundling or service (votes 2 and 3), suggest-then-apply (vote C), HAGS changes, service suspension, any hook or injection into games.
+
+## 13. Per-game upscaler engine (votes 2026-11-13: 1A, 2A, 3A)
+Builds on `Core/Upscalers` (`UpscalerLibrary`, `UpscalerAdvisor` OptiScaler plan, `DxvkPlanner`) and `UpscalerUpdateService`. WPF, not WinUI 3; navigation stays instant (`Visibility`/`ContentControl`).
+
+### 13.1 Votes
+- [x] **1A** OptiScaler proxy DLL (downloaded from its official GitHub Releases, never bundled: GPL-3.0) with native DLL swap as fallback. Anti-cheat games skipped (`GameModLayout.HasAntiCheat`).
+- [x] **2A** One-click per-game toggle: restore record first, `.bak` of every file touched, `RecoverIfNeeded` at start-up, hash re-check at launch (Steam patches).
+- [x] **3A** Telemetry reuses `EtwFpsTracker` + `RollingFrameStats` (average, 1% low) and `AbTest` for before/after. No PresentMon binary.
+- [ ] 1B native swap only, 2B manual files, 3B bundled PresentMon (not chosen).
+
+### 13.2 Upscaler central store
+`<data>/upscalers/optiscaler/<version>/` holds the downloaded release (SHA-256 checked against the asset `digest` when present, zip-slip guarded extract, host allow-list = OptiScaler GitHub Releases) and a `OptiScaler.ini` template. Per game, the ini is generated from the template (key-level, `Dx12Upscaler`, `[FSR] UpscalerIndex`, `[QualityOverrides]` ratios). Not under `Assets/`: that folder ships inside the app and can't hold a downloaded GPL binary. VERIFY before build: proxy DLL names and uninstall steps (OptiScaler wiki).
+
+### 13.3 Toggle pipeline (pure plan in `Core/Upscalers`, apply in `Windows/Optimization`)
+1. Refuse when anti-cheat is found, the install dir is unwritable, or the exe is running; say why in plain English.
+2. Write `upscaler-restore.json` (per game: files added, files replaced, `.bak` paths, SHA-256 of each) before any copy.
+3. Copy `.bak` first, then the proxy DLL, then the generated `OptiScaler.ini`. Temp-then-replace.
+4. Disable: delete added files, move `.bak` back, verify hashes, delete the record. A file changed since we wrote it is left alone and reported.
+5. Start-up `RecoverIfNeeded` finishes any half-done toggle.
+- Reuse `FileReplaceAction` / `AppliedChange`; no second apply path.
+
+### 13.4 Monitoring
+`RollingFrameStats` feeds the game panel: FPS, 1% low, and the mode (Quality / Balanced / Performance) from the configured ini ratio, labelled "configured" because the game's own setting can override it. `AbTest` stores before/after (without/with upscaler) per game. FSR 4 shown only on RDNA3/4 (`Fsr4GpuSupport`); label "FSR 4.x" (4.1 unconfirmed).
+
+### 13.5 Not in scope
+Bundling OptiScaler, PresentMon, hooks into game processes, online games with anti-cheat, any ROM/BIOS content.

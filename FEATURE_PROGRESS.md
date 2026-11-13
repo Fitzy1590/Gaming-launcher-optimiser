@@ -143,3 +143,15 @@ Order matters. Tick a stage only when its Verify line passes (B1, B2 always). Va
 - [ ] **T6** Device test: Watch only first, read the log, then On. Verify: log shows each rule firing and releasing once, no toggle loops
 
 **Handoff (resume here after `/clear`):** T0-T2 done and tested (525 tests). T3 plumbing, T4 (`Windows/Telemetry/ClosedLoopApplier`, `ClosedLoopSession`, `closed-loop-restore.json`, start-up recovery) and T5 (Telemetry page, mode setting global and per game) are built and reviewed but none of it has run on Windows, so T3-T6 stay unticked. Open items: (1) busy metrics (CPU/GPU busy) are not built; ETW event IDs must first be verified against PresentMon's source, until then Rules 1 and 2 say "can't tell"; (2) device test list: kill Fitz mid-game in On mode and restart (priority, affinity, power profile, cap all back, log says "Recovered telemetry tuner"); page switch is instant; Watch only first, read the log, then On; frame-time log within 3 % of RTSS; (3) thermal "stock power profile" = Windows Balanced plan plus default power mode, confirm that is what is wanted. Decisions 2026-11-13: heat protection never undone while over 85 °C; other rules pause while over 85 °C (SPEC §12.2). Work is on branch `ccr-ef3150dc-wysvs5`, not merged to main.
+
+## 7. Per-game upscaler engine (spec `SPEC.md` §13; votes 2026-11-13: 1A, 2A, 3A)
+Tick a stage only when its Verify line passes (B1, B2 always). Rules: `.claude/rules/upscaler-engine.md`.
+- [x] **U0** Vote, spec, guardrails recorded (SPEC §13, upscaler rule, reviewer check 11). Verify: B1
+- [ ] **U1** Core: `UpscalerToggler` plan (add/replace/restore lists, refusals) + `OptiScalerIniBuilder` + tests. Verify: B2, `--filter UpscalerToggle`
+- [ ] **U2** VERIFY OptiScaler proxy names + uninstall (wiki), then Windows/Optimization applier + `upscaler-restore.json` + `RecoverIfNeeded`. Verify: B1; on Windows, toggle on/off leaves the game folder byte-identical
+- [ ] **U3** OptiScaler download from official Releases (digest, zip-slip, allow-list). Verify: B1, tests with synthetic zips
+- [ ] **U4** App: toggle on `GameDetailsViewModel.Upscaling.cs` + GameDetailsView; anti-cheat reason shown. Verify: B1; reviewer reports no findings
+- [ ] **U5** Telemetry: mode label + `AbTest` before/after on the game panel. Verify: B1, B2
+- [ ] **U6** Device test on a non-anti-cheat game. Verify: FPS and 1% low change shown; kill Fitz mid-toggle, restart, files restored
+
+**Handoff:** U0 done. Nothing built yet. Next: U1.

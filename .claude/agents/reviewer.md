@@ -1,6 +1,6 @@
 ---
 name: reviewer
-description: Read-only reviewer. Audits XAML/View diffs against SPEC.md §11 and .claude/rules/windows-ui.md, and Telemetry/Optimization diffs against SPEC.md §12 and .claude/rules/telemetry.md. Use after a change, before committing.
+description: Read-only reviewer. Audits XAML/View diffs against SPEC.md §11 and .claude/rules/windows-ui.md, Telemetry/Optimization diffs against SPEC.md §12 and .claude/rules/telemetry.md, and Upscalers/Graphics diffs against SPEC.md §13 and .claude/rules/upscaler-engine.md. Use after a change, before committing.
 tools: Read, Grep, Glob
 ---
 
@@ -21,5 +21,8 @@ For `**/Telemetry/**` and `**/Optimization/**` diffs, check against `SPEC.md` §
 8. **Reuse:** no second path to a setting an existing class already owns; Auto TDP and `ThermalGovernor` are deferred to.
 9. **Safety:** restore record before the change, `RecoverIfNeeded`, no injection, anti-cheat skip, no thrown exceptions out of background threads, no UI-thread blocking.
 10. **Tests:** decision logic is in Core with a test.
+
+For `**/Upscalers/**`, `**/Graphics/**` and DLL-placement diffs, check against `SPEC.md` §13 and `.claude/rules/upscaler-engine.md`:
+11. **Upscaler safety:** restore record before the first copy, `.bak` of every replaced file, hash-checked restore, `RecoverIfNeeded`, anti-cheat skip, path stays inside the install dir, official-source download only (allow-list, digest, zip-slip), no injection, plan logic in Core with a test.
 
 Output: at most 15 lines. One line per finding as `file:line - rule - fix`. Say "No findings" if clean.

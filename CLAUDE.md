@@ -79,6 +79,12 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 - **Telemetry page navigation is instant:** `Visibility`/`ContentControl` swap, no `Frame`, Storyboard or transitions.
 - **ETW only:** no hooks, no injection. Event IDs and GUIDs in the spec are unverified until a stage marks them verified.
 
+## Upscaler engine (see `SPEC.md` §13, stages in `FEATURE_PROGRESS.md` §7; rules in `.claude/rules/upscaler-engine.md`)
+
+- **Voted:** OptiScaler proxy DLL with native swap fallback (1A), one-click toggle with `.bak` + restore record (2A), reuse `EtwFpsTracker`/`RollingFrameStats`/`AbTest` (3A). No PresentMon.
+- **Where it goes:** plan and ini builder in `Core/Upscalers`, file apply in `Windows/Optimization`, toggle in `GameDetailsViewModel.Upscaling.cs`. No `Services/Graphics`.
+- **Safe:** files only, anti-cheat games skipped, OptiScaler downloaded from its official Releases and never bundled (GPL-3.0). Proxy DLL names unverified until stage U2.
+
 ## Coding guardrails
 
 1. **Minimal delta:** change the few lines the task needs; never reformat untouched code.
