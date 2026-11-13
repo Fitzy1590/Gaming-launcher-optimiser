@@ -124,6 +124,8 @@ public sealed class LauncherSettings
     public bool LivePowerTuning { get; set; } = true;
     /// <summary>Auto TDP for handhelds: Off, Observe (logs what it would do) or On (holds the FPS target with the least power). Off by default.</summary>
     public FitzLauncher.Core.Optimization.AutoTdpMode AutoTdp { get; set; }
+    /// <summary>Closed-loop telemetry tuner: Off, Watch only (decides and logs, changes nothing) or On. Off by default.</summary>
+    public FitzLauncher.Core.Telemetry.ClosedLoopMode ClosedLoop { get; set; }
     /// <summary>Where Auto TDP starts for a game it hasn't learned yet (a known-good middle: it then goes up or down from here).</summary>
     public int AutoTdpStartWatts { get; set; } = 45;
     /// <summary>What Auto TDP last did, in plain English (shown in Settings so "why isn't it working?" has an answer).</summary>

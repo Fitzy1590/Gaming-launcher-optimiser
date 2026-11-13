@@ -38,6 +38,9 @@ public sealed record TunerAction(TunerRule? Rule, TunerActionType Type, TunerEff
 /// <param name="MonitorHz">Refresh rate of the screen the game is on (0 when unknown).</param>
 public readonly record struct TunerContext(bool AutoTdpOn, bool ThermalGuardActing, bool AntiCheat, bool HasPowerProfile, int MonitorHz);
 
+/// <summary>A rule's state: on now, given up for the session, how many times it acted, and how long until it may act again.</summary>
+public readonly record struct TunerRuleStatus(TunerRule Rule, bool Active, bool GivenUp, int Applications, TimeSpan CooldownLeft);
+
 /// <summary>One second of input: the latest frame bucket, the temperatures, and the context. Temperatures are null when no sensor can tell.</summary>
 public readonly record struct TunerSample(FrameBucket Bucket, double? CpuTempC, double? GpuTempC, TunerContext Context);
 
@@ -87,6 +90,11 @@ public sealed class ClosedLoopTuner
     private bool _busyNoted;
 
     private RuleState State(TunerRule r) => _rules[(int)r];
+
+    /// <summary>Where each rule stands, for the Telemetry page.</summary>
+    public IReadOnlyList<TunerRuleStatus> Status(DateTime now) =>
+        [.. _rules.Select((r, i) => new TunerRuleStatus((TunerRule)i, r.Active, r.Disabled, r.Applications,
+            r.Active || now >= r.CooldownUntil ? TimeSpan.Zero : r.CooldownUntil - now))];
 
     public IReadOnlyList<TunerAction> Update(in TunerSample s, DateTime now)
     {

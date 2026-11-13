@@ -296,6 +296,35 @@ public class ClosedLoopTunerTests
     }
 
     [Fact]
+    public void Status_shows_active_cooldown_and_application_count()
+    {
+        var t = new ClosedLoopTuner();
+        Run(t, 0, 3, _ => CpuBound()); // fires at 2 s
+        var at = T0.AddSeconds(10);
+        var cpu = t.Status(at).Single(x => x.Rule == TunerRule.CpuBound);
+        Assert.True(cpu.Active);
+        Assert.Equal(1, cpu.Applications);
+        Assert.Equal(TimeSpan.Zero, cpu.CooldownLeft); // active rules report no cooldown
+        Assert.All(t.Status(at).Where(x => x.Rule != TunerRule.CpuBound), x => Assert.False(x.Active));
+
+        Run(t, 3, 16, _ => S()); // released at 18 s, cooldown 60 s
+        var after = t.Status(T0.AddSeconds(30)).Single(x => x.Rule == TunerRule.CpuBound);
+        Assert.False(after.Active);
+        Assert.InRange(after.CooldownLeft.TotalSeconds, 40, 50);
+    }
+
+    [Fact]
+    public void Why_not_running_explains_each_blocker_in_order()
+    {
+        Assert.Contains("switched off", ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.Off, true, null, true, true));
+        Assert.Contains("No game", ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.On, false, null, true, true));
+        Assert.Equal("needs admin", ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.On, true, "needs admin", true, true));
+        Assert.Contains("Waiting for frames", ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.WatchOnly, true, null, false, true));
+        Assert.Contains("busy readings", ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.On, true, null, true, false));
+        Assert.Null(ClosedLoopAdvice.WhyNotRunning(ClosedLoopMode.On, true, null, true, true));
+    }
+
+    [Fact]
     public void Ending_the_session_releases_whatever_is_active_once()
     {
         var t = new ClosedLoopTuner();

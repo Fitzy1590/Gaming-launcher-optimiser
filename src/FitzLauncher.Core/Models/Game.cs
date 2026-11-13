@@ -92,6 +92,8 @@ public sealed class Game
     public Dictionary<int, int> PowerByTarget { get; set; } = [];
     /// <summary>This game's own auto TDP choice (null: the global setting).</summary>
     public FitzLauncher.Core.Optimization.AutoTdpMode? AutoTdp { get; set; }
+    /// <summary>This game's own closed-loop telemetry choice (null: the global setting).</summary>
+    public FitzLauncher.Core.Telemetry.ClosedLoopMode? ClosedLoop { get; set; }
     /// <summary>What auto TDP learned per FPS target: the power range that held it.</summary>
     public Dictionary<int, FitzLauncher.Core.Optimization.AutoTdpProfile> AutoTdpProfiles { get; set; } = [];
 
