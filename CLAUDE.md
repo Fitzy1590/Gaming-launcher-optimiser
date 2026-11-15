@@ -84,6 +84,7 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 - **Voted:** OptiScaler proxy DLL with native swap fallback (1A), one-click toggle with `.bak` + restore record (2A), reuse `EtwFpsTracker`/`RollingFrameStats`/`AbTest` (3A). No PresentMon.
 - **Where it goes:** plan and ini builder in `Core/Upscalers`, file apply in `Windows/Optimization`, toggle in `GameDetailsViewModel.Upscaling.cs`. No `Services/Graphics`.
 - **Safe:** files only, anti-cheat games skipped, OptiScaler downloaded from its official Releases and never bundled (GPL-3.0). Proxy DLL names unverified until stage U2.
+- **AMD NR** (voted 2026-11-15, `FEATURE_PROGRESS.md` §7b): the one extra download source allowed is the Releases of `3zwr1/AMD-NR---OptiScaler`, same rules as OptiScaler. It replaces stock OptiScaler per game, never layers on it. Never download its `Anywhere/` binaries.
 
 ## Coding guardrails
 

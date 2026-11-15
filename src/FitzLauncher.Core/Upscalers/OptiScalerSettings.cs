@@ -24,9 +24,11 @@ public static class OptiScalerSettings
         _ => "Performance (2.0x)",
     };
 
-    public static IReadOnlyList<(string Section, string Key, string Value)> For(GpuFamily family, UpscaleMode? mode)
+    public static IReadOnlyList<(string Section, string Key, string Value)> For(GpuFamily family, UpscaleMode? mode, bool amdNr = false)
     {
         var s = new List<(string, string, string)>();
+        // AMD NR build only: lmxxf runtime ships inside its main zip, so no extra download (README, [DlssNr] in its ini).
+        if (amdNr) { s.Add(("DlssNr", "Enabled", "true")); s.Add(("DlssNr", "NrBackend", "lmxxf")); }
         // RTX cards keep OptiScaler's own choice (DLSS). Everyone else gets FSR via "ffx".
         if (family != GpuFamily.NvidiaRtx) s.Add(("Upscalers", "Dx12Upscaler", "ffx"));
         // RDNA4 keeps the default (FSR 4); other GPUs run FSR 3.1.5 (index 1), which works on any hardware.
