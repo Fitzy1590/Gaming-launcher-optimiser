@@ -115,13 +115,16 @@ public static partial class UpscalerAdvisor
     /// (dxgi.dll, or winmm.dll / version.dll when dxgi.dll is taken by ReShade/DXVK), plus its other files.
     /// Returned as revertible file replacements.
     /// </summary>
-    public static Tweak? OptiScalerTweak(string optiDir, string gameExeDir, Func<string, bool> existsInExeDir, GpuFamily family = GpuFamily.Unknown, UpscaleMode? mode = null)
+    public static Tweak? OptiScalerTweak(string optiDir, string gameExeDir, Func<string, bool> existsInExeDir, GpuFamily family = GpuFamily.Unknown, UpscaleMode? mode = null, bool amdNr = false)
     {
         var main = Directory.Exists(optiDir) ? Directory.EnumerateFiles(optiDir, "OptiScaler.dll", SearchOption.AllDirectories).FirstOrDefault() : null;
         if (main is null) return null;
         var root = Path.GetDirectoryName(main)!;
+        // AMD NR: its DLL, runtime and weights come from one release and go in together, or not at all.
+        if (amdNr && AmdNrRelease.MissingFiles(f => File.Exists(Path.Combine(root, f))).Count > 0) return null;
+        var version = amdNr ? OptiScalerStatus.AmdNrVersion : "OptiScaler";
         var proxy = new[] { "dxgi.dll", "winmm.dll", "version.dll", "dbghelp.dll" }.FirstOrDefault(n => !existsInExeDir(n)) ?? "winmm.dll";
-        var actions = new List<TweakAction> { new FileReplaceAction { TargetPath = Path.Combine(gameExeDir, proxy), SourcePath = main, NewVersion = "OptiScaler" } };
+        var actions = new List<TweakAction> { new FileReplaceAction { TargetPath = Path.Combine(gameExeDir, proxy), SourcePath = main, NewVersion = version } };
         foreach (var f in Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories))
         {
             var rel = Path.GetRelativePath(root, f);
@@ -130,16 +133,16 @@ public static partial class UpscalerAdvisor
                 || name.EndsWith(".bat", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".md", StringComparison.OrdinalIgnoreCase) || name.EndsWith(".txt", StringComparison.OrdinalIgnoreCase)) continue;
             var target = Path.GetFullPath(Path.Combine(gameExeDir, rel));
             if (!target.StartsWith(Path.GetFullPath(gameExeDir).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue; // stays inside the game folder
-            actions.Add(new FileReplaceAction { TargetPath = target, SourcePath = f, NewVersion = "OptiScaler" });
+            actions.Add(new FileReplaceAction { TargetPath = target, SourcePath = f, NewVersion = version });
         }
         // Per-game settings go in after the copy, so Revert undoes them first (newest first) and then removes the file.
         if (actions.OfType<FileReplaceAction>().Any(a => Path.GetFileName(a.TargetPath).Equals("OptiScaler.ini", StringComparison.OrdinalIgnoreCase)))
-            foreach (var (section, key, value) in OptiScalerSettings.For(family, mode))
+            foreach (var (section, key, value) in OptiScalerSettings.For(family, mode, amdNr))
                 actions.Add(new IniSetAction { FilePath = Path.Combine(gameExeDir, "OptiScaler.ini"), Section = section, Key = key, Value = value, CreateIfMissing = false });
         return new Tweak
         {
             Id = "optiscaler",
-            Title = "OptiScaler (use XeSS or FSR 3.1 in this game)",
+            Title = amdNr ? "AMD NR (neural rendering through OptiScaler)" : "OptiScaler (use XeSS or FSR 3.1 in this game)",
             Description = $"Installs OptiScaler as {proxy} next to the game. In the game pick DLSS (or its FSR/XeSS option), then press Insert in-game to choose the upscaler OptiScaler uses. Every file it adds or replaces is backed up; Revert removes it.",
             Category = TweakCategory.Graphics,
             VisualImpact = VisualImpact.None, // an image upgrade, not a cost

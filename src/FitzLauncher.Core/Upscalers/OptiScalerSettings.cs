@@ -46,6 +46,15 @@ public static class OptiScalerSettings
 /// <summary>What the installed OptiScaler is set to, read back from the change ledger (no extra state to save).</summary>
 public static class OptiScalerStatus
 {
+    /// <summary>Marks files placed by the AMD NR build, so it can be told apart from stock OptiScaler in the ledger.</summary>
+    public const string AmdNrVersion = "AMDNR";
+
+    public static bool IsAmdNr(IEnumerable<Models.AppliedChange> ledger) =>
+        ledger.Any(c => c.TweakId == "optiscaler" && c.Action is Models.FileReplaceAction { NewVersion: AmdNrVersion });
+
+    /// <summary>Anything of OptiScaler (stock or AMD NR) already installed by Fitz; AMD NR never goes on top of it.</summary>
+    public static bool IsInstalled(IEnumerable<Models.AppliedChange> ledger) => ledger.Any(c => c.TweakId == "optiscaler");
+
     /// <summary>Mode label such as "Quality (1.5x)", or null when no ratio was configured.</summary>
     public static string? ConfiguredMode(IEnumerable<Models.AppliedChange> ledger)
     {

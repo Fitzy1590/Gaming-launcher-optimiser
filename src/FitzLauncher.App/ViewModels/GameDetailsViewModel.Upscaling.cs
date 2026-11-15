@@ -94,6 +94,44 @@ public sealed partial class GameDetailsViewModel
         LoadUpscaling();
     });
 
+    /// <summary>AMD NR replaces stock OptiScaler in a game (never layered on it); removing it uses <see cref="RemoveOptiScalerAsync"/>.</summary>
+    [RelayCommand]
+    private Task InstallAmdNrAsync() => Busy("Preparing AMD NR…", async () =>
+    {
+        if (IsPlayingCheck?.Invoke() == true) { Status = "Close the game first."; return; }
+        try
+        {
+            var antiCheat = await Task.Run(() => GameModLayout.Detect(GameScanner.ResolveInstallRoot(Game), Game.ExePath).HasAntiCheat);
+            var fit = AmdNrSupport.Check(_s.Hardware?.PrimaryGpu, antiCheat);
+            if (!fit.CanOffer) { Status = "AMD NR isn't installed. " + fit.Reason; return; }
+            if (FitzLauncher.Core.Upscalers.OptiScalerStatus.IsInstalled(Game.AppliedChanges))
+            { Status = "OptiScaler is already installed in this game. Remove it first; AMD NR replaces it rather than sitting on top."; return; }
+            var dir = await _s.Upscalers.EnsureAmdNrAsync(new Progress<string>(t => Status = t));
+            var exeDir = Path.GetDirectoryName(Game.LastScan?.RenderExePath ?? Game.ExePath)!;
+            var tweak = UpscalerAdvisor.OptiScalerTweak(dir, exeDir, name => File.Exists(Path.Combine(exeDir, name)),
+                UpscalerAdvisor.Family(_s.Hardware?.PrimaryGpu), null, amdNr: true);
+            if (tweak is null) { Status = "The AMD NR download was missing files, so nothing was installed."; return; }
+            var r = await Task.Run(() => _s.Tweaks.Apply(Game.AppliedChanges, tweak, Game));
+            if (!r.Success)
+            {
+                // All or nothing: put back whatever was copied before the failure.
+                var undo = await Task.Run(() => _s.Tweaks.RevertAll(Game.AppliedChanges, Game, "optiscaler"));
+                _s.SaveLibrary();
+                Status = $"Couldn't install AMD NR: {r.Message}. " + (undo.Count == 0 ? "Nothing was changed." : "Some files couldn't be put back: " + string.Join("; ", undo));
+            }
+            else
+            {
+                _s.SaveLibrary();
+                Status = "AMD NR installed. " + fit.Reason + " Start the game, press Insert for the menu, and Home to switch neural rendering on or off.";
+            }
+        }
+        catch (Exception e) when (e is Services.Mods.StoreException or System.Net.Http.HttpRequestException or IOException or UnauthorizedAccessException or InvalidDataException or SharpCompress.Common.SharpCompressException or TaskCanceledException)
+        {
+            Status = $"Couldn't get AMD NR: {e.Message}";
+        }
+        LoadUpscaling();
+    });
+
     [RelayCommand]
     private Task RemoveOptiScalerAsync() => Busy("Removing OptiScaler…", async () =>
     {

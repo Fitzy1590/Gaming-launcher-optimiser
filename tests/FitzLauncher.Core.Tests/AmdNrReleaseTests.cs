@@ -60,3 +60,44 @@ public class AmdNrReleaseTests
         Assert.Empty(AmdNrRelease.MissingFiles(_ => true));
     }
 }
+
+public class AmdNrTweakTests
+{
+    private static string MakeRelease(string root, params string[] files)
+    {
+        var d = Path.Combine(root, "amdnr"); Directory.CreateDirectory(d);
+        foreach (var f in files) File.WriteAllText(Path.Combine(d, f), "x");
+        return d;
+    }
+
+    [Fact]
+    public void Tweak_AmdNr_NeedsAllThreeFiles_AndMarksLedgerAndKeys()
+    {
+        var root = Directory.CreateTempSubdirectory().FullName;
+        try
+        {
+            var game = Path.Combine(root, "game"); Directory.CreateDirectory(game);
+            var partial = MakeRelease(root, "OptiScaler.dll", "LmxxfNrRuntime.dll", "OptiScaler.ini");
+            Assert.Null(FitzLauncher.Core.Upscalers.UpscalerAdvisor.OptiScalerTweak(partial, game, _ => false, FitzLauncher.Core.Upscalers.GpuFamily.AmdRdna4, null, amdNr: true));
+
+            File.WriteAllText(Path.Combine(partial, "LmxxfNrRuntime.pak"), "x");
+            var t = FitzLauncher.Core.Upscalers.UpscalerAdvisor.OptiScalerTweak(partial, game, _ => false, FitzLauncher.Core.Upscalers.GpuFamily.AmdRdna4, null, amdNr: true)!;
+            Assert.All(t.Actions.OfType<FitzLauncher.Core.Models.FileReplaceAction>(), a => Assert.Equal("AMDNR", a.NewVersion));
+            Assert.Contains(t.Actions.OfType<FitzLauncher.Core.Models.FileReplaceAction>(), a => a.TargetPath.EndsWith("LmxxfNrRuntime.pak"));
+            Assert.Contains(t.Actions.OfType<FitzLauncher.Core.Models.IniSetAction>(), a => a is { Section: "DlssNr", Key: "NrBackend", Value: "lmxxf" });
+            Assert.Equal("optiscaler", t.Id);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Status_TellsAmdNrFromStock_AndDetectsAnyInstall()
+    {
+        var stock = new List<FitzLauncher.Core.Models.AppliedChange> { new() { TweakId = "optiscaler", Action = new FitzLauncher.Core.Models.FileReplaceAction { NewVersion = "OptiScaler" } } };
+        var nr = new List<FitzLauncher.Core.Models.AppliedChange> { new() { TweakId = "optiscaler", Action = new FitzLauncher.Core.Models.FileReplaceAction { NewVersion = "AMDNR" } } };
+        Assert.False(FitzLauncher.Core.Upscalers.OptiScalerStatus.IsAmdNr(stock));
+        Assert.True(FitzLauncher.Core.Upscalers.OptiScalerStatus.IsAmdNr(nr));
+        Assert.True(FitzLauncher.Core.Upscalers.OptiScalerStatus.IsInstalled(stock));
+        Assert.False(FitzLauncher.Core.Upscalers.OptiScalerStatus.IsInstalled([]));
+    }
+}
