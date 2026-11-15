@@ -167,7 +167,9 @@ public sealed partial class UpscalerUpdateService(AppServices s)
         if (Directory.Exists(dir) && AmdNrRelease.MissingFiles(f => File.Exists(Path.Combine(dir, f))).Count == 0) return dir;
 
         Directory.CreateDirectory(AmdNrDir);
-        var free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(AmdNrDir))!).AvailableFreeSpace;
+        long free;
+        try { free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(AmdNrDir))!).AvailableFreeSpace; }
+        catch (Exception e) when (e is ArgumentException or IOException or UnauthorizedAccessException) { free = long.MaxValue; } // can't tell (e.g. a network share): the download itself will fail if there is no room
         if (free < AmdNrRelease.RequiredFreeBytes(asset))
             throw new Mods.StoreException($"AMD NR needs about {AmdNrRelease.RequiredFreeBytes(asset) / 1048576} MB of free space; {free / 1048576} MB is free.");
 
@@ -203,7 +205,7 @@ public sealed partial class UpscalerUpdateService(AppServices s)
             Directory.Move(partial, dir);
             return dir;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or HttpRequestException)
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or HttpRequestException or ArgumentException)
         {
             throw new Mods.StoreException($"AMD NR couldn't be prepared: {e.Message}");
         }

@@ -55,7 +55,9 @@ public sealed partial class GameDetailsViewModel
         var fit = AmdNrSupport.Check(gpu, layout.HasAntiCheat);
         AmdNrVisible = gpu?.Vendor == Core.Models.GpuVendor.Amd;
         CanInstallAmdNr = fit.CanOffer && !OptiScalerInstalled;
-        AmdNrNote = fit.CanOffer && OptiScalerInstalled ? "OptiScaler is already installed in this game. Remove it first; AMD NR replaces it." : fit.Reason;
+        AmdNrNote = !OptiScalerInstalled ? fit.Reason
+            : FitzLauncher.Core.Upscalers.OptiScalerStatus.IsAmdNr(Game.AppliedChanges) ? "AMD NR is installed in this game."
+            : "OptiScaler is already installed in this game. Remove it first; AMD NR replaces it.";
     }
 
     private string BuildOptiScalerStatus()

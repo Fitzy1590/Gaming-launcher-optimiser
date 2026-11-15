@@ -255,6 +255,7 @@ Builds on `Core/Upscalers` (`UpscalerLibrary`, `UpscalerAdvisor` OptiScaler plan
 - [x] **2A** One-click per-game toggle: restore record first, `.bak` of every file touched, `RecoverIfNeeded` at start-up, hash re-check at launch (Steam patches).
 - [x] **3A** Telemetry reuses `EtwFpsTracker` + `RollingFrameStats` (average, 1% low) and `AbTest` for before/after. No PresentMon binary.
 - [ ] 1B native swap only, 2B manual files, 3B bundled PresentMon (not chosen).
+- [x] **AMD NR exception** (user approved 2026-11-15; `FEATURE_PROGRESS.md` §7b): the only download source beyond OptiScaler's own Releases is the Releases of `3zwr1/AMD-NR---OptiScaler`, a GPL-3.0 OptiScaler fork. Same checks (host allow-list, SHA-256 from the asset digest, zip-slip guard), never bundled, replaces stock OptiScaler per game, anti-cheat games skipped.
 
 ### 13.2 Upscaler central store
 `<data>/upscalers/optiscaler/<version>/` holds the downloaded release (SHA-256 checked against the asset `digest` when present, zip-slip guarded extract, host allow-list = OptiScaler GitHub Releases) and a `OptiScaler.ini` template. Per game, the ini is generated from the template (key-level, `Dx12Upscaler`, `[FSR] UpscalerIndex`, `[QualityOverrides]` ratios). Not under `Assets/`: that folder ships inside the app and can't hold a downloaded GPL binary. VERIFY before build: proxy DLL names and uninstall steps (OptiScaler wiki).
