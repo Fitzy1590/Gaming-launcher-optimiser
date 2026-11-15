@@ -733,6 +733,15 @@
                                 <TextBlock Text="Official release from github.com/optiscaler/OptiScaler. Single-player only: anti-cheat can flag injected DLLs." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
                             </StackPanel>
                         </Border>
+                        <Border Background="{StaticResource Surface2}" CornerRadius="8" Padding="12" Margin="0,12,0,0" Visibility="{Binding AmdNrVisible, Converter={StaticResource Vis}}">
+                            <StackPanel>
+                                <TextBlock Text="AMD NR (neural rendering)" FontWeight="SemiBold" Foreground="{StaticResource Text}" />
+                                <TextBlock Text="A neural-network picture pass for AMD graphics, built into a modified OptiScaler. Experimental: it replaces OptiScaler in this game, needs AMD Adrenalin 26.9.1 or newer and a download of about 0.5 GB, and slows the game down on weaker chips." Style="{StaticResource Wrap}" Margin="0,4,0,8" />
+                                <TextBlock Text="{Binding AmdNrNote}" Style="{StaticResource Wrap}" Margin="0,0,0,8" Visibility="{Binding AmdNrNote, Converter={StaticResource HasValue}}" />
+                                <Button Content="Install AMD NR" HorizontalAlignment="Left" Command="{Binding InstallAmdNrCommand}" IsEnabled="{Binding CanInstallAmdNr}" AutomationProperties.Name="Install AMD NR" />
+                                <TextBlock Text="Official pre-release from github.com/3zwr1/AMD-NR---OptiScaler, checked against its published checksum. Single-player only. Remove it with Remove OptiScaler above." Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,8,0,0" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </Border>
 
