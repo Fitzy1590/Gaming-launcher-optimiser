@@ -154,4 +154,14 @@ Tick a stage only when its Verify line passes (B1, B2 always). Rules: `.claude/r
 - [x] **U5** (2026-11-13, reduced) configured-mode label and "files missing" warning on the game panel, read from the change ledger (`OptiScalerStatus`). Before/after uses the existing Manual A/B test; no new upscaler-specific A/B built. Verify: B1, B2
 - [ ] **U6** Device test on a non-anti-cheat game. Verify: FPS and 1% low change shown; kill Fitz mid-toggle, restart, files restored
 
+### 7b. AMD NR (neural rendering) option, DRAFT 2026-11-15, not voted
+Source: github.com/3zwr1/AMD-NR---OptiScaler (GPL-3.0 OptiScaler fork). Not bundled. All names below come from its README only (last ~25 KB unread) and stay unverified until N0 ticks.
+- [ ] **N0** VERIFY against the repo's own release assets and `OptiScaler.ini`: asset names, `[DlssNr]` keys (`Enabled`, `NrBackend`, `AmdPlacement`), runtime file names, `digest` present, proxy DLL names, uninstall steps. Decide whether the 3zwr1 owner is added to the host allow-list (needs a vote: CLAUDE.md allows only OptiScaler's own Releases). Verify: B1
+- [ ] **N1** `Core/Upscalers/AmdNrSupport`: eligibility (AMD RX 9000/7000 only; handheld APU = "experimental" label; RX 6000 and NVIDIA/Intel = not offered), Adrenalin 26.9.1+ check, anti-cheat refusal, plain-English reason. Pure, tested. Verify: B2
+- [ ] **N2** Ini keys added to `OptiScalerSettings.For` behind an `amdNr` flag (`[DlssNr] Enabled`, backend choice); existing keys unchanged. Verify: B2, `--filter OptiScalerSettingsTests`
+- [ ] **N3** Download of AMDNR zip + runtime (about 440 MB for lmxxf): size warning, SHA-256, zip-slip guard, resumable, cached outside the game folder. Reuse `UpscalerUpdateService`. Verify: B1
+- [ ] **N4** Apply through the existing `OptiScalerTweak`/`TweakEngine` (`.bak`, ledger, Revert); no second restore file. Runtime files added as `FileReplaceAction`s. Verify: B1, B2
+- [ ] **N5** Game panel: "AMD NR" switch with eligibility reason, off by default; "Anywhere" mode not offered (window capture, unverified with anti-cheat). Verify: B1, reviewer
+- [ ] **N6** Device test on an RX 9000/7000 and a handheld: FPS and 1% low via the Manual A/B test, Revert leaves the folder as before. Verify: on Windows
+
 **Handoff:** U0, U1, U3, U4, U5 done (build 0 errors, 533 tests). Open: U2 leftovers (proxy DLL names + uninstall steps from OptiScaler wiki, hash check, mid-install recovery) and U6 device test on Windows (non-anti-cheat game: install with each mode, FPS and 1% low change, Revert leaves the folder as before, delete a file to see the warning).
