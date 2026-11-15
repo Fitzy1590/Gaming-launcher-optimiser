@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using FitzLauncher.Core.Emulation;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Mods;
 using FitzLauncher.Core.Scanning;
@@ -145,5 +146,71 @@ public sealed partial class UpscalerUpdateService(AppServices s)
         var entries = ModArchive.ListEntries(archive).Where(ModInstallPlanner.IsSafeRelative).Select(e => new PlannedFile(e, e)).ToList();
         await Task.Run(() => ModArchive.Extract(archive, entries, dir), ct);
         return dir;
+    }
+
+    public string AmdNrDir => Path.Combine(s.Paths.Root, "amdnr");
+
+    /// <summary>
+    /// The newest AMD NR release (3zwr1's own GitHub Releases, pre-releases included), downloaded once per tag into the
+    /// Fitz folder, never the game folder. Checks size and the SHA-256 GitHub publishes before unpacking; a release without
+    /// a digest, or one missing any of the files that must travel together, is refused. Returns the unpacked folder.
+    /// </summary>
+    public async Task<string> EnsureAmdNrAsync(IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        string body;
+        try { body = await s.StoreHttp.GetStringAsync(AmdNrRelease.ReleasesApi, ct).ConfigureAwait(false); }
+        catch (HttpRequestException e) { throw new Mods.StoreException($"Couldn't reach GitHub to look for AMD NR ({e.Message})."); }
+        var pick = AmdNrRelease.Pick(GitHubReleaseParser.ParseList(body, includePrerelease: true))
+            ?? throw new Mods.StoreException("No AMD NR release with a checksum was found, so nothing was downloaded.");
+        var (release, asset) = pick;
+        var dir = Path.Combine(AmdNrDir, EmuReleaseCompare.FolderName(release.Tag));
+        if (Directory.Exists(dir) && AmdNrRelease.MissingFiles(f => File.Exists(Path.Combine(dir, f))).Count == 0) return dir;
+
+        Directory.CreateDirectory(AmdNrDir);
+        var free = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(AmdNrDir))!).AvailableFreeSpace;
+        if (free < AmdNrRelease.RequiredFreeBytes(asset))
+            throw new Mods.StoreException($"AMD NR needs about {AmdNrRelease.RequiredFreeBytes(asset) / 1048576} MB of free space; {free / 1048576} MB is free.");
+
+        var temp = Path.Combine(Path.GetTempPath(), "fitz-amdnr-" + Guid.NewGuid().ToString("N") + ".zip");
+        var partial = dir + ".partial";
+        try
+        {
+            if (Directory.Exists(partial)) Directory.Delete(partial, true);
+            using (var resp = await s.StoreHttp.GetAsync(asset.Url, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
+            {
+                if (!resp.IsSuccessStatusCode) throw new Mods.StoreException($"The AMD NR download failed ({(int)resp.StatusCode}).");
+                await using var src = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+                await using var dst = File.Create(temp);
+                var buf = new byte[1 << 16]; long done = 0; int n;
+                while ((n = await src.ReadAsync(buf, ct).ConfigureAwait(false)) > 0)
+                {
+                    await dst.WriteAsync(buf.AsMemory(0, n), ct).ConfigureAwait(false);
+                    done += n;
+                    progress?.Report($"Downloading AMD NR {release.Tag}… {done / 1048576} of {asset.Size / 1048576} MB");
+                }
+            }
+            if (new FileInfo(temp).Length != asset.Size) throw new Mods.StoreException("The AMD NR download is the wrong size. Nothing was installed.");
+            await using (var fs = File.OpenRead(temp))
+            {
+                var got = Convert.ToHexString(await System.Security.Cryptography.SHA256.HashDataAsync(fs, ct).ConfigureAwait(false)).ToLowerInvariant();
+                if (got != asset.Sha256) throw new Mods.StoreException("The AMD NR download's checksum doesn't match what GitHub published. Nothing was installed.");
+            }
+            progress?.Report("Unpacking AMD NR…");
+            await Task.Run(() => EmuArchive.ExtractAll(temp, partial), ct).ConfigureAwait(false);
+            var missing = AmdNrRelease.MissingFiles(f => File.Exists(Path.Combine(partial, f)));
+            if (missing.Count > 0) throw new Mods.StoreException($"The AMD NR download is missing {string.Join(", ", missing)}. Nothing was installed.");
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            Directory.Move(partial, dir);
+            return dir;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or HttpRequestException)
+        {
+            throw new Mods.StoreException($"AMD NR couldn't be prepared: {e.Message}");
+        }
+        finally
+        {
+            try { File.Delete(temp); } catch (IOException) { }
+            try { if (Directory.Exists(partial)) Directory.Delete(partial, true); } catch (IOException) { }
+        }
     }
 }
