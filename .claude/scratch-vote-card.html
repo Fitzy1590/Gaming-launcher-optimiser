@@ -1,0 +1,89 @@
+<title>BlueStacks Launcher Vote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap">
+<style>
+/* Layout: two option panels side by side, each with a mock library tile and a mock game panel. */
+:root{--bg:#f3f5f9;--fg:#141a26;--mute:#5b6678;--card:#fff;--line:#d9dfea;--accent:#2563eb;--accent-fg:#fff;--good:#15803d;--off:#9aa3b2;--win:#0f1626;--win-fg:#e8edf7;--win-line:#27324a;--tile:#1a2540;--warn:#b45309;
+--display:'Space Grotesk',system-ui,sans-serif;--body:'Inter',system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0f19;--fg:#e8edf7;--mute:#97a3b8;--card:#131a2a;--line:#27324a;--accent:#6b9bff;--accent-fg:#0b0f19;--good:#4ade80;--off:#5b6678;--win:#070a12;--tile:#18223b;--warn:#fbbf24;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b0f19;--fg:#e8edf7;--mute:#97a3b8;--card:#131a2a;--line:#27324a;--accent:#6b9bff;--accent-fg:#0b0f19;--good:#4ade80;--off:#5b6678;--win:#070a12;--tile:#18223b;--warn:#fbbf24;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);padding-block:28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));line-height:1.5}
+main{max-width:1080px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(26px,5vw,38px)}
+.lead{color:var(--mute);max-width:65ch;margin:8px 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:20px;align-items:start}
+.opt{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.opt.rec{border:2px solid var(--accent)}
+.tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:600}
+.opt p{margin:0;color:var(--mute)}
+.pc{display:grid;gap:4px;font-size:14px}
+.pc b{color:var(--good)} .pc i{font-style:normal;color:var(--warn);font-weight:600}
+.shot{background:var(--win);color:var(--win-fg);border:1px solid var(--win-line);border-radius:8px;overflow:hidden;font-size:13px}
+.cap{font-size:12px;color:var(--mute);margin-top:-6px}
+.bar{padding:6px 10px;border-bottom:1px solid var(--win-line);font-size:11px;color:#97a3b8;display:flex;gap:6px;align-items:center}
+.bar span{width:8px;height:8px;border-radius:50%;background:#3a4663}
+.lib{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px}
+.t{aspect-ratio:3/4;border-radius:6px;background:var(--tile);display:flex;align-items:flex-end;padding:6px;font-size:10px;color:#97a3b8;position:relative}
+.t.hero{background:linear-gradient(160deg,#f59e0b,#dc2626 60%,#7c2d12);color:#fff;font-weight:600;outline:2px solid #6b9bff}
+.t.hero em{position:absolute;top:6px;right:6px;font-style:normal;background:#0f1626cc;border-radius:4px;padding:1px 5px;font-size:9px}
+.det{padding:12px;display:grid;gap:8px}
+.row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:6px 8px;background:#131c33;border-radius:5px}
+.row span:last-child{color:#4ade80;font-weight:500}
+.row.off span:last-child{color:var(--off)}
+.go{background:#6b9bff;color:#0b0f19;font-weight:700;border-radius:5px;padding:6px 12px;font-size:12px}
+.hd{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+code{font-size:11px;color:#97a3b8;word-break:break-all}
+.ask{margin-top:24px;padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.ask b{color:var(--accent)}
+</style>
+<main>
+<h1>BlueStacks Direct Launcher &amp; 120 FPS Suite</h1>
+<p class="lead">Pick how Android games like Pokémon TCG Pocket should work in your library. The pictures are mock-ups of what each choice would look like. Nothing is built yet.</p>
+<div class="grid">
+
+<section class="opt rec">
+<div class="tag">Option A · Recommended</div>
+<h2>Full suite</h2>
+<p>One click starts the game straight away, with everything tuned for smooth 120 FPS. All of it is undone when you close the game.</p>
+<div class="shot" aria-label="Mock-up of the library grid">
+<div class="bar"><span></span><span></span><span></span>&nbsp;Library</div>
+<div class="lib"><div class="t">Game</div><div class="t hero"><em>⚡ 120 FPS</em>Pokémon TCG Pocket</div><div class="t">Game</div><div class="t">Game</div></div></div>
+<div class="cap">Library: the Android game has its own tile with a tuned badge.</div>
+<div class="shot" aria-label="Mock-up of the game panel">
+<div class="det">
+<div class="hd"><strong>Pokémon TCG Pocket</strong><span class="go">🚀 LAUNCH</span></div>
+<code>Starts BlueStacks directly in the game, no home screen</code>
+<div class="row"><span>⚡ Fastest-core pinning</span><span>Active · cores 0–11</span></div>
+<div class="row"><span>⏱️ 0.5 ms system timer</span><span>Active</span></div>
+<div class="row"><span>🚀 Lossless Scaling 2×</span><span>60 → 120 FPS</span></div>
+<div class="row"><span>🛡️ Defender scan shield</span><span>Scans paused</span></div>
+</div></div>
+<div class="cap">Game page: every boost shown as a simple on/off line.</div>
+<div class="pc"><span><b>＋</b> 1-click launch, smooth card animations, fast taps</span><span><b>＋</b> Frame cap and 95% GPU ceiling keep motion even</span><span><i>－</i> The timer needs admin rights (Windows 11 keeps it as a separate tick-box)</span></div>
+</section>
+
+<section class="opt">
+<div class="tag" style="color:var(--mute)">Option B</div>
+<h2>Shortcut only</h2>
+<p>Each Android game gets a tile that opens it directly. That is all it does.</p>
+<div class="shot" aria-label="Mock-up of the library grid">
+<div class="bar"><span></span><span></span><span></span>&nbsp;Library</div>
+<div class="lib"><div class="t">Game</div><div class="t hero">Pokémon TCG Pocket</div><div class="t">Game</div><div class="t">Game</div></div></div>
+<div class="cap">Library: same tile, no performance badge.</div>
+<div class="shot" aria-label="Mock-up of the game panel">
+<div class="det">
+<div class="hd"><strong>Pokémon TCG Pocket</strong><span class="go">🚀 LAUNCH</span></div>
+<code>Starts BlueStacks directly in the game, no home screen</code>
+<div class="row off"><span>⚡ Fastest-core pinning</span><span>Not included</span></div>
+<div class="row off"><span>⏱️ 0.5 ms system timer</span><span>Not included</span></div>
+<div class="row off"><span>🚀 Lossless Scaling 2×</span><span>Not included</span></div>
+<div class="row off"><span>🛡️ Defender scan shield</span><span>Not included</span></div>
+</div></div>
+<div class="cap">Game page: just the Launch button.</div>
+<div class="pc"><span><b>＋</b> Simple, low risk, no admin rights needed</span><span><i>－</i> No 120 FPS, no core pinning, no timer</span></div>
+</section>
+</div>
+
+<div class="ask"><b>Your vote:</b> reply <b>A</b> or <b>B</b> in the chat. If A, say whether the 0.5 ms timer should be ticked by default on Windows 11.</div>
+</main>
