@@ -72,4 +72,16 @@ public static class OptiScalerStatus
         ledger.Where(c => c.TweakId == "optiscaler" && c.Action is Models.FileReplaceAction)
               .Select(c => ((Models.FileReplaceAction)c.Action).TargetPath)
               .Where(p => !exists(p)).Select(Path.GetFileName).Where(n => n is not null).Select(n => n!).ToList();
+
+    /// <summary>
+    /// Files that are still there but no longer the size of the copy Fitz placed, e.g. a game patch put its own
+    /// back. Compared by size against the saved source copy (cheap, no extra state). The ini is skipped because
+    /// Fitz edits it after copying. <paramref name="lengthOf"/> returns null when the file can't be read.
+    /// </summary>
+    public static IReadOnlyList<string> ReplacedFiles(IEnumerable<Models.AppliedChange> ledger, Func<string, long?> lengthOf) =>
+        ledger.Where(c => c.TweakId == "optiscaler" && c.Action is Models.FileReplaceAction)
+              .Select(c => (Models.FileReplaceAction)c.Action)
+              .Where(a => !a.TargetPath.EndsWith(".ini", StringComparison.OrdinalIgnoreCase)
+                          && lengthOf(a.TargetPath) is { } t && lengthOf(a.SourcePath) is { } s && t != s)
+              .Select(a => Path.GetFileName(a.TargetPath)).ToList();
 }

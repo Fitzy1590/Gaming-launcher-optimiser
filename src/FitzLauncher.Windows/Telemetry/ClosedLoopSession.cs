@@ -32,6 +32,8 @@ public sealed class ClosedLoopSession
     private double _lastFrameMs;
     private long _lastFrameTicks;
     private bool _framesSeen;
+    private bool _estimateNoted;
+    private readonly GpuProcessCounters _gpuCounters = new();
 
     /// <summary>Raised from the sampler thread once a second. Marshal to the UI thread before touching controls.</summary>
     public event Action<ClosedLoopSnapshot>? Updated;
@@ -97,6 +99,22 @@ public sealed class ClosedLoopSession
 
         var (cpu, gpu) = _hooks.Temperatures();
         var ctx = _hooks.Context();
+        // No per-frame busy readings yet: estimate from the game's GPU load (BusyEstimator). Needs the Windows GPU counters.
+        if (bucket.Frames > 0 && bucket.MedianCpuBusyMs is null)
+        {
+            var pids = _hooks.GamePids();
+            double? load = await Task.Run(() =>
+            {
+                var all = _gpuCounters.Read();
+                var best = pids.Where(all.ContainsKey).Select(p => all[p].Gpu).DefaultIfEmpty(-1).Max();
+                return best >= 0 ? best : (double?)null;
+            }, ct).ConfigureAwait(false);
+            if (BusyEstimator.Estimate(bucket.AvgFps, load, _hooks.GetCap() ?? 0, ctx.MonitorHz) is { } est)
+            {
+                bucket = bucket with { MedianCpuBusyMs = est.CpuMs, MedianGpuBusyMs = est.GpuMs };
+                if (!_estimateNoted) { _estimateNoted = true; _hooks.Log?.Invoke("Telemetry: processor and graphics 'busy' figures are estimated from the graphics chip's load, not measured per frame."); }
+            }
+        }
         var now = DateTime.UtcNow;
         List<TunerAction> actions;
         IReadOnlyList<TunerRuleStatus> rules;
@@ -108,12 +126,12 @@ public sealed class ClosedLoopSession
 
         foreach (var a in actions) await HandleAsync(a, ct).ConfigureAwait(false);
 
-        var busyAvailable = snap.Window.MedianCpuBusyMs is not null && snap.Window.MedianGpuBusyMs is not null;
+        var busyAvailable = bucket.MedianCpuBusyMs is not null && bucket.MedianGpuBusyMs is not null;
         List<ClosedLoopLogEntry> log;
         lock (_lock) log = [.. _log];
         Updated?.Invoke(new ClosedLoopSnapshot(
             _mode, true, bucket.AvgFps, snap.Window.Frames > 0 ? snap.Window.OnePercentLowFps : 0,
-            snap.Window.MedianCpuBusyMs, snap.Window.MedianGpuBusyMs, cpu, gpu,
+            bucket.MedianCpuBusyMs, bucket.MedianGpuBusyMs, cpu, gpu,
             [.. snap.Buckets.TakeLast(TimelineSeconds).Select(b => (float)b.AvgFps)],
             rules, ClosedLoopAdvice.WhyNotRunning(_mode, true, _fpsError(), seen && snap.HasData, busyAvailable), log));
     }

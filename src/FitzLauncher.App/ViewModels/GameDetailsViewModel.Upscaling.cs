@@ -64,6 +64,11 @@ public sealed partial class GameDetailsViewModel
     {
         if (!OptiScalerInstalled) return "";
         var missing = FitzLauncher.Core.Upscalers.OptiScalerStatus.MissingFiles(Game.AppliedChanges, File.Exists);
+        if (missing.Count == 0)
+        {
+            var replaced = FitzLauncher.Core.Upscalers.OptiScalerStatus.ReplacedFiles(Game.AppliedChanges, p => { try { return new FileInfo(p) is { Exists: true } f ? f.Length : null; } catch (IOException) { return null; } });
+            if (replaced.Count > 0) return $"Installed, but {string.Join(", ", replaced)} no longer match what Fitz put there. A game update probably replaced them, so remove OptiScaler and install it again.";
+        }
         var mode = FitzLauncher.Core.Upscalers.OptiScalerStatus.ConfiguredMode(Game.AppliedChanges);
         if (FitzLauncher.Core.Upscalers.OptiScalerStatus.IsAmdNr(Game.AppliedChanges))
             return missing.Count == 0 ? "AMD NR is installed. Remove OptiScaler to take it out again." : $"AMD NR is installed but these files are missing now: {string.Join(", ", missing)}. A game update probably removed them, so remove it and install it again.";

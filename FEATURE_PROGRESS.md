@@ -179,10 +179,18 @@ Source: github.com/3zwr1/AMD-NR---OptiScaler (GPL-3.0 OptiScaler fork). Not bund
 
 **Handoff:** U0, U1, U3, U4, U5 done (build 0 errors, 533 tests). Open: U2 leftovers (proxy DLL names + uninstall steps from OptiScaler wiki, hash check, mid-install recovery) and U6 device test on Windows (non-anti-cheat game: install with each mode, FPS and 1% low change, Revert leaves the folder as before, delete a file to see the warning).
 
-## 8. Performance suite audit (2026-11-16, awaiting vote A or B; nothing built yet)
+## 8. Performance suite audit (2026-11-16; vote A recorded; delta built, build 0 errors, 568 tests; not run on Windows)
 Read-only audit of the five requested features. Most already exist, so the delta is small.
 - **8.1 0.5 ms timer**: built (`Native.NtSetTimerResolution(5000)` in `GameModeController`, reset at exit via restore state). Gap: only used when `UseTimerResolution` is true, which `SystemAdvisor` sets to off on Windows 11 (Win 11 ignores it for background processes). Needs a decision, not new code.
 - **8.2 Shader cache purge**: built (`Core/Shaders/ShaderCacheTool`: NVIDIA DX/GL/per-driver, AMD Dx/Dxc/Vk/GL; skips files in use; Hardware page button). Gap: confirm a hard "game running, refuse" check and add a Windows DirectX cache (`D3DSCache`) entry if missing.
 - **8.3 OptiScaler proxy**: built as a per-game tweak with `.bak` + ledger + Revert (`OptiScalerTweak`), downloaded from official Releases at use. Not bundled in `Assets/Upscalers/` on purpose (OptiScaler is GPL-3.0; CLAUDE.md forbids bundling). Gaps: U2 leftovers, U6 device test.
 - **8.4 Defender + maintenance shield**: built (`DefenderScanDeferral`, `MaintenanceHold`, restore record, crash recovery). Defers scans to idle-only; real-time protection stays on. Gap: device test.
 - **8.5 Closed-loop telemetry + P-core pinning**: logic built (`ClosedLoopTuner`, `ClosedLoopApplier`, `CpuAffinityPlanner`, Telemetry page). Gap: T3 CPU/GPU busy metrics (ETW event IDs unverified; PresentMon not used by decision), T6 device test.
+
+**Delta built (option A):**
+- [x] P1 `TimerOnWindows11` option + Settings checkbox (off by default). Verify: B1; device: timer shows 0.5 ms only when ticked
+- [x] P2 Shader cache clear refused while a game runs. Verify: B1; device: button says a game is running during play
+- [~] P3 OptiScaler launch-time check (`OptiScalerStatus.ReplacedFiles`, size-based; `--filter OptiScalerReplacedTests`). Not built: SHA-256 per file, mid-install crash recovery
+- [x] P4 `Core/Telemetry/BusyEstimator` + `ClosedLoopSession` feed (`--filter BusyEstimatorTests`). Device test: Watch only first; rule 1 should now say CPU-bound only when GPU load is low and FPS is under pace
+- [x] P5 Guardrails: `.claude/rules/performance-engine.md`, mobile-guarded Stop hook, CLAUDE.md section, SPEC §14
+- [ ] P6 Device test of the whole suite (Windows, admin): timer, shader refusal, OptiScaler toggle on/off, Defender restore, Telemetry Watch only then On

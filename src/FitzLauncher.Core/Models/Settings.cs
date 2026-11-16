@@ -235,6 +235,8 @@ public sealed class GameModeOptions
     public bool RaiseGamePriority { get; set; } = true;
     public bool LowerBackgroundPriority { get; set; } = true;
     public bool HighResolutionTimer { get; set; } = true;
+    /// <summary>Ask for the 0.5 ms timer on Windows 11 too. Off by default: Windows 11 only gives the benefit to the app that asks, so it may do nothing for the game.</summary>
+    public bool TimerOnWindows11 { get; set; }
     /// <summary>Make Defender's scheduled and catch-up scans gentle and idle-only during play. Real-time protection stays on.</summary>
     public bool DeferDefenderScans { get; set; } = true;
     /// <summary>Pause the scheduled drive optimise (TRIM/defrag) task and Automatic Maintenance during play.</summary>

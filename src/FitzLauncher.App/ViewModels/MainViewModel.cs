@@ -171,7 +171,7 @@ public sealed partial class MainViewModel : ObservableObject
         GamesView = (ListCollectionView)CollectionViewSource.GetDefaultView(Games);
         GamesView.Filter = Filter;
         GamesView.CustomSort = new GameSorter(Sort);
-        Hardware = new HardwareViewModel(services);
+        Hardware = new HardwareViewModel(services) { IsGameRunning = () => IsPlaying };
         Sessions = new SessionsViewModel(services);
         Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
         Home = new HomeViewModel(services, this);

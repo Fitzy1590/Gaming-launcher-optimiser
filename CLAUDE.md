@@ -86,6 +86,10 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 - **Safe:** files only, anti-cheat games skipped, OptiScaler downloaded from its official Releases and never bundled (GPL-3.0). Proxy DLL names unverified until stage U2.
 - **AMD NR** (voted 2026-11-15, `FEATURE_PROGRESS.md` §7b): the one extra download source allowed is the Releases of `3zwr1/AMD-NR---OptiScaler`, same rules as OptiScaler. It replaces stock OptiScaler per game, never layers on it. Never download its `Anywhere/` binaries.
 
+## Performance suite (see `SPEC.md` §14, stages in `FEATURE_PROGRESS.md` §8; rules in `.claude/rules/performance-engine.md`)
+
+- **Voted 2026-11-16: option A** (finish the full suite). Most pieces already existed; only the gaps were built. WPF, not WinUI 3. OptiScaler stays unbundled. Timer on Windows 11 is opt-in.
+
 ## Coding guardrails
 
 1. **Minimal delta:** change the few lines the task needs; never reformat untouched code.

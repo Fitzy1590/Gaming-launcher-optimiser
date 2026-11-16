@@ -59,6 +59,11 @@ public sealed partial class HardwareViewModel : ObservableObject
     [RelayCommand]
     private async Task ClearShaderCachesAsync()
     {
+        if (IsGameRunning())
+        {
+            ShaderStatus = "A game is running, so the shader caches were left alone. Close it and try again.";
+            return;
+        }
         if (MessageBox.Show("Clear the driver and DirectX shader caches?\n\nGames will rebuild them: expect some stutter for the first few minutes of each game, then smoother play. Best done right after a GPU driver update, with no games running.",
                 "Clear shader caches", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         long freed = 0;
@@ -85,6 +90,9 @@ public sealed partial class HardwareViewModel : ObservableObject
         _s.Settings.LastSeenDriverVersion = current;
         _s.SaveSettings();
     }
+
+    /// <summary>Set by the main view model: true while a game session is running.</summary>
+    public Func<bool> IsGameRunning { get; set; } = () => false;
 
     public HardwareViewModel(AppServices s)
     {

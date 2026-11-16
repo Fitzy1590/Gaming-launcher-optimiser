@@ -128,7 +128,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
             report.Add($"RAM cleared: {Math.Max(freed, after.FreeMb - before.FreeMb) / 1024.0:0.0} GB freed ({after.FreeMb / 1024.0:0.0} GB free)");
         }
 
-        if (o.HighResolutionTimer && tuning.UseTimerResolution)
+        if (o.HighResolutionTimer && (tuning.UseTimerResolution || o.TimerOnWindows11))
         {
             // 0.5 ms system timer: steadier frame pacing for games that use Sleep() for their limiter (Windows 10).
             if (Native.NtSetTimerResolution(5000, true, out _) == 0)

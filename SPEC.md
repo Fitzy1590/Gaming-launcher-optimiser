@@ -274,3 +274,13 @@ Update 2026-11-13: install and Revert already run through `OptiScalerTweak` + `T
 
 ### 13.5 Not in scope
 Bundling OptiScaler, PresentMon, hooks into game processes, online games with anti-cheat, any ROM/BIOS content.
+
+## 14. Performance suite delta (vote recorded 2026-11-16: option A)
+Five features were requested; the audit (`FEATURE_PROGRESS.md` §8) found them mostly built. This section covers only the gaps.
+
+- **14.1 Timer:** existing 0.5 ms request kept. New `GameModeOptions.TimerOnWindows11`, default off, so Windows 11 users can opt in. On Windows 11 the request is process-wide only for Fitz, so it may not help the game. VERIFY on device.
+- **14.2 Shader caches:** `D3DSCache`, NVIDIA and AMD locations already listed. Clearing is refused while a game session runs (`HardwareViewModel.IsGameRunning`).
+- **14.3 OptiScaler:** unchanged mechanism (`OptiScalerTweak`, `.bak`, ledger, Revert). Added `OptiScalerStatus.ReplacedFiles`: at page load, a placed file whose size differs from the saved copy is reported. Not built: SHA-256 per file and crash recovery mid-install (needs a ledger field).
+- **14.4 Defender and maintenance:** unchanged (§10). Device test only.
+- **14.5 CPU-bound pinning:** `BusyEstimator` supplies the missing busy readings from the game's GPU load (Windows "GPU Engine" counters, `GpuProcessCounters`). CPU time is taken as the whole frame, GPU time as frame x GPU load; `null` at the frame cap or refresh rate. Thresholds are the existing `BoundRatio` 1.15 / release 1.05. Pinning itself is the existing `CpuAffinityPlanner` path. ETW busy metrics stay open.
+- **Hooks:** the Stop build hook skips silently when `dotnet` is missing (mobile or SDK-less sessions) and still blocks on a real build failure.
