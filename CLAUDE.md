@@ -88,7 +88,7 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 
 ## Performance suite (see `SPEC.md` §14, stages in `FEATURE_PROGRESS.md` §8; rules in `.claude/rules/performance-engine.md`)
 
-- **Voted 2026-11-16: option A** (finish the full suite). Most pieces already existed; only the gaps were built. WPF, not WinUI 3. OptiScaler stays unbundled. Timer on Windows 11 is opt-in.
+- **Voted 2026-11-16: option A** (finish the full suite). Most pieces already existed; only the gaps were built. WPF, not WinUI 3. OptiScaler stays unbundled. Timer on Windows 11 is now on by default (see BlueStacks section).
 
 ## Coding guardrails
 
