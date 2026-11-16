@@ -1,9 +1,12 @@
 using System.Diagnostics;
+using FitzLauncher.Core.Emulators;
 using FitzLauncher.Core.Fps;
 using FitzLauncher.Core.Models;
 using FitzLauncher.Core.Mods;
 using FitzLauncher.Core.Optimization;
 using FitzLauncher.Core.Scanning;
+using FitzLauncher.Core.Shaders;
+using FitzLauncher.Windows.Emulators;
 using FitzLauncher.Core.Storage;
 using FitzLauncher.Core.Telemetry;
 
@@ -419,6 +422,16 @@ public sealed class GameSession(
         return true;
     }
 
+    /// <summary>Clears every shader cache found, skipping files in use. Returns bytes freed and files skipped.</summary>
+    private static (long Freed, int Skipped) ClearShaderCaches()
+    {
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var low = Path.Combine(Path.GetDirectoryName(local)!, "LocalLow");
+        long freed = 0; var skipped = 0;
+        foreach (var c in ShaderCacheTool.Locations(local, low)) { var (f, sk) = ShaderCacheTool.Clear(c); freed += f; skipped += sk; }
+        return (freed, skipped);
+    }
+
     public async Task<SessionSummary> RunAsync(bool launchAsAdmin, CancellationToken ct)
     {
         var useGameMode = settings.GameMode.Enabled && game.UseGameMode;
@@ -477,16 +490,29 @@ public sealed class GameSession(
         using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line)) : null;
         remapper?.Start();
 
+        // BlueStacks games: optional shader cache clear, and Lossless Scaling set to 2x (both put back after the session).
+        var lsfgPlan = game.IsAndroid && game.Lsfg2x ? Lsfg.Plan(game.FpsTarget ?? 60) : null;
+        var lsfg = lsfgPlan is not null ? new LsfgApplier(paths) : null;
+        if (game.IsAndroid && game.ClearShadersOnLaunch)
+        {
+            var (freed, _) = await Task.Run(() => ClearShaderCaches(), ct).ConfigureAwait(false);
+            if (freed > 0) Status?.Invoke($"Shader caches cleared ({freed / 1024 / 1024} MB)");
+        }
+        if (lsfg is not null && lsfgPlan is not null && await Task.Run(() => lsfg.Apply(lsfgPlan), ct).ConfigureAwait(false) is { } lsfgLine) Status?.Invoke(lsfgLine);
+
         var start = DateTimeOffset.Now;
         int pid;
         try
         {
-            var args = $"{game.Arguments} {game.OptimizerArguments} {ExtraArguments}".Trim();
+            var args = game.IsAndroid
+                ? BlueStacks.LaunchArguments(game.BlueStacksInstance ?? "Pie64", game.AndroidPackage!)
+                : $"{game.Arguments} {game.OptimizerArguments} {ExtraArguments}".Trim();
             pid = GameLauncher.Start(game.ExePath, args, launchAsAdmin);
         }
         catch
         {
             applier?.RestoreAll();
+            lsfg?.Restore();
             if (useGameMode) gameMode.Restore();
             throw;
         }
@@ -516,6 +542,13 @@ public sealed class GameSession(
         // On a screen slower than the target (e.g. a 60 Hz TV), cap just under its refresh for this session.
         var capChanged = rtss is not null && EffectiveCap is { } ec && ec != game.FpsTarget && rtss.SetFramerateLimit(renderExe, ec);
         if (capChanged) Status?.Invoke(EffectiveCap == 0 ? "No FPS cap on this screen" : $"Cap {EffectiveCap} FPS on this screen ({Display?.MaxRefreshHz} Hz)");
+        // Frame generation doubles what the screen shows, so RTSS holds the real frames at the base rate.
+        if (lsfgPlan is not null && rtss is not null && rtss.SetFramerateLimit(renderExe, lsfgPlan.BaseFps))
+        {
+            capChanged = true;
+            Status?.Invoke($"Cap {lsfgPlan.BaseFps} FPS (shown as {lsfgPlan.OutputFps} with frame generation)");
+        }
+        var lsfgGuard = lsfgPlan is not null ? new Lsfg.GpuGuard(lsfgPlan) : null;
         var guard = settings.ThermalGuard.Enabled && game.ThermalGuard && Cap is { } cap and > 0 && rtss is not null
             ? new ThermalGovernor(cap, GuardOptions, GuardTriggerC)
             : null;
@@ -740,6 +773,9 @@ public sealed class GameSession(
                 if (r.GpuLoad is { } gl) { gpuLoadSum += gl; gpuLoadSamples++; }
                 Push(cpuHistory, new ThermalSample(r.CpuTempC, r.CpuLoad, null));
                 Push(gpuHistory, new ThermalSample(r.GpuTempC, r.GpuLoad, r.GpuPowerW));
+                // 95% GPU ceiling: frame generation needs headroom, so the real frame cap steps down when the GPU is maxed out.
+                if (lsfgGuard is not null && rtss is not null && _guard?.IsThrottling != true && lsfgGuard.Update(r.GpuLoad) is { } lsfgCap && rtss.SetFramerateLimit(renderExe, lsfgCap))
+                    Note($"GPU near its limit: real frames {lsfgCap} FPS");
                 if (_samples.Count < 20_000)
                 {
                     var top = limiter?.LastTop ?? guardTop;
@@ -912,6 +948,7 @@ public sealed class GameSession(
             var hadCap = game.AppliedChanges.Any(c => c.Action is RtssFrameLimitAction);
             rtss!.SetFramerateLimit(renderExe, _quickCap ?? (hadCap && game.FpsTarget is { } original ? original : 0));
         }
+        lsfg?.Restore();
         FinishAutoTdp();
         if (powerSet) RyzenAdj!.Restore();
         cooling?.Restore();

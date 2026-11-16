@@ -233,6 +233,9 @@ public sealed partial class GameDetailsViewModel
     // ------------------------------------------------------------------ performance automation
 
     public bool ThermalGuardOn { get => Game.ThermalGuard; set { Game.ThermalGuard = value; _s.SaveLibrary(); } }
+    public bool IsAndroid => Game.IsAndroid;
+    public bool Lsfg2xOn { get => Game.Lsfg2x; set { Game.Lsfg2x = value; _s.SaveLibrary(); } }
+    public bool ClearShadersOn { get => Game.ClearShadersOnLaunch; set { Game.ClearShadersOnLaunch = value; _s.SaveLibrary(); } }
     public bool PauseOnSleepOn { get => Game.PauseOnSleep; set { Game.PauseOnSleep = value; _s.SaveLibrary(); } }
 
     // ------------------------------------------------------------------ in-game overlay

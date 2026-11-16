@@ -195,9 +195,15 @@ Read-only audit of the five requested features. Most already exist, so the delta
 - [x] P5 Guardrails: `.claude/rules/performance-engine.md`, mobile-guarded Stop hook, CLAUDE.md section, SPEC §14
 - [ ] P6 Device test of the whole suite (Windows, admin): timer, shader refusal, OptiScaler toggle on/off, Defender restore, Telemetry Watch only then On
 
-## 9. BlueStacks direct launcher + LSFG suite (audit 2026-11-16; awaiting vote A/B, nothing built yet)
+## 9. BlueStacks direct launcher + LSFG suite (audit 2026-11-16; vote A recorded; B1-B6 built, build 0 errors, 582 tests; not run on Windows)
 Read-only audit. Dotnet 10 is present, so build/test run here (desktop-style session); WPF itself cannot run on Linux.
 - **Already built, reuse:** 0.5 ms timer (`GameModeController`, Win11 opt-in `TimerOnWindows11`); shader cache purge (`Core/Shaders/ShaderCacheTool`, refuses while a game runs); Defender scan deferral (`SessionHolds`, `SessionHoldPlanner`); priority and P-core/V-Cache pinning (`CpuAffinityPlanner`, `CpuTopologyReader`, `GameSession`, `ClosedLoopApplier`); RTSS cap (`RtssClient`); Lossless Scaling is only recognised as an overlay in `ResourceGuard`.
 - **Missing (the real delta):** BlueStacks 5/10 discovery and Android package scanner; per-game "launch via HD-Player with package" entry; LSFG 2x profile (Lossless Scaling `settings.xml` patch, 95% GPU ceiling, RTSS base cap); `HD-Player.exe` as a pin/priority target (it is a launcher-owned child process, not the game exe).
 - **Decisions needed:** A or B (voting card); timer on Win11 stays opt-in unless the vote says otherwise.
-- [ ] B1 Discovery + package scanner  [ ] B2 Library cards + 1-click launch  [ ] B3 LSFG 2x profile  [ ] B4 HD-Player pin/priority  [ ] B5 Wire timer/shader/Defender per BlueStacks game  [ ] B6 Guardrails (rules file, SPEC, CLAUDE.md)  [ ] B7 Device test
+- [x] B1 Discovery + package scanner (`Core/Emulators/BlueStacks.cs`, `Windows/Emulators/BlueStacksLocator.cs`; `--filter BlueStacksLsfgTests`)
+- [x] B2 Cards + 1-click launch (Add Android games button, `Game.AndroidPackage`, launch args in `GameSession`)
+- [x] B3 LSFG 2x (`Lsfg.Plan`, `GpuGuard`, `LsfgApplier`, restore at start-up)
+- [x] B4 HD-Player pin/priority (existing session via `InstallDir`; pinning Auto)
+- [x] B5 Timer/Defender via existing Game Mode; shader clear per game (`ClearShadersOnLaunch`); details-page switches
+- [x] B6 Guardrails (`.claude/rules/emulator-engine.md`, SPEC §15, CLAUDE.md)
+- [ ] B7 Device test (Windows, admin): scanner finds apps, direct launch, Lossless Scaling keys, 2x, restore. Open: Win 11 timer default; library tile badge for Android cards

@@ -246,6 +246,12 @@
                 </ItemsControl>
                 <TextBlock Text="{Binding PinningText}" Style="{StaticResource MutedText}" />
                 <CheckBox Content="Thermal guard: lower the RTSS cap a step if the CPU/GPU runs hot, restore it when cool" IsChecked="{Binding ThermalGuardOn}" Margin="0,8,0,0" />
+                <StackPanel Visibility="{Binding IsAndroid, Converter={StaticResource Vis}}">
+                    <TextBlock Text="Android game (BlueStacks)" Style="{StaticResource H2}" />
+                    <CheckBox Content="Smooth 120 FPS: Lossless Scaling 2x, with the real frames held at 60 and the GPU kept under 95%" IsChecked="{Binding Lsfg2xOn}" ToolTip="Needs Lossless Scaling installed. Its settings are put back when you close the game." />
+                    <CheckBox Content="Clear graphics shader caches before this game starts" IsChecked="{Binding ClearShadersOn}" Margin="0,8,0,0" />
+                    <TextBlock Text="BlueStacks is pinned to your fastest cores and given high priority while the game runs, and the 0.5 ms timer and Defender scan shield follow your Game Mode settings." Style="{StaticResource MutedText}" />
+                </StackPanel>
                 <CheckBox Content="Pause this game while the device sleeps (turn off for online games)" IsChecked="{Binding PauseOnSleepOn}" Margin="0,8,0,0" />
 
                 <TextBlock Text="{Binding LimiterText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" Visibility="{Binding LimiterText, Converter={StaticResource HasValue}}" />

@@ -22,6 +22,16 @@ public sealed class Game
     public string? HeroPath { get; set; }
     public int? SteamAppId { get; set; }
 
+    // ---- BlueStacks Android games (null for everything else; SPEC §15)
+    /// <summary>Android package this card opens straight away through BlueStacks (e.g. jp.pokemon.pokemontcgp).</summary>
+    public string? AndroidPackage { get; set; }
+    public string? BlueStacksInstance { get; set; }
+    /// <summary>Lossless Scaling 2x for this game (60 → 120 FPS). Needs Lossless Scaling installed.</summary>
+    public bool Lsfg2x { get; set; }
+    /// <summary>Clear the graphics shader caches just before this game starts.</summary>
+    public bool ClearShadersOnLaunch { get; set; }
+    public bool IsAndroid => !string.IsNullOrEmpty(AndroidPackage);
+
     // ---- Emulation Hub (null/empty for PC games)
     public FitzLauncher.Core.Emulation.EmuPlatform? Platform { get; set; }
     public string? EmulatorId { get; set; }

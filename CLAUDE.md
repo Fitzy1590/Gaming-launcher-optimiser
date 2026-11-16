@@ -96,3 +96,8 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 2. **No unasked abstractions:** no new interfaces, base classes or options the task did not ask for.
 3. **No silent assumptions:** read the ViewModel, controller or planner you touch, and the existing class that owns the setting, before editing. State what you could not verify.
 4. **Read before touch:** open the target file first; use a subagent for repo-wide searches.
+
+## BlueStacks + LSFG suite (see `SPEC.md` §15, stages in `FEATURE_PROGRESS.md` §9; rules in `.claude/rules/emulator-engine.md`)
+
+- **Voted 2026-11-16: option A** (direct launch, LSFG 2x, pinning, timer, shader clear, Defender shield). Timer on Windows 11 stays opt-in.
+- **Where it goes:** `Core/Emulators`, `Windows/Emulators`, a normal `Game` with `AndroidPackage`. Reuse the session; no new launch path.

@@ -280,13 +280,36 @@ public sealed partial class MainViewModel : ObservableObject
         await AddGamesAsync(games);
     }
 
+    /// <summary>Finds BlueStacks, lists the Android games inside it and adds a library card for each new one.</summary>
+    [RelayCommand]
+    private async Task AddAndroidGamesAsync()
+    {
+        var install = await Task.Run(FitzLauncher.Windows.Emulators.BlueStacksLocator.Find);
+        if (install is null) { ShowToast("BlueStacks was not found. Install BlueStacks 5 or 10 first."); return; }
+        var games = new List<Game>();
+        string? problem = null;
+        foreach (var instance in FitzLauncher.Windows.Emulators.BlueStacksLocator.Instances(install))
+        {
+            var (apps, why) = await FitzLauncher.Windows.Emulators.BlueStacksLocator.ScanAppsAsync(install, instance, CancellationToken.None);
+            problem ??= why;
+            games.AddRange(apps.Select(a => new Game
+            {
+                Name = a.Name, ExePath = install.PlayerPath, InstallDir = install.InstallDir,
+                AndroidPackage = a.Package, BlueStacksInstance = instance.Id, Lsfg2x = true,
+            }));
+        }
+        if (games.Count == 0) { ShowToast(problem ?? "No BlueStacks instances found."); return; }
+        var added = await AddGamesAsync(games);
+        ShowToast(added > 0 ? $"Added {added} Android game(s) from BlueStacks." : "Those Android games are already in your library.");
+    }
+
     /// <summary>Adds prepared games (from a file pick, drag & drop or the Scan game folders window).</summary>
     public async Task<int> AddGamesAsync(IEnumerable<Game> games)
     {
         var added = new List<GameViewModel>();
         foreach (var game in games)
         {
-            if (_s.Library.Games.Any(g => g.ExePath.Equals(game.ExePath, StringComparison.OrdinalIgnoreCase)))
+            if (_s.Library.Games.Any(g => g.ExePath.Equals(game.ExePath, StringComparison.OrdinalIgnoreCase) && g.AndroidPackage == game.AndroidPackage))
             {
                 ShowToast($"{game.Name} is already in your library.");
                 continue;

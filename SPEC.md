@@ -284,3 +284,11 @@ Five features were requested; the audit (`FEATURE_PROGRESS.md` §8) found them m
 - **14.4 Defender and maintenance:** unchanged (§10). Device test only.
 - **14.5 CPU-bound pinning:** `BusyEstimator` supplies the missing busy readings from the game's GPU load (Windows "GPU Engine" counters, `GpuProcessCounters`). CPU time is taken as the whole frame, GPU time as frame x GPU load; `null` at the frame cap or refresh rate. Thresholds are the existing `BoundRatio` 1.15 / release 1.05. Pinning itself is the existing `CpuAffinityPlanner` path. ETW busy metrics stay open.
 - **Hooks:** the Stop build hook skips silently when `dotnet` is missing (mobile or SDK-less sessions) and still blocks on a real build failure.
+
+## 15. BlueStacks direct launcher and LSFG 2x (voted A, 2026-11-16)
+
+- **15.1 Scanner:** `BlueStacksLocator` finds BlueStacks 5/10 (registry, then Program Files), reads instances from `bluestacks.conf`, and lists third-party apps with `HD-Adb.exe shell pm list packages -3` (needs Android Debug Bridge on). BlueStacks' own apps are left out. Button: Add Android games.
+- **15.2 Card and launch:** each app becomes a `Game` (`ExePath` HD-Player, `InstallDir` BlueStacks folder, `AndroidPackage`, `BlueStacksInstance`). The session starts it with `--instance <id> --cmd launchApp --package <pkg>`. Names are validated first.
+- **15.3 LSFG 2x:** `Lsfg.Plan` is 60 real frames shown as 120, 2x only. RTSS holds the base rate; `Lsfg.GpuGuard` steps the cap down 5 FPS (floor 40) after 3 samples over 95% GPU and back up after 10 samples under 83%. `LsfgApplier` patches Lossless Scaling's Settings.xml (existing keys only), with a backup and `lsfg-restore.json`.
+- **15.4 Reused:** priority, P-core/V-Cache pinning (`CorePinning.Auto`), the 0.5 ms timer (Win 11 opt-in), Defender shield and shader clear (optional per game) all come from the existing session.
+- **15.5 Known limits:** if BlueStacks was already open, the session lasts until BlueStacks closes. Registry names, config keys, `launchApp` and Lossless Scaling key names are unverified until the device test.
