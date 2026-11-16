@@ -25,6 +25,8 @@ public sealed partial class GameViewModel : ObservableObject
     public bool HasCover => Cover is not null;
 
     public string FpsBadge => Game.LastSession is { HasFpsData: true } s ? $"{s.AverageFps:0} FPS" : "";
+    public bool IsAndroid => Game.IsAndroid;
+    public string AndroidBadgeTip => Game.Lsfg2x ? "Android game, opens straight into BlueStacks with 2x frame generation (60 to 120 FPS)" : "Android game, opens straight into BlueStacks";
     public bool HasFpsBadge => FpsBadge.Length > 0;
     public bool IsOptimized => Game.OptimizedAt is not null && Game.AppliedChanges.Count > 0;
     private MainStoryProgress? Story => MainStoryProgress.For(Game);

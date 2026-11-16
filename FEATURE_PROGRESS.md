@@ -206,4 +206,4 @@ Read-only audit. Dotnet 10 is present, so build/test run here (desktop-style ses
 - [x] B4 HD-Player pin/priority (existing session via `InstallDir`; pinning Auto)
 - [x] B5 Timer/Defender via existing Game Mode; shader clear per game (`ClearShadersOnLaunch`); details-page switches
 - [x] B6 Guardrails (`.claude/rules/emulator-engine.md`, SPEC §15, CLAUDE.md)
-- [ ] B7 Device test (Windows, admin): scanner finds apps, direct launch, Lossless Scaling keys, 2x, restore. Timer now on by default on Win 11. Open: library tile badge for Android cards
+- [ ] B7 Device test (Windows, admin): scanner finds apps, direct launch, Lossless Scaling keys, 2x, restore. Timer now on by default on Win 11. Android badge added to library rows (B8)

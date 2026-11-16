@@ -284,6 +284,10 @@
                                                  Visibility="{Binding HasProgress, Converter={StaticResource Vis}}" ToolTip="{Binding ProgressLabel}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="8,0,4,0">
+                                    <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="6" Padding="6,1" Margin="0,0,8,0"
+                                            Visibility="{Binding IsAndroid, Converter={StaticResource Vis}}" ToolTip="{Binding AndroidBadgeTip}">
+                                        <TextBlock Text="Android" FontSize="11" FontWeight="Medium" Foreground="{StaticResource Secondary}" />
+                                    </Border>
                                     <TextBlock Text="{Binding FpsBadge}" Style="{StaticResource Figure}" FontSize="12" Margin="0,0,8,0" Visibility="{Binding HasFpsBadge, Converter={StaticResource Vis}}" ToolTip="Average FPS, last session" />
                                     <TextBlock Style="{StaticResource Icon}" Text="&#xE945;" FontSize="12" Margin="0,0,6,0" ToolTip="Optimised" Visibility="{Binding IsOptimized, Converter={StaticResource Vis}}" />
                                     <TextBlock Style="{StaticResource Icon}" Text="&#xE735;" FontSize="12" Margin="0,0,6,0" ToolTip="Favourite" Visibility="{Binding IsFavourite, Converter={StaticResource Vis}}" />
