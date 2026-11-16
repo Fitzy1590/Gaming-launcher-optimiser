@@ -99,5 +99,5 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 
 ## BlueStacks + LSFG suite (see `SPEC.md` §15, stages in `FEATURE_PROGRESS.md` §9; rules in `.claude/rules/emulator-engine.md`)
 
-- **Voted 2026-11-16: option A** (direct launch, LSFG 2x, pinning, timer, shader clear, Defender shield). Timer on Windows 11 stays opt-in.
+- **Voted 2026-11-16: option A** (direct launch, LSFG 2x, pinning, timer, shader clear, Defender shield). Timer on Windows 11 is ticked by default (voted 2026-11-16).
 - **Where it goes:** `Core/Emulators`, `Windows/Emulators`, a normal `Game` with `AndroidPackage`. Reuse the session; no new launch path.
