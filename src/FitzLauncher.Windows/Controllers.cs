@@ -195,7 +195,7 @@ public sealed class HidHideClient(string cli)
 /// curves, trigger and button settings, and feeds a virtual Xbox 360 controller (ViGEmBus) that the game
 /// uses, with the real one hidden by HidHide. Rumble from the game is scaled and passed to the real pad.
 /// </summary>
-public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths, Action<string> status) : IDisposable
+public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths, Action<string> status, Action<string>? trace = null) : IDisposable
 {
     private string RestoreFile => Path.Combine(paths.Root, "controller-restore.json");
     private ViGEmClient? _client;
@@ -254,6 +254,7 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
     {
         timeBeginPeriod(1);
         Core.Input.PadSnapshot? last = null;
+        var aLogged = 0; // diagnostic: A press/release with what each source reported (capped so a long session can't fill the log)
         try
         {
             while (_run)
@@ -266,6 +267,13 @@ public sealed class ControllerRemapper(ControllerProfile profile, AppPaths paths
                 var m = Core.Input.PadMerge.Combine(x, sony is { } v ? ConsoleBridge.ForGame(v) : null);
                 if (m != last)
                 {
+                    if (trace is not null && aLogged < 60 && ((m.Buttons ^ (last?.Buttons ?? 0)) & Core.Input.PadSnapshot.A) != 0)
+                    {
+                        aLogged++;
+                        trace($"Controller A {((m.Buttons & Core.Input.PadSnapshot.A) != 0 ? "down" : "up")}: game LX={m.LX} LY={m.LY} | DualShock " +
+                            (sony is { } d ? $"A={d.Has(Core.Input.PadSnapshot.A)} LX={d.LX} LY={d.LY}" : "none") + " | XInput " +
+                            (x is { } xi ? $"A={xi.Has(Core.Input.PadSnapshot.A)} LX={xi.LX} LY={xi.LY}" : "none"));
+                    }
                     last = m;
                     Submit(new XInput.Gamepad { Buttons = m.Buttons, LX = m.LX, LY = m.LY, RX = m.RX, RY = m.RY, LeftTrigger = m.LT, RightTrigger = m.RT });
                 }

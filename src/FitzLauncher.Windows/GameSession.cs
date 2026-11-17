@@ -487,7 +487,7 @@ public sealed class GameSession(
         }
 
         // Controller tuning starts before the game, so the game only ever sees the tuned virtual pad.
-        using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line)) : null;
+        using var remapper = Controller is { Enabled: true } cp ? new ControllerRemapper(cp, paths, line => Status?.Invoke(line), line => Trace?.Invoke(line)) : null;
         remapper?.Start();
 
         // BlueStacks games: optional shader cache clear, and Lossless Scaling set to 2x (both put back after the session).
