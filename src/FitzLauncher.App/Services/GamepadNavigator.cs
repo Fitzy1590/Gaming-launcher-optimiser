@@ -80,16 +80,19 @@ public sealed class GamepadNavigator : IDisposable
             var target = Keyboard.FocusedElement as UIElement;
             return target?.MoveFocus(new TraversalRequest(mods == ModifierKeys.Shift ? FocusNavigationDirection.Previous : FocusNavigationDirection.Next)) ?? false;
         }
+        // Raise the events straight on the focused element. InputManager.ProcessInput(PreviewKeyDown) promotes it to a
+        // KeyDown by itself, so also sending a KeyDown made every list press count twice (a double input).
+        var recipient = (Keyboard.FocusedElement as IInputElement) ?? w;
         var down = new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };
-        InputManager.Current.ProcessInput(down);
+        recipient.RaiseEvent(down);
         var handled = down.Handled;
         if (!handled)
         {
             var kd = new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.KeyDownEvent };
-            InputManager.Current.ProcessInput(kd);
+            recipient.RaiseEvent(kd);
             handled = kd.Handled;
         }
-        InputManager.Current.ProcessInput(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.KeyUpEvent });
+        recipient.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, source, Environment.TickCount, key) { RoutedEvent = Keyboard.KeyUpEvent });
         return handled;
     }
 
