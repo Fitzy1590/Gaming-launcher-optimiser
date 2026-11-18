@@ -475,6 +475,48 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void AHitchWithTheAverageOnTargetAndOneHotReadingDoesNotCutHard()
+    {
+        // From a real session log (The Witcher 3, 100 FPS target, trigger 85 °C, 58 W): the average sat on the cap while the 1% low fell to 33
+        // (a hitch) and the CPU read 91 °C for one tick after 76-77 °C. A single reading is not heat: it cut 8 W, then 8 W more on the next hitch.
+        (int t, double fps, double low, double drawn, double temp)[] rows =
+        [
+            (128, 100.0, 78.5, 58.0, 76), (130, 100.0, 79.3, 58.0, 76), (132, 100.0, 83.3, 58.0, 77), (134, 100.0, 82.1, 58.0, 77),
+            (136, 100.0, 86.1, 58.0, 77), (138, 100.0, 86.8, 58.0, 76), (140, 100.0, 81.8, 57.0, 76), (142, 100.0, 61.3, 58.5, 88),
+            (144, 100.0, 51.6, 57.1, 90), (146, 100.0, 32.6, 48.5, 91),
+        ];
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 58, thermalTriggerC: 85);
+        foreach (var (t, fps, low, drawn, temp) in rows)
+            g.Update(new AutoTdpSample(600, fps, low, Math.Min(drawn, g.Current), TempC: temp), T0.AddSeconds(t));
+        Assert.True(58 - g.Current < 8, $"cut {58 - g.Current} W for a hitch on one hot reading");
+    }
+
+    [Fact]
+    public void HardCutsForALowOnlyCollapseAreSpacedLikeOtherHeatCuts()
+    {
+        // From the same log: the chip really was at 88-92 °C for 20 s, so the 1% low collapse at 198 s rightly cut 8 W; the average was still 100
+        // when the next hitch at 208 s cut 8 W again (42 → 34 W) 10 s later, and FPS then really did fall to 29. One hard cut, then wait.
+        // (The 1% lows before 198 s are 98 here: the log's own lows made a cold replay raise power first, which is not what this is about.)
+        (int t, double fps, double low, double drawn, double temp)[] rows =
+        [
+            (176, 100.0, 98.7, 50.0, 76), (178, 100.0, 98.7, 50.0, 76), (180, 100.0, 97.8, 49.8, 76), (182, 100.0, 98.0, 50.1, 76),
+            (184, 100.0, 98.0, 50.0, 75), (186, 100.0, 98.0, 50.0, 76), (188, 100.0, 98.0, 46.1, 88), (190, 100.0, 98.0, 48.4, 91),
+            (192, 100.0, 98.0, 46.6, 91), (194, 100.0, 98.0, 50.3, 84), (196, 100.0, 98.0, 47.4, 91), (198, 100.0, 32.2, 45.6, 91),
+            (200, 100.0, 58.3, 42.0, 91), (202, 100.0, 92.3, 42.0, 90), (204, 100.0, 68.0, 42.0, 91), (206, 100.0, 60.1, 42.0, 91),
+            (208, 100.0, 27.4, 42.2, 92),
+        ];
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 50, thermalTriggerC: 85);
+        var afterFirstCut = -1;
+        foreach (var (t, fps, low, drawn, temp) in rows)
+        {
+            g.Update(new AutoTdpSample(600, fps, low, Math.Min(drawn, g.Current), TempC: temp), T0.AddSeconds(t));
+            if (t == 198) afterFirstCut = g.Current;
+        }
+        Assert.True(afterFirstCut <= 42, $"the collapse at 198 s should have cut hard (limit {afterFirstCut} W)");
+        Assert.Equal(afterFirstCut, g.Current); // nothing more between 198 and 208 s
+    }
+
+    [Fact]
     public void AHitchWithACoolChipIsNotTreatedAsHeat()
     {
         // From a real session log: a loading hitch (1% low 23, average 100) at 68 °C is a probe raise, not a hard cut.

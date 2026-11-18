@@ -70,6 +70,10 @@ public sealed class AutoTdpGovernor
     // tried at 85 and 87 °C bought nothing and 30 FPS lasted 20-40 s. So within CollapseWarmMarginC of the trigger a collapse is heat: no extra
     // power, and a 1% low under CollapseLowFraction of the target (the average lags it by 6-10 s) already counts as the start of the collapse.
     private const double CollapseWarmMarginC = 2, CollapseLowFraction = 0.45;
+    // Only the 1% low has collapsed (the average is still on the target): that is usually a hitch, so one hot reading is not enough (the heat
+    // must show in the 16 s average) and hard cuts wait as long as ordinary heat cuts. From a real log: a 91 °C reading after 76-77 °C cut 58 → 50 W
+    // for a hitch at 100 FPS, then 42 → 34 W 10 s after the last cut; FPS really did fall to 29 at 34 W and the climb back took about a minute.
+    private const int LowOnlyCutSpacingSeconds = 12;
     // A draw that fell under this share of the last minute's peak while the average still holds the target is a load or a transition, not an
     // under-reporting sensor: no test raise. From a real log: 57 → 23 W during a load, "tested" +5 W, taken back 8 s later as hitching.
     private const double DrawCollapseFraction = 0.60;
@@ -200,7 +204,8 @@ public sealed class AutoTdpGovernor
         if (temp > 0) _temps.Enqueue((now, temp));
         while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(16)) _temps.Dequeue();
         var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
-        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8 || (collapsing && temp >= _trigger - CollapseWarmMarginC));
+        var lowOnlyCollapse = collapsing && !severe && s.Fps >= _target * AvgFloor;
+        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8 || (collapsing && (lowOnlyCollapse ? smooth : temp) >= _trigger - CollapseWarmMarginC));
         var warm = temp > 0 && smooth >= _trigger - 5;
         var deepCool = smooth > 0 && smooth < _trigger - 10; // clearly cool: the chip has room, so heat-related holds no longer apply
         if (hot)
@@ -214,7 +219,7 @@ public sealed class AutoTdpGovernor
             {
                 // FPS has collapsed (about 34) while the chip is 2 °C+ over the trigger. In the logs this state ends only when the chip
                 // cools below about 80 °C, and cutting is what cools it: 5 W every 12 s took 20 s+; cut harder and sooner, then let it climb back.
-                if ((now - _lastChange).TotalSeconds < 5) return null;
+                if ((now - _lastChange).TotalSeconds < (lowOnlyCollapse ? LowOnlyCutSpacingSeconds : 5)) return null;
                 return Change(Math.Max(_min, Current - 8), now, raised: false, $"{(severe ? "FPS" : "1% low")} collapsed to {(severe ? s.Fps : s.LowFps):0} at {smooth:0} °C: cutting hard to cool it, power comes back as soon as it is cooler");
             }
             if (Current > _min)
