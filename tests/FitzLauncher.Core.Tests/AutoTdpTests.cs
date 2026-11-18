@@ -209,9 +209,10 @@ public class AutoTdpTests
     [Fact]
     public void AFpsCollapseWhileWarmStillGetsPowerBackInsteadOfBeingHeldDown()
     {
-        // From a real log: 34 FPS against a 110 target at 37 W, 84 °C, trigger 86 °C. "Warm" used to block every raise.
+        // From a real log: 34 FPS against a 110 target at 37 W, 82 °C, trigger 86 °C. "Warm" used to block every raise.
+        // (Within 2 °C of the trigger a collapse is heat, and extra power is withheld: see AFpsCollapseAtNearTriggerHeat...)
         var g = new AutoTdpGovernor(110, 25, 60, startWatts: 37, thermalTriggerC: 86);
-        var d = g.Update(new AutoTdpSample(500, 34, 33, 37, TempC: 84), T0);
+        var d = g.Update(new AutoTdpSample(500, 34, 33, 37, TempC: 82), T0);
         Assert.NotNull(d?.Watts);
         Assert.InRange(d!.Watts!.Value, 38, 42);   // gently: 5 W at most while warm
     }
@@ -391,6 +392,53 @@ public class AutoTdpTests
         // Cooler and still short of the target: power comes back.
         var cool = g.Update(new AutoTdpSample(500, 40, 34, g.Current, TempC: 72), T0.AddSeconds(40));
         Assert.True(cool?.Watts > g.Current - 1 && cool!.Watts > cuts[^1]);
+    }
+
+    [Fact]
+    public void AFpsCollapseAtNearTriggerHeatGetsNoExtraPowerAndTheCutDoesNotWaitForTheAverage()
+    {
+        // From a real session log (The Witcher 3, 100 FPS target, trigger 85 °C, 52 W): the 1% low fell to 29 at 99 s with the CPU at 85 °C, the
+        // average followed (93, 74, 42 FPS). It added 5 W at 103 s (85 °C, 44 W drawn): no help, 30 FPS and 92 °C six seconds later; the first cut
+        // came at 109 s. The same happened at 87 °C in another log. Every collapse in 7 sessions at 83+ °C ended only by cooling.
+        (int t, double fps, double low, double drawn, double temp)[] rows =
+        [
+            (91, 100.0, 98.1, 41.1, 83), (93, 100.0, 97.1, 36.5, 84), (95, 100.0, 97.1, 36.5, 84), (97, 100.0, 97.1, 36.5, 84),
+            (99, 93.3, 29.4, 47.0, 85), (101, 73.9, 29.2, 47.0, 85), (103, 41.5, 29.0, 44.1, 85), (105, 29.7, 29.2, 49.4, 86),
+            (107, 29.9, 28.5, 50.0, 87), (109, 29.9, 28.5, 56.0, 92),
+        ];
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 52, thermalTriggerC: 85);
+        int highest = g.Current, at103 = g.Current;
+        foreach (var (t, fps, low, drawn, temp) in rows)
+        {
+            g.Update(new AutoTdpSample(600, fps, low, Math.Min(drawn, g.Current), TempC: temp), T0.AddSeconds(t));
+            highest = Math.Max(highest, g.Current);
+            if (t == 103) at103 = g.Current;
+        }
+        Assert.Equal(52, highest);       // never above where it was
+        Assert.True(at103 <= 44, $"still {at103} W at 103 s: the cut should start when the 1% low collapses at trigger heat");
+    }
+
+    [Fact]
+    public void AFiftyOnePercentLowCollapseWhileHotCutsHardEvenThoughTheAverageIsStillOnTarget()
+    {
+        // From a real session log (trigger 85 °C, 60 W): 100 FPS with the CPU at 87-89 °C for 14 s, then the 1% low fell to 29 at 90 s with the
+        // average still 100. It cut only 3 W; FPS was 30 by 96 s, and the chip reached 94 °C before the limit got to 41 W.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 60, thermalTriggerC: 85);
+        (int t, double temp)[] warmUp = [(62, 68), (64, 68), (66, 68), (68, 68), (70, 68), (72, 67), (74, 83), (76, 86), (78, 87), (80, 87), (82, 87), (84, 88), (86, 88), (88, 88)];
+        foreach (var (t, temp) in warmUp) g.Update(new AutoTdpSample(600, 100, 100, 52, TempC: temp), T0.AddSeconds(t));
+        var before = g.Current;
+        g.Update(new AutoTdpSample(600, 100, 29.2, 52.7, TempC: 89), T0.AddSeconds(90));
+        Assert.True(before - g.Current >= 8, $"only cut {before - g.Current} W when the 1% low collapsed at 89 °C");
+    }
+
+    [Fact]
+    public void AHitchWithACoolChipIsNotTreatedAsHeat()
+    {
+        // From a real session log: a loading hitch (1% low 23, average 100) at 68 °C is a probe raise, not a hard cut.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 52, thermalTriggerC: 85);
+        g.Update(new AutoTdpSample(600, 100, 99.1, 24.3, TempC: 68), T0.AddSeconds(68));
+        var d = g.Update(new AutoTdpSample(600, 100, 22.9, 24.1, TempC: 68), T0.AddSeconds(70));
+        Assert.True(d?.Watts > 52);
     }
 
     [Fact]

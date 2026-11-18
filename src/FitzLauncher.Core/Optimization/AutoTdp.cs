@@ -66,6 +66,10 @@ public sealed class AutoTdpGovernor
     // With FPS collapsed, a reading this far over the trigger means heat is the cause, not a power shortage. The CPU can jump 85 → 94 °C in
     // a few seconds and the 16 s average lags it: from a real log, it added 5 W at 91 °C and held 6 s more before cutting; FPS sat at 34 for 20 s.
     private const double CollapseHeatC = 3;
+    // From 7 real Witcher 3 sessions: every FPS collapse (about 30 FPS) that began with the CPU at 83-96 °C ended only by cooling; the +5 W raises
+    // tried at 85 and 87 °C bought nothing and 30 FPS lasted 20-40 s. So within CollapseWarmMarginC of the trigger a collapse is heat: no extra
+    // power, and a 1% low under CollapseLowFraction of the target (the average lags it by 6-10 s) already counts as the start of the collapse.
+    private const double CollapseWarmMarginC = 2, CollapseLowFraction = 0.45;
     private static readonly TimeSpan HitchMemory = TimeSpan.FromMinutes(10);
     private DateTime _hitchProvenAt = DateTime.MinValue;
     // A raise for a 1% low dip with the average already on the target is judged 6 s later, by which time a hitch has usually passed by itself,
@@ -174,6 +178,8 @@ public sealed class AutoTdpGovernor
         if (hitchOnly) { distress = false; _hitchProvenAt = now; } // refreshed while the pattern lasts, so it can't lapse mid-trim and raise power again
         // Far under the target (a loading hitch aside, something is badly wrong): power must not be the thing that is held back.
         var severe = !_simulated && s.Fps < _target * 0.60;
+        // The 1% low falls first: FPS is "collapsing" as soon as it has halved, before the 6 s average shows it.
+        var collapsing = severe || (!_simulated && s.LowFps < _target * CollapseLowFraction);
         if (!distress) { _healthySeconds += dt; _levelSeconds[Current] = _levelSeconds.GetValueOrDefault(Current) + dt; }
 
         // Too hot: the fix that costs the least is less power (the frame cap stays put). Stop once it's below the trigger.
@@ -184,7 +190,7 @@ public sealed class AutoTdpGovernor
         if (temp > 0) _temps.Enqueue((now, temp));
         while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(16)) _temps.Dequeue();
         var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
-        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8);
+        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8 || (collapsing && temp >= _trigger - CollapseWarmMarginC));
         var warm = temp > 0 && smooth >= _trigger - 5;
         var deepCool = smooth > 0 && smooth < _trigger - 10; // clearly cool: the chip has room, so heat-related holds no longer apply
         if (hot)
@@ -194,7 +200,7 @@ public sealed class AutoTdpGovernor
             _healthySince = null;
             if (severe && smooth < _trigger + 2 && temp < _trigger + CollapseHeatC)
                 return Note($"{smooth:0} °C but FPS is only {s.Fps:0}: not cutting power further, that would only make it worse");
-            if (severe && Current > _min)
+            if (collapsing && Current > _min)
             {
                 // FPS has collapsed (about 34) while the chip is 2 °C+ over the trigger. In the logs this state ends only when the chip
                 // cools below about 80 °C, and cutting is what cools it: 5 W every 12 s took 20 s+; cut harder and sooner, then let it climb back.
@@ -263,7 +269,7 @@ public sealed class AutoTdpGovernor
         {
             _healthySince = null;
             if ((s.ThermalHold && !deepCool) || (warm && !severe)) return Note("dipping, but it's warm: not adding power");
-            if (warm && temp >= _trigger + CollapseHeatC) return Note($"FPS fell to {s.Fps:0} with the chip at {temp:0} °C: that's heat, not a power shortage, so no extra power");
+            if (warm && temp >= _trigger - CollapseWarmMarginC && collapsing) return Note($"FPS fell to {s.Fps:0} with the chip at {temp:0} °C: that's heat, not a power shortage, so no extra power");
             if (!binding)
             {
                 var cap = Math.Min(_max, ceiling);
