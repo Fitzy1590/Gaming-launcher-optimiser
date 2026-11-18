@@ -293,6 +293,21 @@
                             <DataTemplate><TextBlock Text="{Binding}" Margin="0,0,0,2" /></DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <DockPanel Margin="0,12,0,4">
+                        <Button DockPanel.Dock="Right" Content="Check for double inputs" Style="{StaticResource GhostButton}" Command="{Binding CheckDoubleInputsCommand}" />
+                        <TextBlock Text="{Binding InputCheckSummary}" Style="{StaticResource Wrap}" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding InputFindings}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Margin="0,4,0,4">
+                                    <TextBlock FontWeight="SemiBold" Foreground="{StaticResource Text}"><Run Text="{Binding SeverityLabel, Mode=OneWay}" /><Run Text=": " /><Run Text="{Binding Title, Mode=OneWay}" /></TextBlock>
+                                    <TextBlock Text="{Binding Detail}" Style="{StaticResource Wrap}" FontSize="12" />
+                                    <Button Content="{Binding FixLabel}" Command="{Binding FixCommand}" HorizontalAlignment="Left" Margin="0,4,0,0" Visibility="{Binding HasFix, Converter={StaticResource Vis}}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                     <TextBlock Text="{Binding DriverText}" Style="{StaticResource Wrap}" Margin="0,12,0,0" />
                     <StackPanel Orientation="Horizontal" Margin="0,8,0,0" Visibility="{Binding DriversReady, Converter={StaticResource NotVis}}">
                         <Button Content="Get ViGEmBus" Command="{Binding GetViGEmCommand}" />

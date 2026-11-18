@@ -62,6 +62,19 @@ public static class ControllerDevices
         return list;
     }
 
+    /// <summary>Names of the running processes (no .exe), for spotting tools that add a second virtual controller.</summary>
+    public static List<string> RunningProcessNames()
+    {
+        var names = new List<string>();
+        try
+        {
+            foreach (var p in System.Diagnostics.Process.GetProcesses())
+                using (p) names.Add(p.ProcessName);
+        }
+        catch (Exception e) when (e is InvalidOperationException or System.ComponentModel.Win32Exception) { }
+        return names;
+    }
+
     /// <summary>Names of game controllers Windows knows about, including PlayStation/Switch pads (not XInput).</summary>
     public static List<string> DeviceNames()
     {

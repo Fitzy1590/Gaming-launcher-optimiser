@@ -13,7 +13,7 @@ UI is WPF only (no WinUI). The app manifest is `requireAdministrator`.
 
 **Shipped this stretch (v0.3.49 → v0.3.67)**
 - Auto TDP: now starts and says why when it can't; RyzenAdj single run per change with a real 5 s timeout; tuned from five real Witcher 3 logs (see decisions).
-- Controller menus: `Core/Input/PressFilter` (80 ms release grace + D-pad diagonal settle). User has not confirmed the double inputs are gone.
+- Controller menus: `Core/Input/PressFilter` (80 ms release grace + D-pad diagonal settle). User has not confirmed the double inputs are gone. Double D-pad in the virtualised game list fixed (selection change now counts as a move). Settings → Controllers → "Check for double inputs" (`Core/Input/DoubleInputCheck`, tested) diagnoses settings/drivers/pads/running tools and offers fixes; bumper double cause still unconfirmed on device.
 - Stutter detective 2 (drive / power-change evidence, one-click fixes). Emulation Hub E0-E9 mostly built (§4). Console games hidden from the Library tab.
 
 **Technical decisions (keep unless a log says otherwise)**

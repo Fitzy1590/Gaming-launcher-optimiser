@@ -241,8 +241,56 @@ public sealed partial class ControllersViewModel : ObservableObject
               "They add a virtual controller and hide the real one from the game (the same drivers Handheld Companion and DS4Windows use). Menu navigation works without them.";
     }
 
+    // ---- Double-input check: looks at settings, drivers, pads and running tools, then offers fixes.
+    public ObservableCollection<InputFindingRow> InputFindings { get; } = [];
+    [ObservableProperty] private string _inputCheckSummary = "";
+
+    [RelayCommand]
+    public async Task CheckDoubleInputsAsync()
+    {
+        InputCheckSummary = "Checking…";
+        var (pads, vigem, hid, names) = await Task.Run(() => (ControllerDevices.XInputPads(), ControllerDevices.ViGEmInstalled(), ControllerDevices.HidHideInstalled(), ControllerDevices.RunningProcessNames()));
+        FitzLauncher.Windows.PlayStationPads.Shared.Start();
+        await Task.Delay(400);
+        var sony = FitzLauncher.Windows.PlayStationPads.Shared.Connected.Count;
+        FitzLauncher.Windows.PlayStationPads.Shared.Stop();
+        var facts = new InputCheckFacts(_s.Settings.GamepadNavigation, _s.Settings.PsButtonOpensConsole, _s.Settings.ConsolePadMirror,
+            _s.Settings.DefaultController.Enabled, vigem, hid, pads.Count, sony, DoubleInputCheck.MatchTools(names));
+        var found = DoubleInputCheck.Evaluate(facts);
+        InputFindings.Clear();
+        foreach (var f in found) InputFindings.Add(new InputFindingRow(f, this));
+        var fixable = found.Count(f => f.Fix != InputFix.None);
+        InputCheckSummary = found.Any(f => f.Severity is InputSeverity.Problem or InputSeverity.Warning)
+            ? $"Found {found.Count(f => f.Severity is InputSeverity.Problem or InputSeverity.Warning)} thing(s) that can double a press" + (fixable > 0 ? $"; {fixable} can be fixed here." : ".")
+            : "No settings problem found.";
+    }
+
+    public async Task ApplyFixAsync(InputFinding f)
+    {
+        switch (f.Fix)
+        {
+            case InputFix.TurnOffConsoleMirror: ConsolePadMirror = false; break;
+            case InputFix.TurnOnControllerSettings: Default.Enabled = true; break;
+            default: return;
+        }
+        await CheckDoubleInputsAsync();
+        InputCheckSummary = "Fixed. " + InputCheckSummary + " You can turn it back on in the settings above.";
+    }
+
     [RelayCommand] private static void GetViGEm() => ModsViewModel.Open("https://github.com/nefarius/ViGEmBus/releases");
     [RelayCommand] private static void GetHidHide() => ModsViewModel.Open("https://github.com/nefarius/HidHide/releases");
+}
+
+/// <summary>One result of the double-input check, with a fix button when the launcher can make the change itself.</summary>
+public sealed partial class InputFindingRow(InputFinding item, ControllersViewModel owner) : ObservableObject
+{
+    public InputFinding Item { get; } = item;
+    public string Title => Item.Title;
+    public string Detail => Item.Detail;
+    public string SeverityLabel => Item.Severity switch { InputSeverity.Ok => "OK", InputSeverity.Problem => "Problem", InputSeverity.Warning => "Warning", _ => "Note" };
+    public bool HasFix => Item.Fix != InputFix.None;
+    public string FixLabel => Item.FixLabel;
+    [RelayCommand] private Task FixAsync() => owner.ApplyFixAsync(Item);
 }
 
 /// <summary>One "PS + button" row in Settings → Controllers.</summary>
