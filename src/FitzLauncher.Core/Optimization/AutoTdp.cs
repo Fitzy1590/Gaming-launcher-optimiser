@@ -70,6 +70,11 @@ public sealed class AutoTdpGovernor
     // tried at 85 and 87 °C bought nothing and 30 FPS lasted 20-40 s. So within CollapseWarmMarginC of the trigger a collapse is heat: no extra
     // power, and a 1% low under CollapseLowFraction of the target (the average lags it by 6-10 s) already counts as the start of the collapse.
     private const double CollapseWarmMarginC = 2, CollapseLowFraction = 0.45;
+    // A draw that fell under this share of the last minute's peak while the average still holds the target is a load or a transition, not an
+    // under-reporting sensor: no test raise. From a real log: 57 → 23 W during a load, "tested" +5 W, taken back 8 s later as hitching.
+    private const double DrawCollapseFraction = 0.60;
+    // The limit is clearly not what the game uses (draw at least this far under it for the last minute): steps down are 3 W / 25 s, not 2 W / 40 s.
+    private const int UnusedHeadroomW = 3;
     private static readonly TimeSpan HitchMemory = TimeSpan.FromMinutes(10);
     private DateTime _hitchProvenAt = DateTime.MinValue;
     // A raise for a 1% low dip with the average already on the target is judged 6 s later, by which time a hitch has usually passed by itself,
@@ -280,6 +285,8 @@ public sealed class AutoTdpGovernor
             if (!binding)
             {
                 var cap = Math.Min(_max, ceiling);
+                if (!_simulated && s.Fps >= _target * HitchAvg && peak60 is { } recentPeak && s.DrawnWatts is { } dropped && dropped < recentPeak * DrawCollapseFraction)
+                    return Note($"dipping while the game's draw fell to {dropped:0} W (a load or transition): not adding power");
                 if (!_simulated && Current < cap)
                 {
                     // The reading says the limit isn't what's holding it back, yet frames are short. Readings can under-report,
@@ -334,7 +341,8 @@ public sealed class AutoTdpGovernor
         // 2. Then creep down while the target is held with room to spare.
         // The further above the target, the bigger and quicker the steps down (3 W / 25 s at 10 %+ over, 2 W / 30 s at 5 %+, else 2 W / 40 s).
         var over = s.Fps / _target;
-        var (step, wait) = over >= 1.10 ? (3, 25) : over >= 1.05 ? (2, 30) : (2, 40);
+        var unused = !_drawUntrusted && peak60 is { } pk && s.DrawnWatts is not null && Current - pk >= UnusedHeadroomW && over >= HitchAvg;
+        var (step, wait) = over >= 1.10 || unused ? (3, 25) : over >= 1.05 ? (2, 30) : (2, 40);
         if (held >= wait && (now - _lastChange).TotalSeconds >= wait)
         {
             var lower = Math.Max(lowest, Current - step);

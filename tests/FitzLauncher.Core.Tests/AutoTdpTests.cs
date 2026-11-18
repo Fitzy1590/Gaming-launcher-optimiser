@@ -65,6 +65,30 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void DoesNotProbeForPowerWhenTheDrawJustCollapsedDuringALoad()
+    {
+        // From a real session log (Witcher 3, 100 FPS cap): the chip drew 57, 50 W, then 23 W for a loading transition; the 1% low was 86 with the
+        // average on the cap. It "tested" +5 W because 23 of 53 W looked like an under-reporting sensor, then took it back 8 s later as hitching.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 53);
+        g.Update(new AutoTdpSample(610, 100, 91.0, 57.3, 78), T0);
+        g.Update(new AutoTdpSample(602, 100, 91.6, 50.0, 79), T0.AddSeconds(2));
+        var d = g.Update(new AutoTdpSample(593, 100, 86.5, 22.8, 68), T0.AddSeconds(4));
+        Assert.Equal(53, g.Current);
+        Assert.Null(d?.Watts);
+    }
+
+    [Fact]
+    public void StepsDownFasterWhenTheGameDrawsClearlyUnderTheLimit()
+    {
+        // The game draws 49.5 W under a 53 W limit (3.5 W gap: too small for the snap-to-draw rule) with the cap held and room to spare.
+        // 2 W per 40 s took minutes to find the level; 3 W per 25 s while the limit is clearly not what the game uses.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 53);
+        for (double t = 0; t <= 30; t += 2) g.Update(new AutoTdpSample(600, 100, 96, 49.5, 70), T0.AddSeconds(t));
+        Assert.True(g.Current <= 50, $"still at {g.Current} W after 30 s");
+        Assert.True(g.Current >= 50, $"went under what the game draws: {g.Current} W");
+    }
+
+    [Fact]
     public void SettlesJustAboveWhatTheGameNeedsWithAFewShortDips()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 45);
@@ -443,7 +467,8 @@ public class AutoTdpTests
         // average still 100. It cut only 3 W; FPS was 30 by 96 s, and the chip reached 94 °C before the limit got to 41 W.
         var g = new AutoTdpGovernor(100, 25, 60, startWatts: 60, thermalTriggerC: 85);
         (int t, double temp)[] warmUp = [(62, 68), (64, 68), (66, 68), (68, 68), (70, 68), (72, 67), (74, 83), (76, 86), (78, 87), (80, 87), (82, 87), (84, 88), (86, 88), (88, 88)];
-        foreach (var (t, temp) in warmUp) g.Update(new AutoTdpSample(600, 100, 100, 52, TempC: temp), T0.AddSeconds(t));
+        // Draw 58 W (the log read 52 W): keeps this about the heat cut; the faster unused-headroom step-down would otherwise land a 3 W step at 87 s, inside the 5 s spacing before the cut.
+        foreach (var (t, temp) in warmUp) g.Update(new AutoTdpSample(600, 100, 100, 58, TempC: temp), T0.AddSeconds(t));
         var before = g.Current;
         g.Update(new AutoTdpSample(600, 100, 29.2, 52.7, TempC: 89), T0.AddSeconds(90));
         Assert.True(before - g.Current >= 8, $"only cut {before - g.Current} W when the 1% low collapsed at 89 °C");

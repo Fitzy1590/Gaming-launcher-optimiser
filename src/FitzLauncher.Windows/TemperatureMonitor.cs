@@ -3,7 +3,7 @@ using LibreHardwareMonitor.Hardware;
 namespace FitzLauncher.Windows;
 
 public readonly record struct SensorReading(
-    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName, double? CpuPowerW = null)
+    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName, double? CpuPowerW = null, double? CpuClockMhz = null, double? GpuClockMhz = null)
 {
     /// <summary>Best "how much power is the chip drawing" figure: CPU package (the whole APU on handhelds), else GPU.</summary>
     public double? Watts => CpuPowerW ?? GpuPowerW;
@@ -35,24 +35,24 @@ public sealed class TemperatureMonitor : IDisposable
             var ab = PreferAfterburner() ? AfterburnerReader.TryRead() : null;
             double? cpuT = ab?.CpuTempC, gpuT = ab?.GpuTempC, hot = ab?.GpuHotspotC, cpuL = ab?.CpuLoad, gpuL = ab?.GpuLoad, power = ab?.GpuPowerW;
             string? cpuName = null, gpuName = null;
-            double? cpuPower = null;
+            double? cpuPower = null, cpuClock = null, gpuClock = null;
 
             if (gpuT is null)
             {
                 var g = ReadLhm(ref _gpu, ref _gpuFailed, gpu: true);
-                gpuT = g.GpuTempC; hot = g.GpuHotspotC; gpuL ??= g.GpuLoad; power ??= g.GpuPowerW; gpuName = g.GpuName;
+                gpuT = g.GpuTempC; hot = g.GpuHotspotC; gpuL ??= g.GpuLoad; power ??= g.GpuPowerW; gpuName = g.GpuName; gpuClock = g.GpuClockMhz;
             }
             if (cpuT is null)
             {
                 var c = ReadLhm(ref _cpu, ref _cpuFailed, gpu: false);
-                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW;
+                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW; cpuClock = c.CpuClockMhz;
             }
 
             CpuTemperatureAvailable = cpuT is > 0;
             Source = ab is null ? "LibreHardwareMonitor"
                    : ab.Value.CpuTempC is null ? "MSI Afterburner (GPU) + LibreHardwareMonitor (CPU)"
                    : "MSI Afterburner";
-            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName, cpuPower);
+            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName, cpuPower, cpuClock, gpuClock);
         }
     }
 
@@ -67,7 +67,7 @@ public sealed class TemperatureMonitor : IDisposable
             computer = c;
         }
 
-        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null, cpuPower = null;
+        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null, cpuPower = null, cpuClock = null, gpuClock = null;
         string? cpuName = null, gpuName = null;
         foreach (var hw in computer.Hardware)
         {
@@ -82,6 +82,9 @@ public sealed class TemperatureMonitor : IDisposable
                             Max(hw, SensorType.Temperature);
                 cpuLoad ??= Sensor(hw, SensorType.Load, "CPU Total");
                 cpuPower ??= Sensor(hw, SensorType.Power, "Package") ?? Sensor(hw, SensorType.Power, "CPU Package");
+                // Average core clock, for the Auto TDP log: tells a throttled chip from a stalled game.
+                var clocks = hw.Sensors.Where(x => x.SensorType == SensorType.Clock && x.Name.StartsWith("Core #", StringComparison.OrdinalIgnoreCase) && x.Value is > 0).Select(x => (double)x.Value!.Value).ToList();
+                cpuClock ??= clocks.Count > 0 ? clocks.Average() : null;
             }
             else if (hw.HardwareType.ToString().StartsWith("Gpu", StringComparison.Ordinal))
             {
@@ -93,9 +96,10 @@ public sealed class TemperatureMonitor : IDisposable
                 gpuTemp = Sensor(hw, SensorType.Temperature, "GPU Core") ?? Max(hw, SensorType.Temperature);
                 hotspot = Sensor(hw, SensorType.Temperature, "GPU Hot Spot");
                 gpuPower = Sensor(hw, SensorType.Power, "GPU Package") ?? Sensor(hw, SensorType.Power, "GPU Power");
+                gpuClock = Sensor(hw, SensorType.Clock, "GPU Core");
             }
         }
-        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName, cpuPower);
+        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName, cpuPower, cpuClock, gpuClock);
     }
 
     private static double? Sensor(IHardware hw, SensorType type, string name)

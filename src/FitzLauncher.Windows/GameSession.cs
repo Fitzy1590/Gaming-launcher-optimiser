@@ -354,12 +354,12 @@ public sealed class GameSession(
             var safe = string.Concat(game.Name.Where(c => char.IsLetterOrDigit(c) || c == ' ')).Trim().Replace(' ', '-');
             _autoCsv = new StreamWriter(Path.Combine(dir, $"{safe}-{DateTime.Now:yyyyMMdd-HHmm}.csv")) { AutoFlush = true };
             _autoCsv.WriteLine($"# {game.Name}, target {AutoTdpTarget} FPS, {(_autoSimulated ? "observe" : "on")}, range {AutoTdpMinWatts}-{AutoTdpMaxWatts} W");
-            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note,target_fps,cap_fps,cpu_c,gpu_c,cpu_w");
+            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note,target_fps,cap_fps,cpu_c,gpu_c,cpu_w,cpu_load,gpu_load,gpu_hotspot_c,gpu_w,cpu_mhz,gpu_mhz");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { _autoCsv = null; }
     }
 
-    private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d, int target, int? cap, double? cpuC = null, double? gpuC = null, double? watts = null)
+    private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d, int target, int? cap, double? cpuC = null, double? gpuC = null, double? watts = null, SensorReading? extra = null)
     {
         try
         {
@@ -368,7 +368,11 @@ public sealed class GameSession(
                 s.DrawnWatts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", s.TempC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
                 s.ThermalHold ? 1 : 0, d?.Watts?.ToString() ?? "", d is null ? "" : "\"" + d.Reason.Replace("\"", "'") + "\"", target, cap?.ToString() ?? "",
                 cpuC?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", gpuC?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                watts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? ""));
+                watts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                // Appended at the end so older logs still parse. Blank when the sensor source doesn't give it.
+                extra?.CpuLoad?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuLoad?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                extra?.GpuHotspotC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuPowerW?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                extra?.CpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? ""));
         }
         catch (IOException) { _autoCsv = null; }
     }
@@ -832,7 +836,7 @@ public sealed class GameSession(
                     var before = ag.Current;
                     if ((currentGuard?.CurrentCap ?? Cap) is { } heldTo and > 0) ag.SetTarget(heldTo); // the target it's holding right now
                     var decision = ag.Update(sample, DateTime.UtcNow);
-                    WriteAutoCsv(start, before, sample, decision, ag.Target, currentGuard?.CurrentCap ?? Cap, r.CpuTempC, r.GpuTempC, r.Watts);
+                    WriteAutoCsv(start, before, sample, decision, ag.Target, currentGuard?.CurrentCap ?? Cap, r.CpuTempC, r.GpuTempC, r.Watts, r);
                     if (decision is { } dec)
                     {
                         Trace?.Invoke("Auto TDP" + (_autoSimulated ? " (observing, not applied)" : "") + ": " + dec.Reason);
