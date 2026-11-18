@@ -82,6 +82,11 @@ public sealed class AutoTdpGovernor
     private static readonly TimeSpan JudgeAfter = TimeSpan.FromSeconds(6);
     /// <summary>Raises made for a 1% low dip at the target: when to start and stop judging, where they started, where they got to, and the dip they were for.</summary>
     private (DateTime from, DateTime until, int prev, int raisedTo, double low)? _hitchWatch;
+    // A hitch raise starts from an average sitting on the cap, which can never "improve", and a heavier scene arriving with the raise pulls the average
+    // under it. So the judge compares with the lowest average seen since the raise: rising from there means the watts are working.
+    // From a real log: 44 → 51 W for a 1% low of 56 at the 100 FPS cap; the average then went 95, 91, 92, 96 (a heavier scene), was called "no
+    // improvement" against the capped 100, went back to 44 W and ran 80-88 FPS for 40 s until two raises took it to 60 W.
+    private double _gainWorstFps = double.MaxValue;
 
     private int _target;
     private readonly int _min, _max;
@@ -205,7 +210,7 @@ public sealed class AutoTdpGovernor
                 // FPS has collapsed (about 34) while the chip is 2 °C+ over the trigger. In the logs this state ends only when the chip
                 // cools below about 80 °C, and cutting is what cools it: 5 W every 12 s took 20 s+; cut harder and sooner, then let it climb back.
                 if ((now - _lastChange).TotalSeconds < 5) return null;
-                return Change(Math.Max(_min, Current - 8), now, raised: false, $"FPS collapsed to {s.Fps:0} at {smooth:0} °C: cutting hard to cool it, power comes back as soon as it is cooler");
+                return Change(Math.Max(_min, Current - 8), now, raised: false, $"{(severe ? "FPS" : "1% low")} collapsed to {(severe ? s.Fps : s.LowFps):0} at {smooth:0} °C: cutting hard to cool it, power comes back as soon as it is cooler");
             }
             if (Current > _min)
             {
@@ -236,10 +241,12 @@ public sealed class AutoTdpGovernor
 
         // Did the last raise actually help? Judged on the average OR the 1% low: the average over the last few seconds can still
         // hold menu or loading frames from before the raise, which made a real improvement look like a loss.
+        if (_gain is { } gw && now < gw.at) _gainWorstFps = Math.Min(_gainWorstFps, s.Fps);
         if (_gain is { } g && now >= g.at)
         {
             _gain = null;
-            var helped = s.Fps >= g.fps * 1.02 || s.LowFps >= g.low * 1.03;
+            var recovering = g.fps >= _target * HitchAvg && _gainWorstFps < _target * AvgFloor && s.Fps > _gainWorstFps;
+            var helped = s.Fps >= g.fps * 1.02 || s.LowFps >= g.low * 1.03 || recovering;
             if (distress && !helped)
             {
                 if (s.Fps >= _target * HitchAvg) _hitchProvenAt = now; // on target and more watts changed nothing: the 1% low is hitching, not a power shortage
@@ -388,7 +395,7 @@ public sealed class AutoTdpGovernor
             _needLevel = watts; _needAt = now;
             _floor = watts; _floorDecayAt = now.AddSeconds(20);
             _healthySince = null;
-            if (!_simulated) _gain = (now + JudgeAfter, fpsBefore, lowBefore, prev, probe);
+            if (!_simulated) { _gain = (now + JudgeAfter, fpsBefore, lowBefore, prev, probe); _gainWorstFps = double.MaxValue; }
             // Only the 1% low was short (the average is on the target): watch for the same dip coming back. Raises in a row for it keep the
             // level they started from and the deepest dip, so all of them go back together.
             if (!_simulated && fpsBefore >= _target * HitchAvg)

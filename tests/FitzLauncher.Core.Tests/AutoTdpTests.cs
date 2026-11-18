@@ -47,6 +47,24 @@ public class AutoTdpTests
     }
 
     [Fact]
+    public void HitchRaiseIsNotUndoneWhenTheAverageFellAfterItAndIsRecovering()
+    {
+        // From a real session log (Witcher 3, 100 FPS cap): at 44 W the average sat on the cap with a 1% low of 56, so it raised +8 W. A heavier
+        // scene arrived at the same moment: average 95, 91, 92, then 96.5 as the extra watts took hold. The judge compared 96.5 with the capped
+        // 100 from before the raise (an average on the cap can never "improve"), called it a loss, went back to 44 W, and the game then ran at
+        // 80-88 FPS for 40 s until two more raises took it to 60 W.
+        var g = new AutoTdpGovernor(100, 25, 51, startWatts: 44); // 51 W: the ceiling the log had after an earlier heat episode
+        g.Update(new AutoTdpSample(600, 100.0, 55.9, 43.9, 76), T0);
+        Assert.True(g.Current > 44, "the 1% low dip should have raised the limit");
+        var raised = g.Current;
+        double[] avg = [94.9, 90.6, 91.9, 96.5, 97.0, 97.5];
+        double[] low = [29.3, 24.7, 56.1, 45.9, 50.0, 55.0];
+        for (var i = 0; i < avg.Length; i++)
+            g.Update(new AutoTdpSample(550, avg[i], low[i], g.Current, 77), T0.AddSeconds(2 * (i + 1)));
+        Assert.True(g.Current >= raised, $"went back to {g.Current} W while the average was recovering at {raised} W");
+    }
+
+    [Fact]
     public void SettlesJustAboveWhatTheGameNeedsWithAFewShortDips()
     {
         var g = new AutoTdpGovernor(Target, 25, 60, startWatts: 45);
