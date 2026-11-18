@@ -20,6 +20,8 @@ public sealed class ThermalGovernor
     private DateTime _episodeStart;
     private double _episodeTemp;
     private bool _futile;
+    /// <summary>The chip cooled while capped (the cap works), so the next heat-up is judged from its own start, not the old episode's.</summary>
+    private bool _reanchor;
 
     /// <param name="triggerC">Temperature that starts the guard (the setting, lowered by cooler modes).</param>
     public ThermalGovernor(int originalCap, ThermalGuardOptions options, double triggerC)
@@ -51,6 +53,9 @@ public sealed class ThermalGovernor
         {
             _coolSince = null;
             _hotSince ??= now;
+            // From a real log: capped at 94 °C, it cooled to 72-80 °C, re-heated to 95 °C, and was then called futile against the OLD
+            // starting temperature: the cap went back to 100 at 95 °C and the device froze. A cooled cap has proved itself, so start the test afresh.
+            if (_reanchor && _index > 0) { _episodeStart = now; _episodeTemp = temp; _reanchor = false; }
             // Capped for a fair while (three step intervals) and it's no cooler than when it started: the frame rate isn't
             // where the heat comes from. Put the cap back and stop asking, until it has cooled down.
             if (_index > 0 && !_futile && (now - _episodeStart).TotalSeconds >= 3 * _o.StepDownAfterSeconds && temp > _episodeTemp - 1.5)
@@ -70,7 +75,7 @@ public sealed class ThermalGovernor
         }
 
         _hotSince = null;
-        if (cool) _futile = false;
+        if (cool) { _futile = false; _reanchor = _index > 0; }
         if (!cool || _index == 0) { _coolSince = null; return null; } // levelling out: hold
         _coolSince ??= now;
         // Well below the release point (8 °C+): the chip is clearly fine, so give each step back after 15 s instead of 45 s.

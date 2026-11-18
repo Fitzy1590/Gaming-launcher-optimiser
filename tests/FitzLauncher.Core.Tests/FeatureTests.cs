@@ -614,6 +614,24 @@ public class ThermalGuardFutilityTests
     }
 
     [Fact]
+    public void ACapThatCooledTheChipIsNotJudgedFutileWhenItWarmsUpAgain()
+    {
+        // From a real Witcher 3 log: capped at 94 °C, the chip cooled to 72-80 °C (so the cap worked), then re-heated to 93-95 °C; the guard compared
+        // that with the temperature at the START of the episode, called the cap futile and put it back to 100 at 95 °C. Freeze and shutdown followed.
+        var g = new ThermalGovernor(100, O, 90);
+        var t = new DateTime(2026, 1, 1);
+        for (var sec = 0; sec < 45; sec++) g.Update(94, 70, t.AddSeconds(sec));      // hot: steps the cap down
+        Assert.True(g.IsThrottling);
+        for (var sec = 45; sec < 65; sec++) g.Update(78, 70, t.AddSeconds(sec));     // cooled under the cap, not yet long enough to recover
+        Assert.True(g.IsThrottling);
+        for (var sec = 65; sec < 100; sec++)
+        {
+            g.Update(95, 70, t.AddSeconds(sec));                                     // re-heats to 95 °C
+            Assert.True(g.IsThrottling, $"cap was put back at {sec} s while the chip was at 95 °C");
+        }
+    }
+
+    [Fact]
     public void KeepsSteppingWhileTheCapIsActuallyCooling()
     {
         var g = new ThermalGovernor(117, O, 90);
