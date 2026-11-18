@@ -118,9 +118,13 @@ public sealed class GamepadNavigator : IDisposable
         var before = Keyboard.FocusedElement;
         if (focused is ListBoxItem or TreeViewItem)
         {
-            // Let the list move within itself first (grids of game tiles wrap properly this way).
+            // Let the list move within itself first (grids of game tiles wrap properly this way). A virtualised list
+            // moves the selection at once but focuses a row that isn't drawn yet a moment later, so focus alone can't
+            // tell whether it moved; without the selection check the press went on to move focus a second time.
+            var list = Ancestor<Selector>(focused);
+            var selectedBefore = list?.SelectedIndex;
             Send(w, key);
-            if (!ReferenceEquals(Keyboard.FocusedElement, before)) { BringIntoView(); return; }
+            if (!ReferenceEquals(Keyboard.FocusedElement, before) || (list is not null && list.SelectedIndex != selectedBefore)) { BringIntoView(); return; }
         }
         if (focused is UIElement el && el.MoveFocus(new TraversalRequest(dir)) && !ReferenceEquals(Keyboard.FocusedElement, before))
         {
