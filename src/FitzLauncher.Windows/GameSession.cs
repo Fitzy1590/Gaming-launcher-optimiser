@@ -353,16 +353,22 @@ public sealed class GameSession(
             foreach (var old in Directory.EnumerateFiles(dir, "*.csv").Where(f => File.GetLastWriteTimeUtc(f) < DateTime.UtcNow.AddDays(-14))) File.Delete(old);
             var safe = string.Concat(game.Name.Where(c => char.IsLetterOrDigit(c) || c == ' ')).Trim().Replace(' ', '-');
             _autoCsv = new StreamWriter(Path.Combine(dir, $"{safe}-{DateTime.Now:yyyyMMdd-HHmm}.csv")) { AutoFlush = true };
+            _autoCsvLastRow = null;
             _autoCsv.WriteLine($"# {game.Name}, target {AutoTdpTarget} FPS, {(_autoSimulated ? "observe" : "on")}, range {AutoTdpMinWatts}-{AutoTdpMaxWatts} W");
-            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note,target_fps,cap_fps,cpu_c,gpu_c,cpu_w,cpu_load,gpu_load,gpu_hotspot_c,gpu_w,cpu_mhz,gpu_mhz");
+            _autoCsv.WriteLine("seconds,limit_w,frames,fps,low1_fps,drawn_w,temp_c,thermal_hold,new_limit_w,note,target_fps,cap_fps,cpu_c,gpu_c,cpu_w,cpu_load,gpu_load,gpu_hotspot_c,gpu_w,cpu_mhz,gpu_mhz,fan_rpm,gap_s");
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { _autoCsv = null; }
     }
+
+    /// <summary>When the last CSV row was written: a long gap between rows means the whole system stalled (a freeze), which the sensor columns can't show.</summary>
+    private DateTimeOffset? _autoCsvLastRow;
 
     private void WriteAutoCsv(DateTimeOffset start, int limit, AutoTdpSample s, AutoTdpDecision? d, int target, int? cap, double? cpuC = null, double? gpuC = null, double? watts = null, SensorReading? extra = null)
     {
         try
         {
+            var gap = _autoCsvLastRow is { } prevRow ? (DateTimeOffset.Now - prevRow).TotalSeconds : 0;
+            _autoCsvLastRow = DateTimeOffset.Now;
             _autoCsv?.WriteLine(string.Join(',', ((DateTimeOffset.Now - start).TotalSeconds).ToString("0", System.Globalization.CultureInfo.InvariantCulture), limit, s.Frames,
                 s.Fps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture), s.LowFps.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
                 s.DrawnWatts?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "", s.TempC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
@@ -372,7 +378,8 @@ public sealed class GameSession(
                 // Appended at the end so older logs still parse. Blank when the sensor source doesn't give it.
                 extra?.CpuLoad?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuLoad?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
                 extra?.GpuHotspotC?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuPowerW?.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
-                extra?.CpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? ""));
+                extra?.CpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", extra?.GpuClockMhz?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "",
+                extra?.FanRpm?.ToString("0", System.Globalization.CultureInfo.InvariantCulture) ?? "", gap.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
         }
         catch (IOException) { _autoCsv = null; }
     }

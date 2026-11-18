@@ -3,7 +3,7 @@ using LibreHardwareMonitor.Hardware;
 namespace FitzLauncher.Windows;
 
 public readonly record struct SensorReading(
-    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName, double? CpuPowerW = null, double? CpuClockMhz = null, double? GpuClockMhz = null)
+    double? CpuTempC, double? GpuTempC, double? GpuHotspotC, double? CpuLoad, double? GpuLoad, double? GpuPowerW, string? CpuName, string? GpuName, double? CpuPowerW = null, double? CpuClockMhz = null, double? GpuClockMhz = null, double? FanRpm = null)
 {
     /// <summary>Best "how much power is the chip drawing" figure: CPU package (the whole APU on handhelds), else GPU.</summary>
     public double? Watts => CpuPowerW ?? GpuPowerW;
@@ -35,7 +35,7 @@ public sealed class TemperatureMonitor : IDisposable
             var ab = PreferAfterburner() ? AfterburnerReader.TryRead() : null;
             double? cpuT = ab?.CpuTempC, gpuT = ab?.GpuTempC, hot = ab?.GpuHotspotC, cpuL = ab?.CpuLoad, gpuL = ab?.GpuLoad, power = ab?.GpuPowerW;
             string? cpuName = null, gpuName = null;
-            double? cpuPower = null, cpuClock = null, gpuClock = null;
+            double? cpuPower = null, cpuClock = null, gpuClock = null, fan = null;
 
             if (gpuT is null)
             {
@@ -45,14 +45,14 @@ public sealed class TemperatureMonitor : IDisposable
             if (cpuT is null)
             {
                 var c = ReadLhm(ref _cpu, ref _cpuFailed, gpu: false);
-                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW; cpuClock = c.CpuClockMhz;
+                cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW; cpuClock = c.CpuClockMhz; fan = c.FanRpm;
             }
 
             CpuTemperatureAvailable = cpuT is > 0;
             Source = ab is null ? "LibreHardwareMonitor"
                    : ab.Value.CpuTempC is null ? "MSI Afterburner (GPU) + LibreHardwareMonitor (CPU)"
                    : "MSI Afterburner";
-            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName, cpuPower, cpuClock, gpuClock);
+            return new SensorReading(cpuT is > 0 ? cpuT : null, gpuT, hot, cpuL, gpuL, power, cpuName, gpuName, cpuPower, cpuClock, gpuClock, fan);
         }
     }
 
@@ -61,13 +61,13 @@ public sealed class TemperatureMonitor : IDisposable
         if (failed) return default;
         if (computer is null)
         {
-            var c = new Computer { IsCpuEnabled = !gpu, IsGpuEnabled = gpu };
+            var c = new Computer { IsCpuEnabled = !gpu, IsGpuEnabled = gpu, IsMotherboardEnabled = !gpu }; // motherboard = Super I/O fan speeds, read only; unverified on handhelds
             try { c.Open(); }
             catch (Exception) { failed = true; return default; } // driver blocked / not admin
             computer = c;
         }
 
-        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null, cpuPower = null, cpuClock = null, gpuClock = null;
+        double? cpuTemp = null, gpuTemp = null, hotspot = null, cpuLoad = null, gpuLoad = null, gpuPower = null, cpuPower = null, cpuClock = null, gpuClock = null, fanRpm = null;
         string? cpuName = null, gpuName = null;
         foreach (var hw in computer.Hardware)
         {
@@ -86,6 +86,15 @@ public sealed class TemperatureMonitor : IDisposable
                 var clocks = hw.Sensors.Where(x => x.SensorType == SensorType.Clock && x.Name.StartsWith("Core #", StringComparison.OrdinalIgnoreCase) && x.Value is > 0).Select(x => (double)x.Value!.Value).ToList();
                 cpuClock ??= clocks.Count > 0 ? clocks.Average() : null;
             }
+            else if (hw.HardwareType == HardwareType.Motherboard)
+            {
+                // Fan speeds sit on the Super I/O chip under the motherboard. For the Auto TDP log: tells a stopped or struggling fan from a hot chip.
+                foreach (var sub in hw.SubHardware)
+                {
+                    try { sub.Update(); } catch (Exception) { continue; }
+                    fanRpm = Max(sub, SensorType.Fan) is { } f && f > (fanRpm ?? 0) ? f : fanRpm;
+                }
+            }
             else if (hw.HardwareType.ToString().StartsWith("Gpu", StringComparison.Ordinal))
             {
                 // Prefer the discrete GPU (the one reporting the higher load) when there are two.
@@ -99,7 +108,7 @@ public sealed class TemperatureMonitor : IDisposable
                 gpuClock = Sensor(hw, SensorType.Clock, "GPU Core");
             }
         }
-        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName, cpuPower, cpuClock, gpuClock);
+        return new SensorReading(cpuTemp, gpuTemp, hotspot, cpuLoad, gpuLoad, gpuPower, cpuName, gpuName, cpuPower, cpuClock, gpuClock, fanRpm);
     }
 
     private static double? Sensor(IHardware hw, SensorType type, string name)

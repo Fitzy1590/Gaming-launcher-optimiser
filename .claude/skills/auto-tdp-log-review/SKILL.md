@@ -22,6 +22,7 @@ The governor is pure logic in `src/FitzLauncher.Core/Optimization/AutoTdp.cs` (`
 | `new_limit_w`, `note` | The decision this tick and its plain-English reason (empty = no change) |
 | `target_fps`, `cap_fps` | Target and the FPS cap being held |
 | `cpu_c`, `gpu_c`, `cpu_w` | Separate sensors |
+| `fan_rpm`, `gap_s` | Fastest fan on the Super I/O chip (blank if none is exposed; unverified on handhelds). Seconds since the previous row: well over the 2 s tick means the whole system stalled |
 
 ## Method
 
