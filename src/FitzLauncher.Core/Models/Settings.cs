@@ -233,6 +233,8 @@ public sealed class GameModeOptions
     public bool StopServices { get; set; } = true;
     public bool CloseBackgroundApps { get; set; } = true;
     public bool RaiseGamePriority { get; set; } = true;
+    /// <summary>Give the game's disk reads top priority over background indexing and downloads. Needs admin; ends with the game.</summary>
+    public bool RaiseIoPriority { get; set; } = true;
     public bool LowerBackgroundPriority { get; set; } = true;
     public bool HighResolutionTimer { get; set; } = true;
     /// <summary>Ask for the 0.5 ms timer on Windows 11 too. Off by default: Windows 11 only gives the benefit to the app that asks, so it may do nothing for the game.</summary>

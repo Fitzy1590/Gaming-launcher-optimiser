@@ -773,6 +773,7 @@ public sealed class GameSession(
                     {
                         var fresh = tracker.Pids.Where(priorityRaised.Add).ToList();
                         if (fresh.Count > 0) GameModeController.RaiseGamePriority(fresh);
+                        if (fresh.Count > 0 && settings.GameMode.RaiseIoPriority) Optimization.ProcessIoPriority.RaiseToHigh(fresh);
                     }
                 }
 

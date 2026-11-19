@@ -164,6 +164,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
         }
 
         if (o.RaiseGamePriority) report.AddRange(RaiseGamePriority(gamePids));
+        if (o.RaiseIoPriority) report.AddRange(Optimization.ProcessIoPriority.RaiseToHigh(gamePids));
 
         if (o.LowerBackgroundPriority)
         {

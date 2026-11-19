@@ -64,6 +64,7 @@
                         <CheckBox Content="Pause Windows Update, background downloads, indexing and telemetry services" IsChecked="{Binding G.StopServices}" />
                         <CheckBox Content="Close updaters and pause sync apps (OneDrive) during play" IsChecked="{Binding G.CloseBackgroundApps}" />
                         <CheckBox Content="Run the game at High priority" IsChecked="{Binding G.RaiseGamePriority}" />
+                        <CheckBox Content="Give the game's disk reads top priority (needs admin; ends when the game closes)" IsChecked="{Binding G.RaiseIoPriority}" />
                         <CheckBox Content="Lower the priority of browsers and other background apps" IsChecked="{Binding G.LowerBackgroundPriority}" />
                         <CheckBox Content="Background CPU limiter: throttle any app that grabs a lot of CPU while you play, until it calms down" IsChecked="{Binding S.BackgroundLimiter}" />
                         <CheckBox Content="Resource guard (off by default): free up GPU, CPU and memory for the game, and keep watching while you play" IsChecked="{Binding S.ResourceGuard.Enabled}" FontWeight="Medium" />

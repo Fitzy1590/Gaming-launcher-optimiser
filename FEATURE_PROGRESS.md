@@ -210,7 +210,9 @@ Read-only audit. Dotnet 10 is present, so build/test run here (desktop-style ses
 - [x] B9 Released: merged to `main` (e9ba710), CI run 84 passed, Release `v0.3.84` published 2026-11-16 07:29 UTC (includes B1-B8)
 - [ ] B7 Device test (Windows, admin): scanner finds apps, direct launch, Lossless Scaling keys, 2x, restore. Release is built but not yet run on a real PC
 
-## 10. Handheld performance suite audit (2026-11-19; awaiting vote A/B; nothing built yet)
+## 10. Handheld performance suite (2026-11-19; **vote A recorded**; spec `SPEC.md` §16)
+- [x] Vote: Option A chosen (`- [x]` Complete Handheld Performance Suite; Option B not chosen)
+- [x] 10.5 `ProcessIoPriority` + `GameModeOptions.RaiseIoPriority`, applied with game priority. Build NOT run (no dotnet SDK in this session); run `dotnet build FitzLauncher.slnx`. Device (admin): read-back shows High. No unit test (pure P/Invoke, no decision logic)
 Read-only audit of the four requested modules. Two are already built, so the real delta is small.
 - **10.1 Standby RAM purge**: built (`Windows/MemoryCleaner.PurgeStandbyList` via `NtSetSystemInformation`, `GameModeController` pre-launch purge and `StandbyListGuard`). Gap: no per-process `EmptyWorkingSet` call.
 - **10.2 Disk I/O priority**: NOT built (no `NtSetInformationProcess` or I/O priority code anywhere). New work.
