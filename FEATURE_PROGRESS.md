@@ -212,7 +212,7 @@ Read-only audit. Dotnet 10 is present, so build/test run here (desktop-style ses
 
 ## 10. Handheld performance suite (2026-11-19; **vote A recorded**; spec `SPEC.md` §16)
 - [x] Vote: Option A chosen (`- [x]` Complete Handheld Performance Suite; Option B not chosen)
-- [x] 10.5 `ProcessIoPriority` + `GameModeOptions.RaiseIoPriority`, applied with game priority. Build NOT run (no dotnet SDK in this session); run `dotnet build FitzLauncher.slnx`. Device (admin): read-back shows High. No unit test (pure P/Invoke, no decision logic)
+- [x] 10.5 `ProcessIoPriority` + `GameModeOptions.RaiseIoPriority`, applied with game priority. Build 0 errors and 599 Core tests pass (Linux cross-compile, 2026-11-19); not run on Windows. Device (admin): read-back shows High. No unit test (pure P/Invoke, no decision logic)
 Read-only audit of the four requested modules. Two are already built, so the real delta is small.
 - **10.1 Standby RAM purge**: built (`Windows/MemoryCleaner.PurgeStandbyList` via `NtSetSystemInformation`, `GameModeController` pre-launch purge and `StandbyListGuard`). Gap: no per-process `EmptyWorkingSet` call.
 - **10.2 Disk I/O priority**: NOT built (no `NtSetInformationProcess` or I/O priority code anywhere). New work.
