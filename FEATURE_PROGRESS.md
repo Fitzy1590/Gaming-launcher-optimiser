@@ -209,3 +209,11 @@ Read-only audit. Dotnet 10 is present, so build/test run here (desktop-style ses
 - [x] B8 Android badge on library rows; Win 11 timer on by default
 - [x] B9 Released: merged to `main` (e9ba710), CI run 84 passed, Release `v0.3.84` published 2026-11-16 07:29 UTC (includes B1-B8)
 - [ ] B7 Device test (Windows, admin): scanner finds apps, direct launch, Lossless Scaling keys, 2x, restore. Release is built but not yet run on a real PC
+
+## 10. Handheld performance suite audit (2026-11-19; awaiting vote A/B; nothing built yet)
+Read-only audit of the four requested modules. Two are already built, so the real delta is small.
+- **10.1 Standby RAM purge**: built (`Windows/MemoryCleaner.PurgeStandbyList` via `NtSetSystemInformation`, `GameModeController` pre-launch purge and `StandbyListGuard`). Gap: no per-process `EmptyWorkingSet` call.
+- **10.2 Disk I/O priority**: NOT built (no `NtSetInformationProcess` or I/O priority code anywhere). New work.
+- **10.3 GPU max performance + HAGS**: partly built (`OptimizationPlanner` writes `GpuPreference=2` per game; `HardwareScanner`/`SystemAdvisor` read HAGS and advise only; SPEC §14 says HAGS is never changed). Gap: no one-click "max performance on game start" wrapper.
+- **10.4 APU RAM safety**: built (`Core/Optimization/ApuMemoryDiagnostic`, `Windows/Optimization/DxgiMemoryProbe`, `AppServices` pre-launch check, SPEC §10.3). Gap: check the warning badge threshold is 4 GB.
+- Not done on purpose: TokenEconomizer install (see chat), service names `MemoryPurgeService`/`ProcessIoPriority`/`GpuPowerOptimizer`/`RamSafetyDiagnostic` will be reused or wrapped, not duplicated.
