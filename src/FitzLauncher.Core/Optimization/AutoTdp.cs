@@ -74,6 +74,10 @@ public sealed class AutoTdpGovernor
     // must show in the 16 s average) and hard cuts wait as long as ordinary heat cuts. From a real log: a 91 °C reading after 76-77 °C cut 58 → 50 W
     // for a hitch at 100 FPS, then 42 → 34 W 10 s after the last cut; FPS really did fall to 29 at 34 W and the climb back took about a minute.
     private const int LowOnlyCutSpacingSeconds = 12;
+    // The 16 s average lags a cool-down: a scene change dropped the CPU from 95 to 75 °C in 4 s, the average still read 88, and the 1% low collapsing
+    // (the limit was now too low for the new scene) was cut as "heat", 8 W more, to 25-29 W. From a real log: three times in 22 minutes.
+    // A reading this far under the trigger is not hot whatever the average says; heat that is still real shows in the next reading.
+    private const double CooledNowMarginC = 7;
     // A draw that fell under this share of the last minute's peak while the average still holds the target is a load or a transition, not an
     // under-reporting sensor: no test raise. From a real log: 57 → 23 W during a load, "tested" +5 W, taken back 8 s later as hitching.
     private const double DrawCollapseFraction = 0.60;
@@ -205,7 +209,8 @@ public sealed class AutoTdpGovernor
         while (_temps.Count > 0 && now - _temps.Peek().at > TimeSpan.FromSeconds(16)) _temps.Dequeue();
         var smooth = _temps.Count > 0 ? _temps.Average(x => x.c) : 0;
         var lowOnlyCollapse = collapsing && !severe && s.Fps >= _target * AvgFloor;
-        var hot = temp > 0 && (smooth >= _trigger || temp >= _trigger + 8 || (collapsing && (lowOnlyCollapse ? smooth : temp) >= _trigger - CollapseWarmMarginC));
+        var cooledNow = temp > 0 && temp < _trigger - CooledNowMarginC;
+        var hot = temp > 0 && !cooledNow && (smooth >= _trigger || temp >= _trigger + 8 || (collapsing && (lowOnlyCollapse ? smooth : temp) >= _trigger - CollapseWarmMarginC));
         var warm = temp > 0 && smooth >= _trigger - 5;
         var deepCool = smooth > 0 && smooth < _trigger - 10; // clearly cool: the chip has room, so heat-related holds no longer apply
         if (hot)

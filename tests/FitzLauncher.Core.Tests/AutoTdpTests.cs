@@ -691,6 +691,25 @@ public class AutoTdpTests
         Assert.Equal(60, b.Max);
         Assert.Equal(1, AutoTdpProfile.Blend(null, new AutoTdpProfile { Min = 30, Typical = 40, Max = 50 }).Sessions);
     }
+
+    [Fact]
+    public void ACoolReadingIsNotCutAgainBecauseTheHeatAverageIsStale()
+    {
+        // From a real session log (Witcher 3, 100 FPS target, trigger 85 °C, 19 Nov 2026): the CPU sat at 94-95 °C for 30 s while the limit came down
+        // 54 → 39 W, then a scene change dropped it to 75-78 °C within 4 s. The 16 s average still read 88, so the 1% low collapsing (the limit was
+        // now too low for the new scene) was called heat and cut 8 W more, to 25-29 W; FPS fell to 20-55 and four raises were needed to climb back.
+        // That happened three times in 22 minutes (603 s, 759 s, 1067 s). A reading well under the trigger must act on its own, not on the average.
+        var g = new AutoTdpGovernor(100, 25, 60, startWatts: 54, thermalTriggerC: 85);
+        double t = 0;
+        for (; t < 30; t += 2) g.Update(new AutoTdpSample(600, 100, 90, g.Current, 95), T0.AddSeconds(t)); // hot, capped and smooth
+        var atCooling = g.Current;
+        Assert.True(atCooling < 54, "the heat should have cut power");
+        for (var i = 0; i < 4; i++, t += 2)
+        {
+            g.Update(new AutoTdpSample(600, 56, 28, g.Current, 75), T0.AddSeconds(t)); // cooled to 75 °C, new scene needs more than the limit
+            Assert.True(g.Current >= atCooling, $"cut to {g.Current} W at 75 °C on a stale heat average");
+        }
+    }
 }
 
 public class RecentStatsTests
