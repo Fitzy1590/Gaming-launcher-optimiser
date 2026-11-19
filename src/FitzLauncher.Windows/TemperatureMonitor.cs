@@ -21,6 +21,7 @@ public sealed class TemperatureMonitor : IDisposable
     private readonly Lock _lock = new();
     private Computer? _cpu, _gpu;
     private bool _cpuFailed, _gpuFailed;
+    private readonly FitzLauncher.Core.Optimization.FrozenReadingDetector _frozen = new();
 
     public Func<bool> PreferAfterburner { get; set; } = () => true;
     public bool CpuTemperatureAvailable { get; private set; } = true;
@@ -48,6 +49,15 @@ public sealed class TemperatureMonitor : IDisposable
                 cpuT = c.CpuTempC; cpuL ??= c.CpuLoad; cpuName = c.CpuName; cpuPower = c.CpuPowerW; cpuClock = c.CpuClockMhz; fan = c.FanRpm;
             }
 
+            // Sensors that stop updating (seen for 270 s before a hard freeze) must not drive power or heat decisions.
+            if (_frozen.Update(cpuT, cpuPower, cpuL, gpuT, gpuL))
+            {
+                cpuT = gpuT = hot = cpuL = gpuL = power = cpuPower = null;
+                fan = null;
+                Source = "sensors stopped updating";
+                return new SensorReading(null, null, null, null, null, null, cpuName, gpuName);
+            }
+
             CpuTemperatureAvailable = cpuT is > 0;
             Source = ab is null ? "LibreHardwareMonitor"
                    : ab.Value.CpuTempC is null ? "MSI Afterburner (GPU) + LibreHardwareMonitor (CPU)"
@@ -61,7 +71,7 @@ public sealed class TemperatureMonitor : IDisposable
         if (failed) return default;
         if (computer is null)
         {
-            var c = new Computer { IsCpuEnabled = !gpu, IsGpuEnabled = gpu, IsMotherboardEnabled = !gpu }; // motherboard = Super I/O fan speeds, read only; unverified on handhelds
+            var c = new Computer { IsCpuEnabled = !gpu, IsGpuEnabled = gpu }; // no motherboard/Super I/O probing: raw LPC port access on a handheld never returned a fan and is a known cause of hangs
             try { c.Open(); }
             catch (Exception) { failed = true; return default; } // driver blocked / not admin
             computer = c;

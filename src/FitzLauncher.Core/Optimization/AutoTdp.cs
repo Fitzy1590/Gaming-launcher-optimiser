@@ -173,8 +173,13 @@ public sealed class AutoTdpGovernor
         return new AutoTdpProfile { Min = solid.Count > 0 ? solid.Min() : typical, Typical = typical, Max = Math.Max(MaxUsed, typical), Sessions = 1 };
     }
 
+    // A running game on a handheld chip never draws under a watt. From a real log: a stuck sensor read 0.1 W for 200 s, which counted as
+    // "the game uses nothing" (room to spare, trim to the floor). Such a reading is a dead sensor, so the draw is treated as unknown.
+    private const double MinPlausibleDrawW = 1;
+
     public AutoTdpDecision? Update(AutoTdpSample s, DateTime now)
     {
+        if (s.DrawnWatts is < MinPlausibleDrawW) s = s with { DrawnWatts = null };
         var dt = _last is { } l ? Math.Clamp((now - l).TotalSeconds, 0, 10) : 0;
         _last = now;
         if (s.Frames < 20) return null; // menu, loading or paused: nothing to judge

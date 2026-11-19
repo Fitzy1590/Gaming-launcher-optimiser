@@ -710,6 +710,39 @@ public class AutoTdpTests
             Assert.True(g.Current >= atCooling, $"cut to {g.Current} W at 75 °C on a stale heat average");
         }
     }
+
+    [Fact]
+    public void AStuckZeroWattReadingIsNotTakenAsRoomToSpare()
+    {
+        // From a real Witcher 3 log (19 Nov 2026): the sensors froze, then drawn_w read 0.1 W for 200 s while the game held 80 FPS at 51 W.
+        // The governor took 0.1 W as "the game uses nothing", cut 51 → 49 W and would have snapped the limit down to the floor.
+        var g = new AutoTdpGovernor(80, 25, 60, startWatts: 51);
+        for (var t = 0; t < 20; t += 2) g.Update(new AutoTdpSample(500, 80, 78, 53.2), T0.AddSeconds(t));
+        for (var t = 20; t < 140; t += 2) g.Update(new AutoTdpSample(500, 80, 78, 0.1), T0.AddSeconds(t));
+        Assert.True(g.Current >= 43, $"limit fell to {g.Current} W on a 0.1 W reading");
+    }
+}
+
+public class FrozenReadingDetectorTests
+{
+    [Fact]
+    public void IdenticalReadingsForEightReadsAreFrozenAndAChangeClearsIt()
+    {
+        // Rows 372-440 of the real log: cpu 82.4 °C, 53.2 W, gpu 80 °C, loads 17 / 11, unchanged.
+        var d = new FrozenReadingDetector();
+        for (var i = 0; i < 7; i++) Assert.False(d.Update(82.4, 53.2, 80, 17, 11));
+        Assert.True(d.Update(82.4, 53.2, 80, 17, 11));
+        Assert.True(d.Update(82.4, 53.2, 80, 17, 11));
+        Assert.False(d.Update(82.1, 53.2, 80, 17, 11));
+    }
+
+    [Fact]
+    public void LiveReadingsAndEmptyReadingsAreNeverFrozen()
+    {
+        var d = new FrozenReadingDetector();
+        for (var i = 0; i < 20; i++) Assert.False(d.Update(70 + i % 3, 51.0, 74, 31, 93));
+        for (var i = 0; i < 20; i++) Assert.False(d.Update(null, null, null));
+    }
 }
 
 public class RecentStatsTests
