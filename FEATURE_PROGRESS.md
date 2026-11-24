@@ -226,3 +226,9 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - [x] Game page → "Performance analysis" card; one-click fixes reuse `StutterFixes` (new: `LowerFpsTarget`, `ThermalGuardOn`). Toast after the session points to it.
 - [ ] Device test (Windows): live notes appear, card fills after a session, thresholds feel right on a handheld.
 - Not done: no busy-time (CPU/GPU frame time) evidence yet, so GPU-/CPU-bound uses load percentages only. In-game advice is generic per engine/upscaler, not per-setting-file edits.
+
+## 12. Game Booster + diagnostics upgrade (audit 2026-11-24; **vote pending**; spec `SPEC.md` §17)
+- Audit result: pillars 1 to 4 and core parking already built (see §17 list). Real gaps: Ultimate plan check (G1), Equalizer APO (G2), diagnostic toggle + export (G3), Booster page (G4), governance files (G5).
+- [ ] Vote: Option A (delta only, recommended)
+- [ ] Vote: Option B (priority + power plan only)
+- [ ] G1 to G5: not started, waiting for vote. Device test (Windows, admin) afterwards.

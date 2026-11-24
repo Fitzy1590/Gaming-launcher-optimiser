@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Booster Vote Card</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@500&family=Outfit:wght@600&display=swap">
+<style>
+:root{--bg:#0B0E14;--card:#121826;--line:#1f2937;--fg:#e6edf3;--mute:#8b98a9;--teal:#00F2FE;--ok:#10B981;--warn:#F59E0B}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 Inter,system-ui,sans-serif;padding:28px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+main{max-width:1060px;margin:0 auto}
+h1,h2{font-family:Outfit,Inter,sans-serif;margin:0}
+h1{font-size:clamp(24px,4vw,34px)}
+.lead{color:var(--mute);max-width:70ch;margin:8px 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:18px}
+label.opt{display:flex;flex-direction:column;gap:12px;background:rgba(18,24,38,.8);border:1px solid var(--line);border-radius:10px;padding:18px;cursor:pointer;min-height:44px}
+label.opt:has(input:checked){border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+label.opt:focus-within{outline:2px solid var(--teal);outline-offset:2px}
+.head{display:flex;gap:10px;align-items:center}
+input[type=radio]{width:22px;height:22px;accent-color:var(--teal)}
+.tag{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ok);font-weight:600}
+ul{margin:0;padding-left:18px;color:var(--mute)} li{margin:2px 0}
+.mock{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12.5px}
+.row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.row:last-child{border:0}
+.on{color:var(--ok)} .w{color:var(--warn)} .t{color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mute)}
+.sw{width:22px;height:22px;border-radius:4px;border:1px solid var(--line)}
+.note{color:var(--mute);font-size:13px;margin-top:18px;max-width:80ch}
+</style></head><body><main>
+<h1>Game Booster &amp; Diagnostics Upgrade</h1>
+<p class="lead">Audit: suspend + services, P-core/X3D pinning, High priority, 0.5 ms timer, standby purge and core parking already exist, so Option A builds only the gaps. Pick one, then reply 1 or 2 in chat.</p>
+<div class="chips" style="margin-bottom:18px">
+<span class="chip"><i class="sw" style="background:#0B0E14"></i>Obsidian → Bg</span>
+<span class="chip"><i class="sw" style="background:#00F2FE"></i>Cyber Teal → Accent</span>
+<span class="chip"><i class="sw" style="background:#10B981"></i>Emerald → Good</span>
+<span class="chip"><i class="sw" style="background:#F59E0B"></i>Amber → Warn</span>
+</div>
+<form class="grid">
+<label class="opt"><div class="head"><input type="radio" name="v" value="A"><div><div class="tag">Recommended</div><h2>1 · Option A: Delta only</h2></div></div>
+<div class="mock" aria-label="Mock Booster page">
+<div class="row"><span>Timer resolution</span><span class="on">0.500 ms · held</span></div>
+<div class="row"><span>Game affinity</span><span class="t">0x0000FFFF · P-cores</span></div>
+<div class="row"><span>Power plan</span><span class="on">Ultimate Performance</span></div>
+<div class="row"><span>Paused apps</span><span>3 · restore at exit</span></div>
+<div class="row"><span>Equalizer APO</span><span class="w">Not installed</span></div>
+<div class="row"><span>Diagnostic log</span><span>OFF</span></div>
+<div class="row"><span>[ Export Diagnostic Package ]</span><span class="t">.txt</span></div></div>
+<ul><li>Ultimate plan check with restore (G1)</li><li>Equalizer APO <code>Include:</code> line, backed up (G2)</li><li>Diagnostic logger, default OFF, <code>[REDACTED]</code> filter, 1-tap export (G3)</li><li>One Booster page, instant swap, existing tokens (G4)</li><li>Steward agent, rules, deny list, concise output (G5)</li></ul></label>
+<label class="opt"><div class="head"><input type="radio" name="v" value="B"><div><div class="tag" style="color:var(--mute)">Minimal</div><h2>2 · Option B: Basic tuner</h2></div></div>
+<div class="mock" aria-label="Mock settings row">
+<div class="row"><span>Priority</span><span class="on">High</span></div>
+<div class="row"><span>Power plan</span><span class="on">Ultimate Performance</span></div></div>
+<ul><li>Power plan check only (G1)</li><li>No audio, no logger, no Booster page</li></ul></label>
+</form>
+<p class="note">Not offered (already built, would conflict): second suspender, second timer request, second affinity path, standby purger, Job Object watcher, Realtime priority, wholesale HUD retheme or four-tab shell (needs its own vote). Spec: SPEC.md §17.</p>
+</main></body></html>

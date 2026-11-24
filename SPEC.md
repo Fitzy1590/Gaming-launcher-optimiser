@@ -300,3 +300,22 @@ Audit in `FEATURE_PROGRESS.md` §10. Three of four modules were already built, s
 - **16.2 Disk I/O priority (new):** `Windows/Optimization/ProcessIoPriority`. `NtSetInformationProcess(handle, ProcessIoPriority = 33, ref uint hint, 4)` with hint `IoPriorityHigh = 3` (hints: 0 VeryLow, 1 Low, 2 Normal, 3 High, 4 Critical, kernel only). Handle needs `PROCESS_SET_INFORMATION` (0x0200); High needs `SeIncreaseBasePriorityPrivilege` (admin). The class number is from ntdll community headers, not Microsoft docs: VERIFY on device by reading it back (`NtQueryInformationProcess`). Applied next to `RaiseGamePriority` for the game's own processes only, gated by `GameModeOptions.RaiseIoPriority`. Per-process, so it disappears when the game exits; nothing to restore. Failure is silent (no admin, protected process).
 - **16.3 GPU power and HAGS:** existing per-game `GpuPreference=2` (`OptimizationPlanner`) and HAGS read/advice (`SystemAdvisor`). HAGS is never changed (§14). No new code.
 - **16.4 APU RAM safety:** existing `ApuMemoryDiagnostic` + `DxgiMemoryProbe` (`GlobalMemoryStatusEx` + DXGI `DedicatedVideoMemory`/`SharedSystemMemory`). Badge shows when game headroom is under 2 GB (Tight) or negative (Low). No new code.
+
+## 17. Game Booster and diagnostics upgrade (audit 2026-11-24; vote pending, see `VOTING_CARD.html`)
+Audit in `FEATURE_PROGRESS.md` §12. Four of six requested pillars already exist, so only the gaps are in scope. Rule: no second path to a setting an existing class owns.
+
+**Already built, not rebuilt:** `NtSuspendProcess`/`NtResumeProcess` + service stop/restore + restore state (`GameModeController`, `GameModeRestoreState`); P-core/V-Cache detection and pinning (`CpuTopologyReader`, `CpuAffinityPlanner`, `ClosedLoopApplier`); High priority class (never Realtime); 0.5 ms `NtSetTimerResolution(5000)` released at exit (§14.1); standby purge (`MemoryCleaner`, §16.1); core parking min = 100 and plan switch with restore (`PowerPlans`); secret redaction helper (`ErrorExplainer.Redact`).
+
+### 17.1 Gaps (the delta, if option A is voted)
+- **G1 Power plan:** `GameModeController` switches to a high-performance plan; `PowerPlans.UltimatePerformance` GUID exists. VERIFY it is picked when present, else duplicate it (`powercfg -duplicatescheme`), with restore at exit. Surgical edit only.
+- **G2 Equalizer APO (new):** `Windows/Audio/EqualizerApoProfile`. Writes one `Include:` line to a Fitz-owned file inside the user's Equalizer APO `config` folder, never rewrites `config.txt` wholesale; backup + restore record first; absent install = feature disabled with a hint. Profile text is pure in `Core/Audio` with a test.
+- **G3 Diagnostic logger (new):** `Core/Diagnostics/DiagnosticLog` (pure: ring buffer, `[REDACTED]` filter for keys, tokens, passwords, cookies, built on `ErrorExplainer.Redact`) + `Windows` export of timer resolution (`NtQueryTimerResolution`), affinity masks of the game, power plan, OS/CPU. Default OFF, zero work when off. Button: Export Diagnostic Package (one `.txt`). Settings toggle bound through a saving VM property.
+- **G4 Booster page:** one new nav page (Visibility swap, no Frame or transitions, §11 rules) showing live state of the existing features and the G2/G3 controls. Existing theme tokens; HUD teal/emerald/amber map to `Accent`/`Good`/`Warn`. No wholesale retheme.
+- **G5 Governance files:** `.claude/agents/steward.md`, `.claude/rules/booster-engine.md`, `.claude/rules/win32-api.md`, extra `permissions.deny` entries, `"outputStyle": "concise"`, `CLAUDE_CODE_SUBAGENT_MODEL=haiku`. The Stop build hook already exists and is kept.
+
+### 17.2 Deliberately not built (de-duplication, Section 1.5 of the brief)
+Second suspender, second timer request (`Controllers.cs` already calls `timeBeginPeriod(1)`; not touched), second affinity or priority path, second standby purger, a Job Object watcher (`GameSession` already watches game exit and restores), Realtime priority, wholesale HUD retheme or four-tab shell (Major UI swap: needs its own vote).
+
+### 17.3 Votes
+- [ ] **A (recommended): Delta only** G1 to G5 above
+- [ ] **B:** Basic priority and power plan tuner only (G1; nothing else)
