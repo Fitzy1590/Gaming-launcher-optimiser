@@ -245,17 +245,51 @@ public sealed partial class ControllersViewModel : ObservableObject
     public ObservableCollection<InputFindingRow> InputFindings { get; } = [];
     [ObservableProperty] private string _inputCheckSummary = "";
 
-    [RelayCommand]
-    public async Task CheckDoubleInputsAsync()
+    private async Task<InputCheckFacts> GatherInputFactsAsync()
     {
-        InputCheckSummary = "Checking…";
         var (pads, vigem, hid, names) = await Task.Run(() => (ControllerDevices.XInputPads(), ControllerDevices.ViGEmInstalled(), ControllerDevices.HidHideInstalled(), ControllerDevices.RunningProcessNames()));
         FitzLauncher.Windows.PlayStationPads.Shared.Start();
         await Task.Delay(400);
         var sony = FitzLauncher.Windows.PlayStationPads.Shared.Connected.Count;
         FitzLauncher.Windows.PlayStationPads.Shared.Stop();
-        var facts = new InputCheckFacts(_s.Settings.GamepadNavigation, _s.Settings.PsButtonOpensConsole, _s.Settings.ConsolePadMirror,
+        return new InputCheckFacts(_s.Settings.GamepadNavigation, _s.Settings.PsButtonOpensConsole, _s.Settings.ConsolePadMirror,
             _s.Settings.DefaultController.Enabled, vigem, hid, pads.Count, sony, DoubleInputCheck.MatchTools(names));
+    }
+
+    /// <summary>
+    /// Before a game starts: if a controller is connected, look for double-input set-ups and apply the launcher-setting fixes.
+    /// Returns a plain-English note about what was changed (null when nothing was). Never throws.
+    /// </summary>
+    public async Task<string?> FixDoubleInputsBeforeLaunchAsync()
+    {
+        try
+        {
+            var facts = await GatherInputFactsAsync();
+            if (!DoubleInputCheck.HasController(facts)) return null;
+            var found = DoubleInputCheck.Evaluate(facts);
+            var fixes = DoubleInputCheck.PreLaunchFixes(found);
+            foreach (var fix in fixes)
+            {
+                if (fix == InputFix.TurnOffConsoleMirror) ConsolePadMirror = false;
+                else if (fix == InputFix.TurnOnControllerSettings) Default.Enabled = true;
+            }
+            var told = found.Where(f => f.Severity is InputSeverity.Problem or InputSeverity.Warning && f.Fix == InputFix.None).Select(f => f.Title).ToList();
+            var done = fixes.Select(f => f == InputFix.TurnOffConsoleMirror ? "turned off keyboard mirroring" : "turned on controller settings (one combined controller)").ToList();
+            if (done.Count == 0 && told.Count == 0) return null;
+            return (done.Count > 0 ? "Double-input check: " + string.Join(" and ", done) + ". You can change this in Settings → Controllers." : "")
+                 + (told.Count > 0 ? (done.Count > 0 ? " " : "Double-input check: ") + string.Join("; ", told) + " (see Settings → Controllers)." : "");
+        }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or IOException or InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    [RelayCommand]
+    public async Task CheckDoubleInputsAsync()
+    {
+        InputCheckSummary = "Checking…";
+        var facts = await GatherInputFactsAsync();
         var found = DoubleInputCheck.Evaluate(facts);
         InputFindings.Clear();
         foreach (var f in found) InputFindings.Add(new InputFindingRow(f, this));

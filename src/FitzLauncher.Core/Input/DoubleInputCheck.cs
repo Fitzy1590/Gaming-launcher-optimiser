@@ -45,6 +45,14 @@ public static class DoubleInputCheck
         processNames.Select(n => KnownTools.TryGetValue(n.ToLowerInvariant(), out var f) ? f : null)
             .OfType<string>().Distinct().OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
 
+    /// <summary>True when at least one controller (Xbox-style or PlayStation) is connected, so a pre-launch check is worth running.</summary>
+    public static bool HasController(InputCheckFacts f) => f.XInputPads + f.PlayStationPads > 0;
+
+    /// <summary>The launcher-settings fixes to apply automatically before a game starts (each once). Warnings and problems only.</summary>
+    public static List<InputFix> PreLaunchFixes(IEnumerable<InputFinding> findings) =>
+        findings.Where(x => x.Fix != InputFix.None && x.Severity is InputSeverity.Problem or InputSeverity.Warning)
+            .Select(x => x.Fix).Distinct().ToList();
+
     public static List<InputFinding> Evaluate(InputCheckFacts f)
     {
         var list = new List<InputFinding>();

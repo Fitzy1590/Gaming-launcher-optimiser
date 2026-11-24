@@ -63,6 +63,26 @@ public class DoubleInputCheckTests
     }
 
     [Fact]
+    public void Pre_launch_runs_only_when_a_controller_is_connected()
+    {
+        Assert.False(DoubleInputCheck.HasController(Facts(xinput: 0, sony: 0)));
+        Assert.True(DoubleInputCheck.HasController(Facts(xinput: 0, sony: 1)));
+        Assert.True(DoubleInputCheck.HasController(Facts(xinput: 1, sony: 0)));
+    }
+
+    [Fact]
+    public void Pre_launch_applies_each_fix_once_and_skips_notes_and_unfixable_warnings()
+    {
+        var both = DoubleInputCheck.Evaluate(Facts(psConsole: true, mirror: true, vigem: false, xinput: 1, sony: 1, hid: false));
+        Assert.Equal([InputFix.TurnOffConsoleMirror], DoubleInputCheck.PreLaunchFixes(both));
+
+        var combine = DoubleInputCheck.PreLaunchFixes(DoubleInputCheck.Evaluate(Facts(xinput: 1, sony: 1)));
+        Assert.Equal([InputFix.TurnOnControllerSettings], combine);
+
+        Assert.Empty(DoubleInputCheck.PreLaunchFixes(DoubleInputCheck.Evaluate(Facts())));
+    }
+
+    [Fact]
     public void Tools_are_matched_by_process_name_once_each()
     {
         var m = DoubleInputCheck.MatchTools(["DS4Windows", "ds4windows", "explorer", "DSX", "dualsensex"]);

@@ -466,6 +466,9 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
+        // Controller connected: run the double-input check and apply its safe fixes before the game starts (never blocks the launch).
+        if (!SafeMode && await Settings.Controllers.FixDoubleInputsBeforeLaunchAsync() is { } inputNote) ShowToast(inputNote);
+
         // Memory reserved for graphics (APUs/handhelds): a heads-up only, never blocks the launch.
         if (!SafeMode && _s.Settings.GameMode.ShowApuMemoryWarning && _s.Hardware?.IsApu == true)
         {
