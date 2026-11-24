@@ -137,6 +137,10 @@ internal static partial class Native
     [LibraryImport("ntdll.dll")]
     internal static partial int NtSetTimerResolution(uint desired, [MarshalAs(UnmanagedType.U1)] bool set, out uint current);
 
+    // Read-only. Undocumented in the Windows SDK; signature from ntdll community headers (units of 100 ns). VERIFY on device. SPEC §17 G3.
+    [LibraryImport("ntdll.dll")]
+    internal static partial int NtQueryTimerResolution(out uint minimum, out uint maximum, out uint current);
+
     // ------------------------------------------------------------ power
 
     [StructLayout(LayoutKind.Sequential)]

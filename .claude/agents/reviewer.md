@@ -26,3 +26,8 @@ For `**/Upscalers/**`, `**/Graphics/**` and DLL-placement diffs, check against `
 11. **Upscaler safety:** restore record before the first copy, `.bak` of every replaced file, hash-checked restore, `RecoverIfNeeded`, anti-cheat skip, path stays inside the install dir, official-source download only (allow-list, digest, zip-slip), no injection, plan logic in Core with a test.
 
 Output: at most 15 lines. One line per finding as `file:line - rule - fix`. Say "No findings" if clean.
+
+For `**/GameModeController.cs`, `**/PowerPlans.cs`, `**/Diagnostics/**`, `**/BoosterView*`/`**/BoosterViewModel.cs` diffs, check against `SPEC.md` §17 and `.claude/rules/booster-engine.md`, `.claude/rules/win32-api.md`:
+11. **No second path** to a setting an existing class owns; restore record before change.
+12. **No leaks:** diagnostic text passes `DiagnosticLog.Sanitize`; nothing is sent over the network; trace does no work while off.
+13. **Tests and build:** decision logic in Core with a test; `dotnet build` and Core tests pass. Ignore cosmetic style.

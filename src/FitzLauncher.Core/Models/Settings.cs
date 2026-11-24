@@ -7,6 +7,8 @@ public sealed class LauncherSettings
     public int DefaultFpsTarget { get; set; } = 117;
 
     public GameModeOptions GameMode { get; set; } = new();
+    /// <summary>Keep an in-memory diagnostic trace for the Export Diagnostic Package button. Off by default; nothing is recorded while off.</summary>
+    public bool DiagnosticTrace { get; set; }
 
     public double CpuTempAlertC { get; set; } = 90;
     public double GpuTempAlertC { get; set; } = 85;

@@ -66,11 +66,11 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
         if (o.SwitchPowerPlan && tuning.SwitchToHighPerformancePlan)
         {
             var (current, name) = PowerPlans.GetActive();
-            var target = PowerPlans.EnsureHighPerformance();
+            var target = PowerPlans.EnsureUltimate();
             if (target is { } t && current != t && PowerPlans.SetActive(t))
             {
                 _state.PreviousPowerScheme = current;
-                report.Add($"Power plan: {name} → High performance");
+                report.Add($"Power plan: {name} → {PowerPlans.GetActive().name}");
             }
             else if (target is null && PowerPlans.GetOverlay() is { } overlay && overlay != PowerPlans.OverlayBestPerformance &&
                      PowerPlans.SetOverlay(PowerPlans.OverlayBestPerformance))

@@ -77,6 +77,7 @@
                         <CheckBox Content="Pause Windows maintenance and the scheduled drive optimise (TRIM/defrag) while you play, then resume" IsChecked="{Binding G.HoldMaintenance}" />
                         <CheckBox Content="Warn before launch if the memory reserved for graphics leaves too little for the game (handhelds and APUs; advice only)" IsChecked="{Binding G.ShowApuMemoryWarning}" />
                     </StackPanel>
+                    <CheckBox Content="Diagnostic trace (off by default): keep a short in-memory record for the Export Diagnostic Package button on the Booster page; nothing is written to disk until you export" IsChecked="{Binding DiagnosticTrace}" Margin="0,8,0,0" />
                     <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
                     <TextBlock Text="What the resource guard has learned" FontWeight="SemiBold" Margin="0,16,0,4" />
                     <TextBlock Text="Apps it always handles or never touches, and what helped or didn't. It never touches Windows, security software, game launchers, anti-cheat or overlay tools." Style="{StaticResource Wrap}" />

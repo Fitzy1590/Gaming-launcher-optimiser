@@ -227,8 +227,13 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - [ ] Device test (Windows): live notes appear, card fills after a session, thresholds feel right on a handheld.
 - Not done: no busy-time (CPU/GPU frame time) evidence yet, so GPU-/CPU-bound uses load percentages only. In-game advice is generic per engine/upscaler, not per-setting-file edits.
 
-## 12. Game Booster + diagnostics upgrade (audit 2026-11-24; **vote pending**; spec `SPEC.md` §17)
+## 12. Game Booster + diagnostics upgrade (audit 2026-11-24; **vote A recorded 2026-11-24, G2 audio dropped**; spec `SPEC.md` §17)
 - Audit result: pillars 1 to 4 and core parking already built (see §17 list). Real gaps: Ultimate plan check (G1), Equalizer APO (G2), diagnostic toggle + export (G3), Booster page (G4), governance files (G5).
-- [ ] Vote: Option A (delta only, recommended)
+- [x] Vote: Option A (delta only; audio/G2 dropped, user uses FxSound)
 - [ ] Vote: Option B (priority + power plan only)
-- [ ] G1 to G5: not started, waiting for vote. Device test (Windows, admin) afterwards.
+- [x] G1 `PowerPlans.EnsureUltimate` (Ultimate, else created, else High) used by `GameModeController`; restore unchanged
+- [x] G3 `Core/Diagnostics/DiagnosticLog` (off by default, sanitised, 7 test cases in `DiagnosticLogTests`), `Windows/Optimization/DiagnosticFacts`, `Native.NtQueryTimerResolution`, Settings toggle, export button
+- [x] G4 Booster page (`BoosterView`, nav item, read-only status + export; no retheme)
+- [x] G5 steward agent, booster-engine + win32-api rules, deny list, `outputStyle: concise`, subagent model haiku, reviewer §17 checks
+- [ ] Device test (Windows, admin): Ultimate plan picked and restored, timer readout, game masks, trace toggle, export file has no secrets
+- Build 0 errors, 634 Core tests pass (Linux cross-compile, 2026-11-24); not run on Windows. `NtQueryTimerResolution` signature unverified

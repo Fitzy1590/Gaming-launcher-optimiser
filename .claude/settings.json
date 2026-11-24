@@ -22,7 +22,13 @@
       "Read(**/bin/**)",
       "Read(**/obj/**)",
       "Read(./publish/**)",
-      "Read(**/TestResults/**)"
+      "Read(**/TestResults/**)",
+      "Read(**/node_modules/**)",
+      "Read(**/dist/**)",
+      "Read(**/build/**)",
+      "Read(*.lock)",
+      "Edit(./.github/workflows/**)",
+      "Edit(./secrets/**)"
     ],
     "allow": [
       "Bash(dotnet build:*)",
@@ -58,5 +64,9 @@
         ]
       }
     ]
+  },
+  "outputStyle": "concise",
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku"
   }
 }

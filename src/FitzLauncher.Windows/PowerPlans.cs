@@ -56,6 +56,20 @@ public static partial class PowerPlans
         return guid;
     }
 
+    /// <summary>
+    /// Ultimate Performance if Windows lists it or lets us create it from the built-in template (SPEC §17 G1);
+    /// otherwise the existing High performance path. Not available on some Modern Standby laptops.
+    /// </summary>
+    public static Guid? EnsureUltimate()
+    {
+        var schemes = ListSchemes();
+        if (schemes.Any(s => s.guid == UltimatePerformance)) return UltimatePerformance;
+        var existing = schemes.FirstOrDefault(s => s.name.Contains("Ultimate Performance", StringComparison.OrdinalIgnoreCase));
+        if (existing.guid != Guid.Empty) return existing.guid;
+        var created = SchemeLine().Match(Run($"/duplicatescheme {UltimatePerformance}"));
+        return created.Success ? Guid.Parse(created.Groups[1].Value) : EnsureHighPerformance();
+    }
+
     private const string SubProcessor = "54533251-82be-4824-96c1-47b60b740d00";
     private const string CoreParkingMin = "0cc5b647-c1df-4637-891a-dec35c318583";
 

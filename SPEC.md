@@ -306,9 +306,9 @@ Audit in `FEATURE_PROGRESS.md` §12. Four of six requested pillars already exist
 
 **Already built, not rebuilt:** `NtSuspendProcess`/`NtResumeProcess` + service stop/restore + restore state (`GameModeController`, `GameModeRestoreState`); P-core/V-Cache detection and pinning (`CpuTopologyReader`, `CpuAffinityPlanner`, `ClosedLoopApplier`); High priority class (never Realtime); 0.5 ms `NtSetTimerResolution(5000)` released at exit (§14.1); standby purge (`MemoryCleaner`, §16.1); core parking min = 100 and plan switch with restore (`PowerPlans`); secret redaction helper (`ErrorExplainer.Redact`).
 
-### 17.1 Gaps (the delta, if option A is voted)
+### 17.1 Gaps (the delta; option A voted, G2 dropped)
 - **G1 Power plan:** `GameModeController` switches to a high-performance plan; `PowerPlans.UltimatePerformance` GUID exists. VERIFY it is picked when present, else duplicate it (`powercfg -duplicatescheme`), with restore at exit. Surgical edit only.
-- **G2 Equalizer APO (new):** `Windows/Audio/EqualizerApoProfile`. Writes one `Include:` line to a Fitz-owned file inside the user's Equalizer APO `config` folder, never rewrites `config.txt` wholesale; backup + restore record first; absent install = feature disabled with a hint. Profile text is pure in `Core/Audio` with a test.
+- **G2 DROPPED (no audio code):** ~~Equalizer APO (new):~~ `Windows/Audio/EqualizerApoProfile`. Writes one `Include:` line to a Fitz-owned file inside the user's Equalizer APO `config` folder, never rewrites `config.txt` wholesale; backup + restore record first; absent install = feature disabled with a hint. Profile text is pure in `Core/Audio` with a test.
 - **G3 Diagnostic logger (new):** `Core/Diagnostics/DiagnosticLog` (pure: ring buffer, `[REDACTED]` filter for keys, tokens, passwords, cookies, built on `ErrorExplainer.Redact`) + `Windows` export of timer resolution (`NtQueryTimerResolution`), affinity masks of the game, power plan, OS/CPU. Default OFF, zero work when off. Button: Export Diagnostic Package (one `.txt`). Settings toggle bound through a saving VM property.
 - **G4 Booster page:** one new nav page (Visibility swap, no Frame or transitions, §11 rules) showing live state of the existing features and the G2/G3 controls. Existing theme tokens; HUD teal/emerald/amber map to `Accent`/`Good`/`Warn`. No wholesale retheme.
 - **G5 Governance files:** `.claude/agents/steward.md`, `.claude/rules/booster-engine.md`, `.claude/rules/win32-api.md`, extra `permissions.deny` entries, `"outputStyle": "concise"`, `CLAUDE_CODE_SUBAGENT_MODEL=haiku`. The Stop build hook already exists and is kept.
@@ -317,5 +317,5 @@ Audit in `FEATURE_PROGRESS.md` §12. Four of six requested pillars already exist
 Second suspender, second timer request (`Controllers.cs` already calls `timeBeginPeriod(1)`; not touched), second affinity or priority path, second standby purger, a Job Object watcher (`GameSession` already watches game exit and restores), Realtime priority, wholesale HUD retheme or four-tab shell (Major UI swap: needs its own vote).
 
 ### 17.3 Votes
-- [ ] **A (recommended): Delta only** G1 to G5 above
+- [x] **A (recommended): Delta only** G1, G3, G4, G5 (voted 2026-11-24; G2 audio dropped: user switched to FxSound, file format unverified)
 - [ ] **B:** Basic priority and power plan tuner only (G1; nothing else)

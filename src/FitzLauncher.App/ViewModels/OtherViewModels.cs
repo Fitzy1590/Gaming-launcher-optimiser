@@ -287,6 +287,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
+    public bool DiagnosticTrace { get => _s.Settings.DiagnosticTrace; set { _s.Settings.DiagnosticTrace = value; _s.Diag.Enabled = value; _s.SaveSettings(); OnPropertyChanged(); } }
 
     // ---- resource guard: saved choices and what helped
     public ObservableCollection<ResourceRuleRow> ResourceRules { get; } = [];

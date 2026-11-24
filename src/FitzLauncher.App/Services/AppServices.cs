@@ -99,6 +99,8 @@ public sealed class AppServices : IDisposable
         Scanner = new GameScanner(ScanContext.FromEnvironment());
         Http = new HttpClient { Timeout = TimeSpan.FromSeconds(12) };
         Http.DefaultRequestHeaders.UserAgent.ParseAdd("FitzLauncher/0.1");
+        Diag.Enabled = Settings.DiagnosticTrace;
+        Log.Trace = Diag;
         GameMode = new GameModeController(Paths, Log.Write);
         SaveBackups = new SaveBackupService(Paths.SaveBackupDir);
         Updates = new UpdateService(new HttpClient { Timeout = TimeSpan.FromMinutes(10), DefaultRequestHeaders = { { "User-Agent", "FitzLauncher-updater" } } }, this);
@@ -183,6 +185,18 @@ public sealed class AppServices : IDisposable
         }
     }
 
+    public FitzLauncher.Core.Diagnostics.DiagnosticLog Diag { get; } = new();
+
+    /// <summary>Writes the one-file diagnostic report (SPEC §17 G3) and returns its path.</summary>
+    public string ExportDiagnostics(IEnumerable<int> gamePids)
+    {
+        var text = FitzLauncher.Core.Diagnostics.DiagnosticLog.BuildPackage($"Fitz Launcher {CrashReporter.Version} · {CrashReporter.Os}",
+            FitzLauncher.Windows.Optimization.DiagnosticFacts.Collect(gamePids), Diag.Snapshot(), Diag.Enabled);
+        var path = Path.Combine(Paths.Root, $"fitz-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+        File.WriteAllText(path, text);
+        return path;
+    }
+
     public void SaveSettings()
     {
         lock (_saveLock) Store.SaveSettings(Settings);
@@ -243,9 +257,12 @@ public sealed class AppServices : IDisposable
 public sealed class Log(string path)
 {
     private readonly Lock _lock = new();
+    /// <summary>Optional in-memory trace (off by default); gets every line this log gets.</summary>
+    public FitzLauncher.Core.Diagnostics.DiagnosticLog? Trace { get; set; }
 
     public void Write(string message)
     {
+        Trace?.Write(message);
         lock (_lock)
         {
             try

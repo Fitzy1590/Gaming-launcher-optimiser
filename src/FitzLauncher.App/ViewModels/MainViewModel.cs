@@ -14,7 +14,7 @@ using FitzLauncher.Windows;
 
 namespace FitzLauncher.App.ViewModels;
 
-public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About, Emulation, Telemetry }
+public enum Page { Home, Library, Mods, Storage, Hardware, Sessions, Settings, About, Emulation, Telemetry, Booster }
 
 public sealed partial class MainViewModel : ObservableObject
 {
@@ -32,6 +32,7 @@ public sealed partial class MainViewModel : ObservableObject
     public StorageViewModel Storage { get; }
     public EmulationViewModel Emulation { get; }
     public TelemetryViewModel Telemetry { get; }
+    public BoosterViewModel Booster { get; }
     public ModsOverviewViewModel ModsOverview { get; }
     public AppServices Services => _s;
 
@@ -177,6 +178,7 @@ public sealed partial class MainViewModel : ObservableObject
         Home = new HomeViewModel(services, this);
         Storage = new StorageViewModel(services, this);
         Emulation = new EmulationViewModel(services, this);
+        Booster = new BoosterViewModel(services, () => _session?.GamePids ?? [], ShowToast);
         Telemetry = new TelemetryViewModel(services, rule => _session?.RevertTelemetryAsync(rule) ?? Task.CompletedTask);
         ModsOverview = new ModsOverviewViewModel(services, OpenMods);
         if (Games.Count == 0) _page = Page.Library;
@@ -259,6 +261,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (value == Page.Mods) ModsOverview.Reload();
         if (value == Page.Storage) _ = Storage.ReloadAsync();
         if (value == Page.Emulation) Emulation.Reload();
+        if (value == Page.Booster) _ = Booster.RefreshAsync();
         Hardware.SetVisible(value == Page.Hardware);
     }
 

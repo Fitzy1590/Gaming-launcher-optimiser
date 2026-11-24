@@ -62,6 +62,8 @@
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Emulation}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Telemetry"
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Telemetry}" />
+                    <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Booster"
+                                 IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Booster}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Storage"
                                  IsChecked="{Binding Page, Converter={StaticResource Eq}, ConverterParameter=Storage}" />
                     <RadioButton Style="{StaticResource NavButton}" GroupName="nav" Content="Hardware"
@@ -320,6 +322,8 @@
                                  Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Emulation}" />
             <views:TelemetryView Grid.Row="3" DataContext="{Binding Telemetry}"
                                  Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Telemetry}" />
+            <views:BoosterView Grid.Row="3" DataContext="{Binding Booster}"
+                               Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Booster}" />
             <views:StorageView Grid.Row="3" DataContext="{Binding Storage}"
                                Visibility="{Binding DataContext.Page, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource PageVis}, ConverterParameter=Storage}" />
             <views:AboutView Grid.Row="3"
