@@ -20,6 +20,36 @@ public sealed partial class StutterCauseRow(StutterCauseFinding f, GameDetailsVi
     private void Apply() => Result = owner.ApplyStutterFix(f.Action) ?? "Already set: nothing more to change here.";
 }
 
+/// <summary>One cause from the performance analysis, with its in-game and out-of-game suggestions.</summary>
+public sealed partial class AnalysisFindingRow : ObservableObject
+{
+    private readonly AnalysisFinding _f;
+    private readonly GameDetailsViewModel _owner;
+    private readonly AnalysisSuggestion? _action;
+
+    public AnalysisFindingRow(AnalysisFinding f, int sessionsSeen, GameDetailsViewModel owner)
+    {
+        _f = f;
+        _owner = owner;
+        _action = f.Suggestions.FirstOrDefault(s => s.Fix != StutterFix.None);
+        Recurring = sessionsSeen >= 2 ? $"Seen in {sessionsSeen} of your last sessions" : "";
+    }
+
+    public string Title => $"{(_f.Kind == AnalysisKind.FrameDrop ? "Frame drops" : "Temperature spikes")}: {_f.Title} · {_f.Episodes}× ({_f.Seconds} s)";
+    public string Detail => _f.Detail;
+    public string Evidence => _f.Evidence.Length == 0 ? "" : "What we saw: " + _f.Evidence + ".";
+    public string Recurring { get; }
+    public bool IsRecurring => Recurring.Length > 0;
+    public IReadOnlyList<string> InGame => [.. _f.Suggestions.Where(s => s.Scope == SuggestionScope.InGame).Select(s => "• " + s.Text)];
+    public IReadOnlyList<string> OutOfGame => [.. _f.Suggestions.Where(s => s.Scope == SuggestionScope.OutOfGame).Select(s => "• " + s.Text)];
+    public bool HasAction => _action is not null;
+    public string ActionLabel => _action?.FixLabel ?? "";
+    [ObservableProperty] private string _result = "";
+
+    [RelayCommand]
+    private void Apply() { if (_action is not null) Result = _owner.ApplyStutterFix(_action.Fix) ?? "Already set: nothing more to change here."; }
+}
+
 public sealed partial class AbOption(object? value, string label, bool isB, GameDetailsViewModel owner) : ObservableObject
 {
     public object? Value { get; } = value;
@@ -57,6 +87,23 @@ public sealed partial class GameDetailsViewModel
         var done = StutterFixes.Apply(Game, _s.Settings, fix);
         if (done is not null) { _s.SaveLibrary(); _s.SaveSettings(); }
         return done;
+    }
+
+    // ------------------------------------------------------------------ performance analysis
+
+    public ObservableCollection<AnalysisFindingRow> AnalysisFindings { get; } = [];
+    [ObservableProperty] private bool _hasAnalysis;
+    [ObservableProperty] private string _analysisSummary = "";
+
+    private void LoadAnalysis()
+    {
+        var h = Json.Load<GameAnalysisHistory>(Path.Combine(_s.Paths.Root, "analysis", $"{Game.Id:N}.json"));
+        var latest = h?.Sessions.OrderByDescending(x => x.SessionStart).FirstOrDefault();
+        HasAnalysis = latest is not null;
+        AnalysisFindings.Clear();
+        if (h is null || latest is null) return;
+        AnalysisSummary = $"{latest.SessionStart.ToLocalTime():d MMM HH:mm}: {latest.Summary}";
+        foreach (var f in latest.Findings.Take(5)) AnalysisFindings.Add(new AnalysisFindingRow(f, h.SessionsWith(f.Kind, f.Cause), this));
     }
 
     // ------------------------------------------------------------------ A/B wizard
@@ -157,6 +204,7 @@ public sealed partial class GameDetailsViewModel
     private void LoadInsights()
     {
         LoadStutters();
+        LoadAnalysis();
         RefreshSmooth();
         if (AbOptionsA.Count == 0) BuildAbOptions();
         RefreshAb();

@@ -444,6 +444,42 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Performance analysis -->
+                <TextBlock Text="Performance analysis" Style="{StaticResource H2}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="While you play, Fitz watches for frame drops and temperature spikes. After each session this lists what caused them and what to change, in the game and outside it." Style="{StaticResource Wrap}"
+                                   Visibility="{Binding HasAnalysis, Converter={StaticResource NotVis}}" />
+                        <StackPanel Visibility="{Binding HasAnalysis, Converter={StaticResource Vis}}">
+                            <TextBlock Text="{Binding AnalysisSummary}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" />
+                            <ItemsControl ItemsSource="{Binding AnalysisFindings}" Margin="0,8,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Margin="0,0,0,12">
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" Foreground="{StaticResource Text}" Style="{StaticResource Wrap}" />
+                                            <TextBlock Text="{Binding Recurring}" Style="{StaticResource Wrap}" Foreground="{StaticResource Warn}"
+                                                       Visibility="{Binding IsRecurring, Converter={StaticResource Vis}}" />
+                                            <TextBlock Text="{Binding Detail}" Style="{StaticResource Wrap}" />
+                                            <TextBlock Text="{Binding Evidence}" Style="{StaticResource Wrap}" />
+                                            <TextBlock Text="In the game" Style="{StaticResource MutedText}" Margin="0,6,0,2" />
+                                            <ItemsControl ItemsSource="{Binding InGame}">
+                                                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,0,0,2" /></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <TextBlock Text="Outside the game" Style="{StaticResource MutedText}" Margin="0,6,0,2" />
+                                            <ItemsControl ItemsSource="{Binding OutOfGame}">
+                                                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource Wrap}" Foreground="{StaticResource Text}" Margin="0,0,0,2" /></DataTemplate></ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                            <Button Content="{Binding ActionLabel}" Command="{Binding ApplyCommand}" Style="{StaticResource GhostButton}" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                                    Visibility="{Binding HasAction, Converter={StaticResource Vis}}" />
+                                            <TextBlock Text="{Binding Result}" Style="{StaticResource Wrap}" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
                 <!-- A/B benchmark -->
                 <TextBlock Text="A/B test" Style="{StaticResource H2}" />
                 <Border Style="{StaticResource Card}">

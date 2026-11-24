@@ -668,7 +668,10 @@ public sealed partial class MainViewModel : ObservableObject
             var stutterNote = session.StutterReport is { PerMinute: >= 1, Causes.Count: > 0 } sr
                 ? $"\nStutters ({sr.PerMinute:0.#}/min): {sr.Causes[0].Title.ToLowerInvariant()}. Open {game.Name} → Stutter detective for the fix."
                 : "";
-            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\n{tune}" : "") + stutterNote);
+            var analysisNote = session.Analysis is { Findings.Count: > 0 } an
+                ? $"\nAnalysis: {an.Findings[0].Title.ToLowerInvariant()} ({(an.Findings[0].Kind == FitzLauncher.Core.Fps.AnalysisKind.FrameDrop ? "frame drops" : "temperature spikes")}). Open {game.Name} → Performance analysis for what to change."
+                : "";
+            ShowToast(SessionToast(summary) + (tune is { Length: > 0 } ? $"\n{tune}" : "") + stutterNote + analysisNote);
             await BackupSavesAsync(game, "after playing");
             await Task.Run(_s.SyncUpload);
         }

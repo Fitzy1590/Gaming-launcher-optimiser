@@ -219,3 +219,10 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - **10.3 GPU max performance + HAGS**: partly built (`OptimizationPlanner` writes `GpuPreference=2` per game; `HardwareScanner`/`SystemAdvisor` read HAGS and advise only; SPEC §14 says HAGS is never changed). Gap: no one-click "max performance on game start" wrapper.
 - **10.4 APU RAM safety**: built (`Core/Optimization/ApuMemoryDiagnostic`, `Windows/Optimization/DxgiMemoryProbe`, `AppServices` pre-launch check, SPEC §10.3). Gap: check the warning badge threshold is 4 GB.
 - Not done on purpose: TokenEconomizer install (see chat), service names `MemoryPurgeService`/`ProcessIoPriority`/`GpuPowerOptimizer`/`RamSafetyDiagnostic` will be reused or wrapped, not duplicated.
+
+## 11. Per-game performance analysis (2026-11-24; requested in chat, not voted; not run on Windows)
+- [x] `Core/Fps/SessionAnalyst` (pure, 17 tests): sustained frame drops (under 85% of usual FPS for 6 s+, first 30 s ignored) and temperature spikes (+8 °C within 10 s), each matched to a cause from the 2 s `ContextSample`s (now also carrying FPS and watts), with suggestions marked **in game** or **outside the game**.
+- [x] Live: once a minute `GameSession` runs it and shows each new cause once as an overlay note. End of session: saved to `analysis/{gameId}.json` (last 5 sessions, so repeat causes are flagged).
+- [x] Game page → "Performance analysis" card; one-click fixes reuse `StutterFixes` (new: `LowerFpsTarget`, `ThermalGuardOn`). Toast after the session points to it.
+- [ ] Device test (Windows): live notes appear, card fills after a session, thresholds feel right on a handheld.
+- Not done: no busy-time (CPU/GPU frame time) evidence yet, so GPU-/CPU-bound uses load percentages only. In-game advice is generic per engine/upscaler, not per-setting-file edits.

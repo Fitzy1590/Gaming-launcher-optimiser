@@ -7,13 +7,13 @@ public readonly record struct StutterEvent(DateTimeOffset At, float FrameMs);
 /// <summary>What was going on at one moment of a session (sampled every 2 s).</summary>
 public sealed record ContextSample(DateTimeOffset At, double? CpuTempC, double? GpuTempC, double? CpuLoad, double? GpuLoad,
     double? FreeRamPercent, string? TopBackgroundApp, double TopBackgroundCpu, bool ThermalThrottling,
-    double? DiskBusyPercent = null, bool PowerLimitChanged = false);
+    double? DiskBusyPercent = null, bool PowerLimitChanged = false, double? Fps = null, double? Watts = null);
 
 // New causes are added at the end: reports are saved as numbers.
 public enum StutterCause { ShaderCompile, BackgroundApp, Memory, Thermal, CpuLimit, Unexplained, DiskBusy, PowerChange }
 
 /// <summary>A change the launcher can make for the game by itself (always reversible from the game page).</summary>
-public enum StutterFix { None, LimitBackgroundApps, CoolMode, AutoTdpWatchOnly }
+public enum StutterFix { None, LimitBackgroundApps, CoolMode, AutoTdpWatchOnly, LowerFpsTarget, ThermalGuardOn }
 
 public sealed record StutterCauseFinding(StutterCause Cause, int Count, string Title, string Detail, string Fix,
     StutterFix Action = StutterFix.None, string ActionLabel = "");
@@ -36,6 +36,15 @@ public static class StutterFixes
             case StutterFix.AutoTdpWatchOnly when game.AutoTdp != Optimization.AutoTdpMode.Observe:
                 game.AutoTdp = Optimization.AutoTdpMode.Observe;
                 return "Auto TDP now only watches for this game: it no longer changes the power limit.";
+            case StutterFix.LowerFpsTarget:
+                int[] ladder = [141, 117, 110, 100, 90, 60, 45, 30];
+                var next = game.FpsTarget is > 0 and var now ? ladder.Where(x => x < now).Cast<int?>().FirstOrDefault() : 60;
+                if (next is null) return null;
+                game.FpsTarget = next;
+                return $"This game's FPS target is now {next}.";
+            case StutterFix.ThermalGuardOn when !game.ThermalGuard:
+                game.ThermalGuard = true;
+                return "The thermal guard is now on for this game: it eases the frame cap off before the chip overheats.";
             default: return null;
         }
     }

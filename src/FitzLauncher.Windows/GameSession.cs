@@ -43,6 +43,9 @@ public sealed class GameSession(
 
     /// <summary>Why the session stuttered (set when it ends).</summary>
     public FitzLauncher.Core.Fps.StutterReport? StutterReport { get; private set; }
+    /// <summary>Why frames dropped and temperatures spiked, with per-game suggestions (set when the session ends).</summary>
+    public FitzLauncher.Core.Fps.SessionAnalysis? Analysis { get; private set; }
+    private readonly HashSet<(FitzLauncher.Core.Fps.AnalysisKind, FitzLauncher.Core.Fps.AnalysisCause)> _liveAnalysisShown = [];
     private readonly List<FitzLauncher.Core.Fps.ContextSample> _samples = [];
     private readonly DiskActivity _disk = new();
     private int _tickErrors;
@@ -793,7 +796,18 @@ public sealed class GameSession(
                     var top = limiter?.LastTop ?? guardTop;
                     _samples.Add(new FitzLauncher.Core.Fps.ContextSample(DateTimeOffset.UtcNow, r.CpuTempC, r.GpuTempC, r.CpuLoad, r.GpuLoad,
                         MemoryCleaner.FreePercent(), top.Name, top.Cpu, _guard?.IsThrottling == true,
-                        _disk.BusyPercent(), (DateTimeOffset.UtcNow - _lastPowerChange).TotalSeconds < 4));
+                        _disk.BusyPercent(), (DateTimeOffset.UtcNow - _lastPowerChange).TotalSeconds < 4, fps.CurrentFps, r.Watts));
+                }
+
+                // Live analysis: once a minute, look at the session so far and say (once per cause) what is dragging it down.
+                if (tick % 30 == 0 && BenchmarkSecondsLeft() is null)
+                {
+                    var analysisNow = FitzLauncher.Core.Fps.SessionAnalyst.Analyze(game, start.ToUniversalTime(), _samples, settings.CpuTempAlertC, settings.GpuTempAlertC);
+                    if (FitzLauncher.Core.Fps.SessionAnalyst.NextLiveNote(analysisNow, _liveAnalysisShown) is { } found)
+                    {
+                        Note(found.Short, 10);
+                        Trace?.Invoke($"Analysis: {found.Title}: {found.Evidence}");
+                    }
                 }
 
                 if (CheckSustained(r.CpuTempC, settings.CpuTempAlertC, ref cpuHotSince, ref lastCpuAlert))
@@ -994,6 +1008,20 @@ public sealed class GameSession(
             StutterReport = FitzLauncher.Core.Fps.StutterDetective.Analyze(game, start.ToUniversalTime(), end.ToUniversalTime(), rec.Stutters, _samples, settings.CpuTempAlertC, settings.GpuTempAlertC);
             try { Json.Save(Path.Combine(paths.Root, "stutters", $"{game.Id:N}.json"), StutterReport); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
+        }
+
+        // Frame-drop and temperature-spike analysis, kept for the last few sessions so repeat causes show.
+        if (summary.HasFpsData)
+        {
+            Analysis = FitzLauncher.Core.Fps.SessionAnalyst.Analyze(game, start.ToUniversalTime(), _samples, settings.CpuTempAlertC, settings.GpuTempAlertC);
+            try
+            {
+                var file = Path.Combine(paths.Root, "analysis", $"{game.Id:N}.json");
+                var history = Json.Load<FitzLauncher.Core.Fps.GameAnalysisHistory>(file) ?? new() { GameId = game.Id };
+                history.Add(Analysis);
+                Json.Save(file, history);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Text.Json.JsonException) { }
         }
 
         // Crash check: abnormal exit code, or Windows logged an "Application Error" for the game exe.
