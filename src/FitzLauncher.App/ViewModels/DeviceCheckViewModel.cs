@@ -36,7 +36,7 @@ public sealed partial class DeviceCheckViewModel(AppServices s) : ObservableObje
     public async Task RunAsync()
     {
         IsBusy = true;
-        var items = await Task.Run(() => DeviceChecker.Run(s.Paths, s.Hardware?.IsApu == true, s.Hardware?.RtssPath));
+        var items = await Task.Run(() => DeviceChecker.Run(s.Paths, s.Hardware?.IsApu == true, s.Hardware?.RtssPath, s.Settings.RyzenAdjPath));
         Rows.Clear();
         foreach (var i in items.OrderByDescending(i => i.Status == CheckStatus.Required).ThenByDescending(i => i.Status == CheckStatus.Recommended).ThenBy(i => i.Status == CheckStatus.Info))
             Rows.Add(new DeviceCheckRow(i, this));

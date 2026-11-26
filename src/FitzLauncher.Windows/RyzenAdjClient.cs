@@ -23,6 +23,8 @@ public sealed partial class RyzenAdjClient(string exePath, AppPaths paths)
     public static string? Find(string? configured)
     {
         if (configured is not null && File.Exists(configured)) return configured;
+        // A folder is fine too (e.g. the unzipped ryzenadj-win64 folder): use the ryzenadj.exe inside it.
+        if (configured is not null && Directory.Exists(configured) && Path.Combine(configured, "ryzenadj.exe") is var inFolder && File.Exists(inFolder)) return inFolder;
         var pf = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
         var candidates = new[]
         {

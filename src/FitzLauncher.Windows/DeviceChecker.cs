@@ -13,7 +13,7 @@ namespace FitzLauncher.Windows;
 /// </summary>
 public static class DeviceChecker
 {
-    public static List<DeviceCheckItem> Run(AppPaths paths, bool isApu, string? rtssPath)
+    public static List<DeviceCheckItem> Run(AppPaths paths, bool isApu, string? rtssPath, string? ryzenAdjPath = null)
     {
         var items = new List<DeviceCheckItem>();
         var sys32 = Environment.GetFolderPath(Environment.SpecialFolder.System);
@@ -78,7 +78,7 @@ public static class DeviceChecker
             ? new("RivaTuner Statistics Server", CheckStatus.Ok, "Found: frame caps and the overlay work.")
             : new("RivaTuner Statistics Server", CheckStatus.Info, "Optional: needed for live FPS caps, the thermal guard and the overlay.", new FixLink("Get RTSS (Guru3D)", "https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/")));
         if (isApu)
-            items.Add(RyzenAdjClient.Find(null) is not null
+            items.Add(RyzenAdjClient.Find(ryzenAdjPath) is not null
                 ? new("RyzenAdj", CheckStatus.Ok, "Found: power limits and undervolting work.")
                 : new("RyzenAdj", CheckStatus.Info, "Optional: needed for per-game power limits, cooling power trims and undervolting.", new FixLink("Get RyzenAdj (GitHub)", "https://github.com/FlyGoat/RyzenAdj/releases")));
         items.Add(ControllerDevices.ViGEmInstalled() && ControllerDevices.HidHideInstalled()
