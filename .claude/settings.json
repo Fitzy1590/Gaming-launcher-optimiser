@@ -22,7 +22,11 @@
       "Read(**/bin/**)",
       "Read(**/obj/**)",
       "Read(./publish/**)",
-      "Read(**/TestResults/**)"
+      "Read(**/TestResults/**)",
+      "Read(node_modules/**)",
+      "Read(dist/**)",
+      "Read(build/**)",
+      "Read(**/*.lock)"
     ],
     "allow": [
       "Bash(dotnet build:*)",
@@ -58,5 +62,6 @@
         ]
       }
     ]
-  }
+  },
+  "outputStyle": "concise"
 }

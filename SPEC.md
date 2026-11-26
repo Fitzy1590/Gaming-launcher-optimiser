@@ -300,3 +300,40 @@ Audit in `FEATURE_PROGRESS.md` §10. Three of four modules were already built, s
 - **16.2 Disk I/O priority (new):** `Windows/Optimization/ProcessIoPriority`. `NtSetInformationProcess(handle, ProcessIoPriority = 33, ref uint hint, 4)` with hint `IoPriorityHigh = 3` (hints: 0 VeryLow, 1 Low, 2 Normal, 3 High, 4 Critical, kernel only). Handle needs `PROCESS_SET_INFORMATION` (0x0200); High needs `SeIncreaseBasePriorityPrivilege` (admin). The class number is from ntdll community headers, not Microsoft docs: VERIFY on device by reading it back (`NtQueryInformationProcess`). Applied next to `RaiseGamePriority` for the game's own processes only, gated by `GameModeOptions.RaiseIoPriority`. Per-process, so it disappears when the game exits; nothing to restore. Failure is silent (no admin, protected process).
 - **16.3 GPU power and HAGS:** existing per-game `GpuPreference=2` (`OptimizationPlanner`) and HAGS read/advice (`SystemAdvisor`). HAGS is never changed (§14). No new code.
 - **16.4 APU RAM safety:** existing `ApuMemoryDiagnostic` + `DxgiMemoryProbe` (`GlobalMemoryStatusEx` + DXGI `DedicatedVideoMemory`/`SharedSystemMemory`). Badge shows when game headroom is under 2 GB (Tight) or negative (Low). No new code.
+
+## 17. Seven-pillar Game Booster update: audit and vote (requested 2026-11-26; **vote pending**)
+Audit in `FEATURE_PROGRESS.md` §12. Voting card: `VOTING_CARD.html` (root) and `.claude/VOTING_CARD.md`. No application code until the vote is recorded.
+
+**Audit result (read-only, from source):** six of the seven pillars are already built. Duplicating them would add a second path to the same setting, which CLAUDE.md forbids.
+
+| # | Pillar | Status | Where |
+|---|---|---|---|
+| 1 | NtSuspend + services + restore | Built | `GameModeController` (`SuspendProcesses`, `ServiceController` stop/start, restore state), `ResourceGuard`, `SleepSupport` |
+| 2 | P-core / V-Cache affinity, High priority | Built | `CpuAffinityPlanner`, `CpuTopologyReader`, `GameSession`, `ClosedLoopApplier`, `RaiseGamePriority` |
+| 3 | 0.5 ms timer | Built | `Native.NtSetTimerResolution(5000)` in `GameModeController`; Windows 11 on by default (§14) |
+| 4 | Standby list purge | Built | `MemoryCleaner.PurgeStandbyList` (§16.1) |
+| 5a | Ultimate Performance, core parking | Built | `PowerPlans.UltimatePerformance`, `PreviousCoreParkingMin` in `GameModeController` |
+| 5b | Equalizer APO profile | **Missing** | no code |
+| 6a | Frame pacing via ETW | Built (no PresentMon binary; same ETW events) | `EtwFpsTracker`, `RollingFrameStats` |
+| 6b | DLL swapper | Built | `UpscalerLibrary`, `UpscalerUpdateService` |
+| 7 | Diagnostic logger + export | **Missing** (only `launcher.log`, a path-only `Redact`) | `AppServices.Log`, `ModDoctor.Redact` |
+
+**Requested items that do not match the repo or Windows (need your call):**
+- "Global" 0.5 ms timer: on Windows 11 the request only benefits the requesting process (§14.1, VERIFY on device). A second requester, `timeBeginPeriod` in `Controllers.cs`, exists; its purpose was not audited.
+- `ffx_fsr3.dll`: not found in the repo (current names are `amd_fidelityfx_dx12.dll` / `_vk.dll`). Unverified: do not add until checked against FidelityFX docs.
+- Service list `SysMain`, `PrintNotify`, `SearchIndexer`: current default list not compared yet.
+- Job Object restore: existing restore uses `Process` exit + restore record + start-up recovery. A Job Object would not survive a Fitz crash either, so it is not added.
+- New nav tabs (CPU Topology, Audio & Display) and a wholesale "Tactical HUD" restyle conflict with CLAUDE.md ("don't restyle wholesale", instant navigation). Layout is therefore a vote (17.2).
+
+### 17.1 Scope vote
+- [ ] **A. Delta of the 7-pillar engine:** Equalizer APO profile writer (key-level, backup + restore record), Diagnostic logger (off by default, secret redaction, one-tap export), frame-time variance and 1% low card on the existing ETW data, DLL version floor checks (DLSS 3.7+, XeSS 1.3+, FSR 3.1+), timer-requester de-dup. Everything else reused.
+- [ ] **B. Minimal:** Diagnostic logger + export only. No Equalizer APO, no new cards.
+
+### 17.2 Layout vote
+- [ ] **L1.** One new "Booster" page (Visibility swap, no Frame) with cards: Freezer, Topology, Timer, Memory, Power and Audio, Frame pacing, Diagnostics.
+- [ ] **L2.** No new page: extend Settings → Game Mode and the Telemetry page; Diagnostics under Settings.
+
+### 17.3 Planned rules (if A)
+- Equalizer APO: edit only a Fitz-owned `Include:` line / `fitz.txt` in its config folder; never rewrite `config.txt`. Not installed → feature off with a hint.
+- Diagnostic logger: default off, ring buffer, zero work when off; regex redaction of tokens, API keys, `SWID`, `ESPN_S2`, cookies, user paths before any write. Pure logic in `Core/Diagnostics` with tests.
+- Frame pacing: reuse `EtwFpsTracker`; no PresentMon dependency, no injection.

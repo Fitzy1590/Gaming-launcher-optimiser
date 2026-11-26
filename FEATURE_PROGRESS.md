@@ -226,3 +226,10 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - [x] Game page → "Performance analysis" card; one-click fixes reuse `StutterFixes` (new: `LowerFpsTarget`, `ThermalGuardOn`). Toast after the session points to it.
 - [ ] Device test (Windows): live notes appear, card fills after a session, thresholds feel right on a handheld.
 - Not done: no busy-time (CPU/GPU frame time) evidence yet, so GPU-/CPU-bound uses load percentages only. In-game advice is generic per engine/upscaler, not per-setting-file edits.
+
+## 12. Seven-pillar Game Booster update (2026-11-26; spec `SPEC.md` §17; **vote pending**, no code written)
+- [x] Audit: pillars 1, 2, 3, 4, 5a, 6a, 6b built; 5b (Equalizer APO) and 7 (diagnostic logger/export) missing. Details in `SPEC.md` §17.
+- [x] `VOTING_CARD.html` and `.claude/VOTING_CARD.md` written
+- [ ] Vote scope: `- [ ]` A (delta) / `- [ ]` B (minimal)
+- [ ] Vote layout: `- [ ]` L1 (Booster page) / `- [ ]` L2 (extend existing pages)
+- [ ] Phase 2 (after vote): per chosen option
