@@ -47,10 +47,11 @@ public static class UpscalerLibrary
             if (TryVersion(dll.Version, out var cv) && nv <= cv) continue;
             if (newest.Path.Equals(dll.Path, StringComparison.OrdinalIgnoreCase)) continue;
             var label = Label(dll.Kind);
+            var old = BelowFloor(dll.Kind, dll.Version) ? " (older than the recommended minimum)" : "";
             list.Add(new Tweak
             {
                 Id = $"dll-{dll.Kind}-{Path.GetFileName(Path.GetDirectoryName(dll.Path))}".ToLowerInvariant(),
-                Title = $"Update {label}: {Short(dll.Version)} → {Short(newest.Version)}",
+                Title = $"Update {label}: {Short(dll.Version)} → {Short(newest.Version)}{old}",
                 Description = $"Swaps in the newer {FileName(dll.Kind)} (taken from {SourceName(newest.Path)}). Newer versions usually give a sharper, more stable image at the same FPS. " +
                               "The original is backed up and can be restored. Avoid this in online games with anti-cheat, which can flag modified files.",
                 Category = TweakCategory.Graphics,
@@ -71,6 +72,18 @@ public static class UpscalerLibrary
     }
 
     private static string Short(string v) => string.IsNullOrEmpty(v) ? "unknown" : v;
+
+    /// <summary>Oldest version worth keeping (DLSS 3.7, XeSS 1.3). FSR is not checked: its file-version scheme is unverified.</summary>
+    public static bool BelowFloor(UpscalerDllKind k, string? version)
+    {
+        if (!TryVersion(version, out var v)) return false;
+        return k switch
+        {
+            UpscalerDllKind.DlssSuperResolution => v < new Version(3, 7),
+            UpscalerDllKind.XeSS => v < new Version(1, 3),
+            _ => false,
+        };
+    }
 
     public static bool TryVersion(string? s, out Version v)
     {

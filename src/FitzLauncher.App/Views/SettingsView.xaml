@@ -78,6 +78,19 @@
                         <CheckBox Content="Warn before launch if the memory reserved for graphics leaves too little for the game (handhelds and APUs; advice only)" IsChecked="{Binding G.ShowApuMemoryWarning}" />
                     </StackPanel>
                     <TextBlock Text="Everything is restored when the game closes, and also on the next start if the PC crashes mid-game." Style="{StaticResource Wrap}" Margin="0,8,0,0" />
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0" IsEnabled="{Binding G.Enabled}">
+                        <TextBlock Text="Sound profile while playing (needs Equalizer APO):" VerticalAlignment="Center" Margin="0,0,8,0" />
+                        <ComboBox SelectedIndex="{Binding AudioProfileIndex}" MinWidth="160" MinHeight="32" AutomationProperties.Name="Sound profile">
+                            <ComboBoxItem Content="Off" />
+                            <ComboBoxItem Content="Clarity (voices and detail)" />
+                            <ComboBoxItem Content="Footsteps (less rumble)" />
+                        </ComboBox>
+                    </StackPanel>
+                    <TextBlock Text="Adds one line to Equalizer APO's config.txt and removes it when the game closes. If its folder needs admin, run Fitz as administrator. Nothing happens if Equalizer APO is not installed." Style="{StaticResource Wrap}" />
+                    <TextBlock Text="Diagnostics" FontWeight="SemiBold" Margin="0,16,0,4" />
+                    <CheckBox Content="Write extra detail to launcher.log while I play (off by default; passwords, keys and cookies are always removed)" IsChecked="{Binding DiagnosticLogging}" />
+                    <Button Content="Export diagnostic package" Command="{Binding ExportDiagnosticCommand}" HorizontalAlignment="Left" MinHeight="44" Padding="16,4" Margin="0,8,0,0" AutomationProperties.Name="Export diagnostic package" />
+                    <TextBlock Text="{Binding DiagnosticExportText}" Style="{StaticResource Wrap}" />
                     <TextBlock Text="What the resource guard has learned" FontWeight="SemiBold" Margin="0,16,0,4" />
                     <TextBlock Text="Apps it always handles or never touches, and what helped or didn't. It never touches Windows, security software, game launchers, anti-cheat or overlay tools." Style="{StaticResource Wrap}" />
                     <ItemsControl ItemsSource="{Binding ResourceRules}" Margin="0,8,0,0">

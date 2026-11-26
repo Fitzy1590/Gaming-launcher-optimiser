@@ -69,6 +69,7 @@ public sealed partial class TelemetryViewModel : ObservableObject
 
     [ObservableProperty] private string _fpsText = "–";
     [ObservableProperty] private string _lowText = "–";
+    [ObservableProperty] private string _pacingText = "–";
     [ObservableProperty] private string _cpuBusyText = "–";
     [ObservableProperty] private string _gpuBusyText = "–";
     [ObservableProperty] private string _cpuTempText = "–";
@@ -85,6 +86,7 @@ public sealed partial class TelemetryViewModel : ObservableObject
     {
         FpsText = s.Fps > 0 ? s.Fps.ToString("0", CultureInfo.CurrentCulture) : "–";
         LowText = s.LowFps > 0 ? s.LowFps.ToString("0", CultureInfo.CurrentCulture) : "–";
+        PacingText = FitzLauncher.Core.Telemetry.FramePacing.Describe(s.Fps, s.LowFps);
         CpuBusyText = Ms(s.CpuBusyMs);
         GpuBusyText = Ms(s.GpuBusyMs);
         CpuTempText = Deg(s.CpuTempC);

@@ -227,9 +227,10 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - [ ] Device test (Windows): live notes appear, card fills after a session, thresholds feel right on a handheld.
 - Not done: no busy-time (CPU/GPU frame time) evidence yet, so GPU-/CPU-bound uses load percentages only. In-game advice is generic per engine/upscaler, not per-setting-file edits.
 
-## 12. Seven-pillar Game Booster update (2026-11-26; spec `SPEC.md` §17; **vote pending**, no code written)
+## 12. Seven-pillar Game Booster update (2026-11-26; spec `SPEC.md` §17; **vote recorded: A + L2**)
 - [x] Audit: pillars 1, 2, 3, 4, 5a, 6a, 6b built; 5b (Equalizer APO) and 7 (diagnostic logger/export) missing. Details in `SPEC.md` §17.
 - [x] `VOTING_CARD.html` and `.claude/VOTING_CARD.md` written
-- [ ] Vote scope: `- [ ]` A (delta) / `- [ ]` B (minimal)
-- [ ] Vote layout: `- [ ]` L1 (Booster page) / `- [ ]` L2 (extend existing pages)
-- [ ] Phase 2 (after vote): per chosen option
+- [x] Vote scope: A (delta chosen; B not chosen)
+- [x] Vote layout: L2 (extend Settings and Telemetry; L1 not chosen)
+- [x] Phase 2 built (SPEC §17.4): diagnostics logger + export, Equalizer APO profile, frame-pacing card, DLL floor. Build 0 errors, 639 Core tests pass (Linux cross-compile); not run on Windows.
+- [ ] Device test (Windows, admin): export file content and redaction, trace toggle, Equalizer APO folder/registry key and Include behaviour, restore after crash, pacing card

@@ -38,6 +38,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
 {
     private GameModeRestoreState? _state;
     private CancellationTokenSource? _guardCts;
+    private readonly Audio.EqualizerApoApplier _audio = new(paths, log);
 
     public bool IsActive => _state is not null;
 
@@ -137,6 +138,8 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
                 report.Add("Timer resolution: 0.5 ms");
             }
         }
+
+        if (o.AudioProfile != Core.Audio.AudioProfile.Off && _audio.Apply(o.AudioProfile) is { } audio) report.Add(audio);
 
         Persist();
         return report;
@@ -256,6 +259,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
     {
         _guardCts?.Cancel();
         _guardCts = null;
+        _audio.Revert();
         var state = _state ?? Json.Load<GameModeRestoreState>(paths.GameModeState);
         _state = null;
         if (state is null) return [];
@@ -270,7 +274,7 @@ public sealed class GameModeController(AppPaths paths, Action<string>? log = nul
     }
 
     /// <summary>Call at launcher start: undoes a Game Mode left active by a crash or power loss.</summary>
-    public List<string> RecoverIfNeeded() => File.Exists(paths.GameModeState) ? Restore() : [];
+    public List<string> RecoverIfNeeded() => File.Exists(paths.GameModeState) || _audio.HasRecord ? Restore() : [];
 
     private List<string> RestoreState(GameModeRestoreState s, out GameModeRestoreState? pendingHolds)
     {

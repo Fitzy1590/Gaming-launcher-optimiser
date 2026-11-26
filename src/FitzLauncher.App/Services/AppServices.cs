@@ -94,6 +94,7 @@ public sealed class AppServices : IDisposable
         Store = new LibraryStore(Paths);
         Library = Store.LoadLibrary();
         Settings = Store.LoadSettings();
+        Log.TraceEnabled = Settings.DiagnosticLogging;
         Hardware = Store.LoadHardware();
         Tweaks = new TweakEngine(new WindowsRegistryAccess(), Paths.BackupDir);
         Scanner = new GameScanner(ScanContext.FromEnvironment());
@@ -244,8 +245,17 @@ public sealed class Log(string path)
 {
     private readonly Lock _lock = new();
 
+    /// <summary>Extra trace lines are written only while this is on (Settings → Diagnostics). Off: Trace returns at once.</summary>
+    public volatile bool TraceEnabled;
+
+    public void Trace(string message)
+    {
+        if (TraceEnabled) Write("TRACE " + message);
+    }
+
     public void Write(string message)
     {
+        message = FitzLauncher.Core.Diagnostics.LogRedactor.Redact(message);
         lock (_lock)
         {
             try

@@ -49,6 +49,12 @@
                         <TextBlock Text="{Binding LowText}" Style="{StaticResource Figure}" FontSize="24" Foreground="{StaticResource Text}" />
                     </StackPanel>
                 </Border>
+                <Border Style="{StaticResource Card}" Width="200" Margin="0,0,8,8">
+                    <StackPanel>
+                        <TextBlock Text="Frame pacing (1% low vs average)" Style="{StaticResource MutedText}" TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding PacingText}" Style="{StaticResource Figure}" FontSize="18" Foreground="{StaticResource Text}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
                 <Border Style="{StaticResource Card}" Width="160" Margin="0,0,8,8">
                     <StackPanel>
                         <TextBlock Text="Processor busy" Style="{StaticResource MutedText}" />

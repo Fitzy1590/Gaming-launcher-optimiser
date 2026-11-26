@@ -101,3 +101,7 @@ dotnet format whitespace FitzLauncher.slnx --include <file.cs>   # format one fi
 
 - **Voted 2026-11-16: option A** (direct launch, LSFG 2x, pinning, timer, shader clear, Defender shield). Timer on Windows 11 is ticked by default (voted 2026-11-16).
 - **Where it goes:** `Core/Emulators`, `Windows/Emulators`, a normal `Game` with `AndroidPackage`. Reuse the session; no new launch path.
+
+## Booster engine (see `SPEC.md` §17, stages in `FEATURE_PROGRESS.md` §12; rules in `.claude/rules/booster-engine.md`, `win32-api.md`)
+
+- **Voted 2026-11-26: A + L2** (build only the gaps; no new nav page). Equalizer APO profile, diagnostic logger/export, frame-pacing card, DLL floors. The other pillars already existed: reuse, never duplicate.

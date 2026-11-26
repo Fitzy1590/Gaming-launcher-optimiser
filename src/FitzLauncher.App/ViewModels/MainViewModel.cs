@@ -580,6 +580,7 @@ public sealed partial class MainViewModel : ObservableObject
         _session = session;
         session.Status += line => { _s.Log.Write($"[{vm.Name}] {line}"); Ui(() => Activity = line); };
         session.Trace += line => _s.Log.Write($"[{vm.Name}] {line}");
+        session.Status += line => _s.Log.Trace($"[{vm.Name}] status: {line}");
         // What Auto TDP is doing (or why it isn't), kept for Settings.
         session.Status += line =>
         {

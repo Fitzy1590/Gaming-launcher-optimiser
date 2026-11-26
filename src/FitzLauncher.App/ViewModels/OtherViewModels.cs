@@ -288,6 +288,38 @@ public sealed partial class SettingsViewModel : ObservableObject
     public ControllersViewModel Controllers { get; }
     public GameModeOptions G => _s.Settings.GameMode;
 
+    public int AudioProfileIndex
+    {
+        get => (int)G.AudioProfile;
+        set { G.AudioProfile = (FitzLauncher.Core.Audio.AudioProfile)value; _s.SaveSettings(); OnPropertyChanged(); }
+    }
+
+    // ---- diagnostics (SPEC §17): off by default; the export works whether or not the trace is on
+    public bool DiagnosticLogging
+    {
+        get => _s.Settings.DiagnosticLogging;
+        set { _s.Settings.DiagnosticLogging = value; _s.Log.TraceEnabled = value; _s.SaveSettings(); OnPropertyChanged(); }
+    }
+
+    [ObservableProperty] private string _diagnosticExportText = "";
+
+    [RelayCommand]
+    private async Task ExportDiagnosticAsync()
+    {
+        DiagnosticExportText = "Working…";
+        var version = typeof(SettingsViewModel).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+        try
+        {
+            var file = await Task.Run(() => FitzLauncher.Windows.Diagnostics.DiagnosticSnapshot.Export(_s.Paths, version));
+            DiagnosticExportText = $"Saved {file}. Passwords, keys and cookies are removed from it.";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", $"/select,\"{file}\"") { UseShellExecute = true });
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            DiagnosticExportText = "Could not save the package: " + e.Message;
+        }
+    }
+
     // ---- resource guard: saved choices and what helped
     public ObservableCollection<ResourceRuleRow> ResourceRules { get; } = [];
     public ObservableCollection<ResourceHistoryRow> ResourceHistory { get; } = [];

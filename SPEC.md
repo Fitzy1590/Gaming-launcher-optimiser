@@ -301,7 +301,7 @@ Audit in `FEATURE_PROGRESS.md` §10. Three of four modules were already built, s
 - **16.3 GPU power and HAGS:** existing per-game `GpuPreference=2` (`OptimizationPlanner`) and HAGS read/advice (`SystemAdvisor`). HAGS is never changed (§14). No new code.
 - **16.4 APU RAM safety:** existing `ApuMemoryDiagnostic` + `DxgiMemoryProbe` (`GlobalMemoryStatusEx` + DXGI `DedicatedVideoMemory`/`SharedSystemMemory`). Badge shows when game headroom is under 2 GB (Tight) or negative (Low). No new code.
 
-## 17. Seven-pillar Game Booster update: audit and vote (requested 2026-11-26; **vote pending**)
+## 17. Seven-pillar Game Booster update: audit and vote (requested 2026-11-26; **vote recorded: A, L2**)
 Audit in `FEATURE_PROGRESS.md` §12. Voting card: `VOTING_CARD.html` (root) and `.claude/VOTING_CARD.md`. No application code until the vote is recorded.
 
 **Audit result (read-only, from source):** six of the seven pillars are already built. Duplicating them would add a second path to the same setting, which CLAUDE.md forbids.
@@ -326,14 +326,22 @@ Audit in `FEATURE_PROGRESS.md` §12. Voting card: `VOTING_CARD.html` (root) and 
 - New nav tabs (CPU Topology, Audio & Display) and a wholesale "Tactical HUD" restyle conflict with CLAUDE.md ("don't restyle wholesale", instant navigation). Layout is therefore a vote (17.2).
 
 ### 17.1 Scope vote
-- [ ] **A. Delta of the 7-pillar engine:** Equalizer APO profile writer (key-level, backup + restore record), Diagnostic logger (off by default, secret redaction, one-tap export), frame-time variance and 1% low card on the existing ETW data, DLL version floor checks (DLSS 3.7+, XeSS 1.3+, FSR 3.1+), timer-requester de-dup. Everything else reused.
+- [x] **A. Delta of the 7-pillar engine:** Equalizer APO profile writer (key-level, backup + restore record), Diagnostic logger (off by default, secret redaction, one-tap export), frame-time variance and 1% low card on the existing ETW data, DLL version floor checks (DLSS 3.7+, XeSS 1.3+, FSR 3.1+), timer-requester de-dup. Everything else reused.
 - [ ] **B. Minimal:** Diagnostic logger + export only. No Equalizer APO, no new cards.
 
 ### 17.2 Layout vote
 - [ ] **L1.** One new "Booster" page (Visibility swap, no Frame) with cards: Freezer, Topology, Timer, Memory, Power and Audio, Frame pacing, Diagnostics.
-- [ ] **L2.** No new page: extend Settings → Game Mode and the Telemetry page; Diagnostics under Settings.
+- [x] **L2.** No new page: extend Settings → Game Mode and the Telemetry page; Diagnostics under Settings.
 
 ### 17.3 Planned rules (if A)
 - Equalizer APO: edit only a Fitz-owned `Include:` line / `fitz.txt` in its config folder; never rewrite `config.txt`. Not installed → feature off with a hint.
 - Diagnostic logger: default off, ring buffer, zero work when off; regex redaction of tokens, API keys, `SWID`, `ESPN_S2`, cookies, user paths before any write. Pure logic in `Core/Diagnostics` with tests.
 - Frame pacing: reuse `EtwFpsTracker`; no PresentMon dependency, no injection.
+
+### 17.4 Built (2026-11-26, vote A + L2)
+- `Core/Diagnostics/LogRedactor` + `DiagnosticPackage` (pure, tested). `Log.Write` now redacts; `Log.Trace` is a no-op unless `LauncherSettings.DiagnosticLogging`. Export: `Windows/Diagnostics/DiagnosticSnapshot` writes `diagnostics/fitz-diagnostic-*.log` (system, timer resolution, affinity, restore files, last 400 log lines). Settings → Game Mode → Diagnostics.
+- `Core/Audio/EqualizerApo` (pure, tested) + `Windows/Audio/EqualizerApoApplier` (backup, `eqapo-restore.json`, revert at exit and start-up). `GameModeOptions.AudioProfile`, default Off.
+- `Core/Telemetry/FramePacing` + "Frame pacing" card on the Telemetry page (1% low vs average, from the existing ETW feed). A true frame-time variance figure is not built.
+- `UpscalerLibrary.BelowFloor` (DLSS 3.7, XeSS 1.3); the update tweak title notes an older-than-minimum DLL.
+- **Timer de-dup: not needed.** `timeBeginPeriod(1)` in `Controllers.cs` serves the controller poll loop; the finest request wins, so it does not conflict with the 0.5 ms request.
+- Not built: spatial/HRTF audio, FSR floor (version scheme unverified), `ffx_fsr3.dll`, Job Object restore, new nav tabs.

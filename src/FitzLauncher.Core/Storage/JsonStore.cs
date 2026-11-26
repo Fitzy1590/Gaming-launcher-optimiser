@@ -52,6 +52,7 @@ public sealed class AppPaths(string root)
     public string Hardware => Path.Combine(Root, "hardware.json");
     public string Sessions => Path.Combine(Root, "sessions.jsonl");
     public string GameModeState => Path.Combine(Root, "gamemode-restore.json");
+    public string EqualizerApoState => Path.Combine(Root, "eqapo-restore.json");
     /// <summary>Background apps the resource guard changed (priorities, paused apps), so a crash can't leave them that way.</summary>
     public string ResourceGuardState => Path.Combine(Root, "resource-guard-restore.json");
     /// <summary>What the closed-loop telemetry tuner changed (priorities, affinity, power profile, frame cap), so a crash can't leave it that way.</summary>

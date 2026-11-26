@@ -85,6 +85,10 @@ public sealed class LauncherSettings
     /// <summary>Track mods on your Nexus account when Fitz installs them (update emails, "Tracked" list on Nexus).</summary>
     public bool NexusTrackOnInstall { get; set; } = true;
 
+    // ---- diagnostics
+    /// <summary>Write extra trace lines to launcher.log. Off by default: when off, trace calls do nothing.</summary>
+    public bool DiagnosticLogging { get; set; }
+
     // ---- game help (AI Game Companion)
     /// <summary>Open AI Game Companion with every game.</summary>
     public bool GameHelpWithGames { get; set; }
@@ -237,6 +241,8 @@ public sealed class GameModeOptions
     public bool RaiseIoPriority { get; set; } = true;
     public bool LowerBackgroundPriority { get; set; } = true;
     public bool HighResolutionTimer { get; set; } = true;
+    /// <summary>Equalizer APO sound profile applied while the game runs (needs Equalizer APO installed; undone at exit).</summary>
+    public FitzLauncher.Core.Audio.AudioProfile AudioProfile { get; set; } = FitzLauncher.Core.Audio.AudioProfile.Off;
     /// <summary>Ask for the 0.5 ms timer on Windows 11 too. Off by default: Windows 11 only gives the benefit to the app that asks, so it may do nothing for the game.</summary>
     public bool TimerOnWindows11 { get; set; } = true;
     /// <summary>Make Defender's scheduled and catch-up scans gentle and idle-only during play. Real-time protection stays on.</summary>
