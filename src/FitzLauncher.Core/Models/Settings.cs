@@ -115,7 +115,7 @@ public sealed class LauncherSettings
     public bool FullScreen { get; set; }
 
     /// <summary>Cooling mode for games without their own.</summary>
-    public FitzLauncher.Core.Optimization.CoolingMode DefaultCooling { get; set; } = FitzLauncher.Core.Optimization.CoolingMode.Off;
+    public FitzLauncher.Core.Optimization.CoolingMode DefaultCooling { get; set; } = FitzLauncher.Core.Optimization.CoolingMode.Balanced;
     /// <summary>The nxm:// handler that was registered before ours (Vortex/MO2), restored when turned off.</summary>
     public string? NxmPreviousCommand { get; set; }
 
