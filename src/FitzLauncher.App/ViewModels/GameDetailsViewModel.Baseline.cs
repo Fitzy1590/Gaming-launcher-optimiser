@@ -29,6 +29,7 @@ public sealed partial class GameDetailsViewModel
             OnPropertyChanged();
             OnPropertyChanged(nameof(AutoTdpText));
             OnPropertyChanged(nameof(PowerOn));
+            RefreshProfile();
         }
     }
 

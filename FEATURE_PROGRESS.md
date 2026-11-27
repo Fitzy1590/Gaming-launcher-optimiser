@@ -234,3 +234,10 @@ Read-only audit of the four requested modules. Two are already built, so the rea
 - [x] Vote layout: L2 (extend Settings and Telemetry; L1 not chosen)
 - [x] Phase 2 built (SPEC §17.4): diagnostics logger + export, Equalizer APO profile, frame-pacing card, DLL floor. Build 0 errors, 639 Core tests pass (Linux cross-compile); not run on Windows.
 - [ ] Device test (Windows, admin): export file content and redaction, trace toggle, Equalizer APO folder/registry key and Include behaviour, restore after crash, pacing card
+
+## 13. Cyber Glass restyle, Windows only (2026-11-27; spec `SPEC.md` §18; **vote recorded: A · bundle · inspector · reuse · ring · flat · archive**)
+- [x] Android brief corrected by user to Windows only; voting card `VOTING_CARD.html`, booster card archived as `VOTING_CARD.booster.html`
+- [x] Votes recorded in `SPEC.md` §18.1. Standing rule: no option may affect game performance; Low-impact mode switches off anything that could.
+- [x] Built: theme tokens, bundled fonts (OFL licences copied to output), 3 px focus ring, Bento row (`LiveStatsViewModel`, gated by `LiveReadout.ShouldPoll`), profile switch (`PerformanceProfiles`), Low-impact mode. Build 0 errors, 655 Core tests pass (Linux cross-compile); not run on Windows.
+- [ ] Device test (Windows): fonts actually load (Inter/Outfit Medium and SemiBold faces carry typographic family names; check WPF picks them), Bento readings pause on Play and on Alt+Tab, profile chips match the Cooling / Auto TDP chips below, 980×600 layout of the four tiles, Low-impact mode stops reads (check CPU in Task Manager).
+

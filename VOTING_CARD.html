@@ -1,72 +1,350 @@
-<!doctype html>
-<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Fitz Launcher Booster Vote</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@500;700&family=Outfit:wght@600;700&display=swap">
+<title>Fitz Launcher UI Vote</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700&family=JetBrains+Mono:wght@500;700&display=swap">
 <style>
-:root{--bg:#0B0E14;--card:#121826;--line:#1f2937;--fg:#e6edf6;--mute:#8b98ad;--teal:#00F2FE;--ok:#10B981;--warn:#F59E0B;--ui:Inter,system-ui,sans-serif;--head:Outfit,Inter,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--ui);padding:24px max(16px,env(safe-area-inset-left))}
-main{max-width:1080px;margin:0 auto}
-h1,h2,h3{font-family:var(--head);margin:0}
-h1{font-size:clamp(24px,4vw,34px)}h2{font-size:20px;margin:32px 0 12px}
-.lead{color:var(--mute);max-width:70ch}
-.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
-label.opt{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;cursor:pointer;min-height:44px}
-label.opt:has(input:checked){border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
-label.opt input{accent-color:var(--teal);width:20px;height:20px;margin-right:8px}
-.top{display:flex;align-items:center;font-family:var(--head);font-weight:700;font-size:17px}
-.badge{margin-left:auto;font:600 11px var(--mono);letter-spacing:.06em;color:var(--ok);border:1px solid var(--ok);border-radius:4px;padding:2px 6px}
-ul{margin:0;padding-left:18px;color:var(--mute);font-size:14px}
-.hud{background:#0a0d13;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:8px;font-family:var(--mono);font-size:12px}
-.row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
-.row:last-child{border:0}.v{color:var(--teal);font-weight:700}.on{color:var(--ok)}.am{color:var(--warn)}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
-.c{background:rgba(18,24,38,.7);border:1px solid var(--line);border-radius:6px;padding:8px;font:11px var(--mono);color:var(--mute)}
-.c b{display:block;color:var(--fg);font-size:13px}
-.nav{display:flex;gap:4px;font:11px var(--mono)}.nav span{padding:4px 8px;border:1px solid var(--line);border-radius:4px;color:var(--mute)}.nav .a{color:var(--teal);border-color:var(--teal)}
-table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
-.built{color:var(--ok)}.miss{color:var(--warn)}
-.note{border-left:3px solid var(--warn);background:var(--card);padding:10px 14px;color:var(--mute);font-size:14px}
-#out{font:13px var(--mono);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:20px;white-space:pre-wrap}
-</style></head><body><main>
-<h1>Fitz Launcher: 7-Pillar Booster Update</h1>
-<p class="lead">Audit first: six of seven pillars already exist in the repo. The vote is therefore on the real gaps, not a rebuild. Details: <code>SPEC.md</code> §17.</p>
+/* Layout: one column of decision blocks; each option = mock screenshot + verdict + radio. Deliberately single dark theme (tactical HUD). */
+:root{
+  color-scheme:dark;
+  --bg:#0B0E14; --panel:#111722; --line:#1E2733; --fg:#E6EDF6; --mute:#8B98AD;
+  --cyan:#00F2FE; --violet:#7C3AED; --mint:#10B981; --amber:#F59E0B; --red:#EF4444;
+  --ui:Inter,system-ui,sans-serif; --head:Outfit,Inter,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+}
+body{background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.5}
+.wrap{max-width:1180px;margin:0 auto;padding-block:32px 96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--head);margin:0;text-wrap:balance}
+h1{font-size:2rem;letter-spacing:-.01em}
+h2{font-size:1.35rem}
+h3{font-size:1.05rem}
+p{margin:0;max-width:72ch}
+.mute{color:var(--mute)}
+.eyebrow{font:600 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--cyan)}
+header{display:flex;flex-direction:column;gap:12px}
+.facts{display:flex;flex-wrap:wrap;gap:8px}
+.fact{font:500 .78rem var(--mono);padding:6px 10px;border:1px solid var(--line);border-radius:6px;color:var(--mute)}
+.fact b{color:var(--fg);font-weight:700}
+section{display:flex;flex-direction:column;gap:16px}
+.qhead{display:flex;flex-direction:column;gap:6px}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.grid.two{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.opt{position:relative;display:flex;flex-direction:column;gap:12px;padding:16px;background:var(--panel);border:1px solid var(--line);border-radius:10px;cursor:pointer;min-width:0}
+.opt:has(input:checked){border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan) inset}
+.opt:has(input:focus-visible){outline:3px solid var(--cyan);outline-offset:3px}
+.opt input{position:absolute;opacity:0;pointer-events:none}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.tag{font:700 .68rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;padding:5px 8px;border-radius:4px}
+.rec{background:rgba(16,185,129,.14);color:var(--mint)}
+.warn{background:rgba(245,158,11,.14);color:var(--amber)}
+.bad{background:rgba(239,68,68,.14);color:var(--red)}
+.neutral{background:rgba(139,152,173,.14);color:var(--mute)}
+.radio{display:flex;align-items:center;gap:8px;font-weight:600;min-height:44px}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--mute);display:grid;place-items:center;flex:none}
+.opt:has(input:checked) .dot{border-color:var(--cyan)}
+.opt:has(input:checked) .dot::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--cyan)}
+ul.pros{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:.9rem}
+ul.pros li.c{color:var(--amber)}
+ul.pros li.x{color:var(--red)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{display:flex;align-items:center;gap:6px;font:500 .7rem var(--mono);color:var(--mute)}
+.sw i{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,.15)}
 
-<h2>Audit</h2>
-<table><tr><th>Pillar</th><th>Status</th><th>Existing code</th></tr>
-<tr><td>1 NtSuspend, services, restore</td><td class="built">Built</td><td>GameModeController, ResourceGuard</td></tr>
-<tr><td>2 P-core / V-Cache affinity, priority</td><td class="built">Built</td><td>CpuAffinityPlanner, CpuTopologyReader</td></tr>
-<tr><td>3 0.5 ms timer</td><td class="built">Built</td><td>NtSetTimerResolution(5000)</td></tr>
-<tr><td>4 Standby purge</td><td class="built">Built</td><td>MemoryCleaner</td></tr>
-<tr><td>5 Ultimate plan, core parking</td><td class="built">Built</td><td>PowerPlans, GameModeController</td></tr>
-<tr><td>5 Equalizer APO</td><td class="miss">Missing</td><td>none</td></tr>
-<tr><td>6 ETW frame pacing, DLL swapper</td><td class="built">Built</td><td>EtwFpsTracker, UpscalerLibrary</td></tr>
-<tr><td>7 Diagnostic logger + export</td><td class="miss">Missing</td><td>only launcher.log</td></tr></table>
-<p class="note">Flagged: Windows 11 limits 0.5 ms timer to the requesting process; <code>ffx_fsr3.dll</code> is not a name used in the repo (unverified); a second timer requester exists in <code>Controllers.cs</code>.</p>
+/* ---------- Mock screenshots: split-view inspector (SPEC §11 B) ---------- */
+.mock{--m-bg:#0B0E14;--m-pane:rgba(255,255,255,.04);--m-card:rgba(255,255,255,.06);--m-bd:rgba(255,255,255,.12);--m-fg:#E6EDF6;--m-mute:#8B98AD;--m-acc:#00F2FE;--m-acc2:#7C3AED;--m-ok:#10B981;--m-warn:#F59E0B;--m-r:10px;--m-title:var(--head);--m-num:var(--mono);--m-ring:3px;
+  aspect-ratio:16/10;max-width:100%;border-radius:8px;overflow:hidden;background:var(--m-bg);color:var(--m-fg);border:1px solid var(--line);
+  display:grid;grid-template-rows:auto 1fr;font-size:clamp(7px,1.05vw,10px);line-height:1.3;user-select:none}
+.mock .bar{display:flex;align-items:center;gap:1.2em;padding:.8em 1.2em;border-bottom:1px solid var(--m-bd)}
+.mock .logo{font:700 1.1em var(--m-title);letter-spacing:.02em}
+.mock .nav{display:flex;gap:.4em}
+.mock .nav span{padding:.35em .8em;border-radius:calc(var(--m-r) * .6);color:var(--m-mute)}
+.mock .nav span.on{color:var(--m-fg);background:var(--m-card)}
+.mock .hud{margin-left:auto;font:700 .95em var(--m-num);color:var(--m-mute);display:flex;gap:1em}
+.mock .hud b{color:var(--m-ok)}
+.mock .body{display:grid;grid-template-columns:34% 1fr;min-height:0}
+.mock .list{border-right:1px solid var(--m-bd);background:var(--m-pane);padding:.8em;display:flex;flex-direction:column;gap:.5em;min-height:0;overflow:hidden}
+.mock .search{border:1px solid var(--m-bd);border-radius:calc(var(--m-r) * .6);padding:.45em .7em;color:var(--m-mute)}
+.mock .chips{display:flex;gap:.35em;flex-wrap:wrap}
+.mock .chip{padding:.2em .6em;border-radius:99px;border:1px solid var(--m-bd);color:var(--m-mute);font-size:.9em}
+.mock .chip.on{border-color:var(--m-acc);color:var(--m-acc)}
+.mock .row{display:flex;gap:.6em;align-items:center;padding:.45em;border-radius:calc(var(--m-r) * .7);border:1px solid transparent}
+.mock .row.sel{border:var(--m-ring) solid var(--m-acc);background:var(--m-card)}
+.mock .thumb{width:2.6em;height:3.4em;border-radius:calc(var(--m-r) * .4);flex:none}
+.mock .rt{font:600 1em var(--m-title)}
+.mock .rs{color:var(--m-mute);font-size:.88em}
+.mock .rs.ok{color:var(--m-ok)}
+.mock .insp{padding:1em;display:flex;flex-direction:column;gap:.8em;min-width:0}
+.mock .hero{height:34%;border-radius:var(--m-r);position:relative;overflow:hidden;display:flex;align-items:flex-end;padding:1em;border:1px solid var(--m-bd)}
+.mock .hero h4{margin:0;font:700 2em/1 var(--m-title);position:relative}
+.mock .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(transparent 30%,var(--m-bg))}
+.mock .hero h4{z-index:1}
+.mock .stat{display:flex;gap:.4em;flex-wrap:wrap}
+.mock .pill{padding:.25em .7em;border-radius:99px;background:var(--m-card);border:1px solid var(--m-bd);font-size:.9em}
+.mock .pill.ok{color:var(--m-ok);border-color:color-mix(in srgb,var(--m-ok) 50%,transparent)}
+.mock .acts{display:flex;gap:.5em}
+.mock .btn{padding:.6em 1.2em;border-radius:calc(var(--m-r) * .7);border:1px solid var(--m-bd);background:var(--m-card);font-weight:600}
+.mock .btn.play{background:var(--m-acc);color:var(--m-bg);border-color:var(--m-acc);font-family:var(--m-title);letter-spacing:.04em}
+.mock .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:.5em;flex:1;min-height:0}
+.mock .tile{background:var(--m-card);border:1px solid var(--m-bd);border-radius:var(--m-r);padding:.6em;display:flex;flex-direction:column;justify-content:space-between;gap:.3em;min-width:0}
+.mock .tile small{color:var(--m-mute);font-size:.8em;text-transform:uppercase;letter-spacing:.08em}
+.mock .tile b{font:700 1.5em var(--m-num)}
+.mock .meter{height:.4em;border-radius:99px;background:var(--m-bd);overflow:hidden}
+.mock .meter i{display:block;height:100%;background:var(--m-acc)}
+.mock .meter i.w{background:var(--m-warn)}
+.mock .prof{display:flex;gap:.3em}
+.mock .prof span{flex:1;text-align:center;padding:.5em 0;border-radius:calc(var(--m-r) * .6);border:1px solid var(--m-bd);font-weight:600}
+.mock .prof span.on{border-color:var(--m-ok);color:var(--m-ok);background:color-mix(in srgb,var(--m-ok) 12%,transparent)}
+.art1{background:linear-gradient(135deg,#1d3b5c,#0f6a7a 60%,#173042)}
+.art2{background:linear-gradient(135deg,#4a1d2c,#8a3b23 60%,#2a1a12)}
+.art3{background:linear-gradient(135deg,#1f3a1f,#4c7a2e 60%,#18261a)}
+.art4{background:linear-gradient(135deg,#2c2050,#563c8f 60%,#1b1533)}
 
-<h2>Vote 1: scope</h2>
-<div class="grid">
-<label class="opt"><span class="top"><input type="radio" name="scope" value="A">Option A: Delta of the 7-pillar engine<span class="badge">RECOMMENDED</span></span>
-<ul><li>Equalizer APO profile writer (backup + restore)</li><li>Diagnostic logger: off by default, secret redaction, 1-tap export</li><li>1% low and frame-time variance card (existing ETW)</li><li>DLL version floor checks, timer-requester de-dup</li></ul>
-<div class="hud"><div class="row"><span>Timer</span><span class="v">0.500 ms</span></div><div class="row"><span>1% low</span><span class="v">58.2 FPS</span></div><div class="row"><span>Affinity</span><span class="v">0x00FF · P-cores</span></div><div class="row"><span>Diagnostics</span><span class="am">OFF</span></div></div></label>
-<label class="opt"><span class="top"><input type="radio" name="scope" value="B">Option B: Minimal</span>
-<ul><li>Diagnostic logger + export only</li><li>No Equalizer APO, no new cards</li></ul>
-<div class="hud"><div class="row"><span>Diagnostics</span><span class="am">OFF</span></div><div class="row"><span>Export package</span><span class="on">READY</span></div></div></label>
+/* Style A: Cyber Glass (defaults above) */
+/* Style B: Windows 11 Fluent dark */
+.mock.s-b{--m-bg:#202020;--m-pane:#1C1C1C;--m-card:#2B2B2B;--m-bd:rgba(255,255,255,.08);--m-fg:#FFFFFF;--m-mute:#C5C5C5;--m-acc:#60CDFF;--m-ok:#6CCB5F;--m-warn:#FCE100;--m-r:6px;--m-title:'Segoe UI Variable Display','Segoe UI',var(--ui);--m-num:'Segoe UI Variable Text','Segoe UI',var(--ui);--m-ring:2px}
+.mock.s-b .row.sel{border-color:transparent;background:#2D2D2D;box-shadow:inset 3px 0 0 var(--m-acc)}
+.mock.s-b .btn.play{color:#000}
+/* Style C: Monochrome */
+.mock.s-c{--m-bg:#000;--m-pane:#000;--m-card:#000;--m-bd:#3a3a3a;--m-fg:#fff;--m-mute:#9a9a9a;--m-acc:#fff;--m-ok:#fff;--m-warn:#fff;--m-r:2px;--m-title:var(--mono)}
+.mock.s-c .thumb,.mock.s-c .hero{filter:grayscale(1) contrast(1.1)}
+.mock.s-c .btn.play{color:#000}
+.mock.s-c .rs.ok::before{content:"● "}
+
+/* Track sketches */
+.sketch{aspect-ratio:16/9;max-width:100%;border-radius:8px;border:1px solid var(--line);background:#0B0E14;padding:10px;display:grid;gap:6px;overflow:hidden}
+.sk-wpf{grid-template-columns:1fr 2fr}
+.sk-wpf div{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:6px}
+.sk-wpf div.a{border:2px solid var(--cyan)}
+.sk-tv{grid-template-rows:auto 1fr 1fr}
+.sk-tv .tvbar{height:10px;width:40%;background:rgba(255,255,255,.12);border-radius:3px}
+.sk-tv .shelf{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.sk-tv .shelf i{border-radius:6px;background:rgba(255,255,255,.08)}
+.sk-tv .shelf i.f{outline:3px solid var(--cyan);outline-offset:1px;background:linear-gradient(135deg,#1d3b5c,#0f6a7a)}
+.sk-repo{display:grid;place-items:center;font:600 .9rem var(--mono);color:var(--mute);text-align:center}
+
+.sketch .pane{display:flex;flex-direction:column;gap:6px;background:none;border:0}
+.sketch .blk{border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.sketch .blk.hero{flex:2}.sketch .blk.row4{flex:1}
+.sketch .blk.a,.sketch .strip.a{border:2px solid var(--cyan)}
+.sk-top{grid-template-rows:auto 1fr}
+.sk-top .strip{grid-column:1/-1;height:14px;border-radius:4px;background:rgba(0,242,254,.1)}
+.fontdemo{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:8px;border:1px solid var(--line);background:#0B0E14}
+/* Mini mocks for focus/glass questions */
+.mini{aspect-ratio:2/1;max-width:100%;border-radius:8px;border:1px solid var(--line);background:linear-gradient(135deg,#1d3b5c,#0f6a7a 55%,#0B0E14);display:flex;align-items:center;justify-content:center;gap:14px;padding:12px;position:relative;overflow:hidden}
+.mini .t{width:22%;aspect-ratio:3/4;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+.mini .t.ring{border:3px solid var(--cyan)}
+.mini .t.scale{border:3px solid var(--cyan);transform:scale(1.05)}
+.mini.flat .panel{position:absolute;inset:auto 12px 12px 12px;height:38%;border-radius:8px;background:rgba(11,14,20,.82);border:1px solid rgba(255,255,255,.12)}
+.mini.blur .panel{position:absolute;inset:auto 12px 12px 12px;height:38%;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.mini .lbl{position:absolute;top:8px;left:10px;font:700 .68rem var(--mono);color:var(--fg);letter-spacing:.06em}
+
+/* Summary bar */
+.summary{position:sticky;bottom:0;margin-top:-24px;background:rgba(11,14,20,.96);border-top:1px solid var(--line);padding-block:12px calc(12px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+.summary code{font:500 .85rem var(--mono);color:var(--cyan);word-break:break-word;min-width:0;flex:1}
+.copy{min-height:44px;padding:0 18px;border-radius:8px;border:1px solid var(--cyan);background:transparent;color:var(--cyan);font:600 .9rem var(--ui);cursor:pointer}
+.copy:focus-visible{outline:3px solid var(--cyan);outline-offset:2px}
+.note{font-size:.85rem;color:var(--mute)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Phase 1 · decision gate · 2026-11-27</span>
+  <h1>Fitz Launcher UI redesign vote</h1>
+  <p class="mute">Windows only. This restyles the existing WPF app for handhelds and PCs. Every mock uses the split-view library you already voted for (SPEC.md §11, option B). The defaults below are my recommendations.</p>
+  <div class="facts">
+    <span class="fact">Window minimum: <b>980×600</b></span>
+    <span class="fact">Framework: <b>WPF · .NET 10</b></span>
+    <span class="fact">Library layout vote: <b>§11 B split view</b></span>
+    <span class="fact">Current accent: <b>#3FD0FF</b></span>
+  </div>
+</header>
+
+<!-- Q2 -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 1 · Visual style</span><h2>Which look?</h2><p class="mute">Mock screenshots: library list, inspector, live telemetry Bento row and the one-tap profile selector. The game art is placeholder gradients.</p></div>
+  <div class="grid">
+
+    <label class="opt"><input type="radio" name="style" id="style-a" value="A" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>A · Cyber Glass HUD + Bento</span><span class="tag rec">Recommended</span></div>
+      <div class="mock s-a" aria-hidden="true">
+        <div class="bar"><span class="logo">FITZ</span><span class="nav"><span class="on">Library</span><span>Telemetry</span><span>Emulation</span></span><span class="hud"><span><b>60</b> FPS</span><span>38°C</span><span>15 W</span></span></div>
+        <div class="body">
+          <div class="list"><div class="search">Search games</div><div class="chips"><span class="chip on">Installed</span><span class="chip">Emulators</span><span class="chip">Store apps</span><span class="chip">Favourites</span></div>
+            <div class="row sel"><span class="thumb art1"></span><span><div class="rt">Forza Horizon 5</div><div class="rs ok">60 FPS profile</div></span></div>
+            <div class="row"><span class="thumb art2"></span><span><div class="rt">Hades II</div><div class="rs">Played 2 h ago</div></span></div>
+            <div class="row"><span class="thumb art3"></span><span><div class="rt">Stardew Valley</div><div class="rs">Not optimised</div></span></div>
+            <div class="row"><span class="thumb art4"></span><span><div class="rt">Cyberpunk 2077</div><div class="rs ok">Upscaler on</div></span></div></div>
+          <div class="insp"><div class="hero art1"><h4>Forza Horizon 5</h4></div>
+            <div class="stat"><span class="pill ok">Profile applied</span><span class="pill">Grade A</span><span class="pill">Steam</span></div>
+            <div class="acts"><span class="btn play">PLAY NOW</span><span class="btn">Optimise</span><span class="btn">Revert</span></div>
+            <div class="bento"><div class="tile"><small>CPU</small><b>3.8<span style="font-size:.6em"> GHz</span></b><div class="meter"><i style="width:72%"></i></div></div><div class="tile"><small>GPU</small><b>2.2<span style="font-size:.6em"> GHz</span></b><div class="meter"><i style="width:84%"></i></div></div><div class="tile"><small>RAM</small><b>11.4<span style="font-size:.6em"> GB</span></b><div class="meter"><i class="w" style="width:71%"></i></div></div><div class="tile"><small>Profile</small><div class="prof"><span>Turbo</span><span class="on">Bal</span><span>Save</span></div></div></div></div>
+        </div>
+      </div>
+      <div class="swatches"><span class="sw"><i style="background:#0B0E14"></i>#0B0E14</span><span class="sw"><i style="background:#00F2FE"></i>#00F2FE</span><span class="sw"><i style="background:#7C3AED"></i>#7C3AED</span><span class="sw"><i style="background:#10B981"></i>#10B981</span><span class="sw"><i style="background:#F59E0B"></i>#F59E0B</span><span class="sw"><i style="background:#EF4444"></i>#EF4444</span></div>
+      <ul class="pros"><li>Matches your tactical dark palette. It sits closest to the current Theme.xaml tokens (#0B1020, #3FD0FF), so the change is the smallest, and the accent is still retinted from each game’s art.</li><li>3 px cyan focus ring and tabular figures, so the numbers stay still as they update.</li><li class="c">Glass is drawn with flat translucent fills, not live blur (see Question 6).</li></ul>
+    </label>
+
+    <label class="opt"><input type="radio" name="style" id="style-b" value="B">
+      <div class="top"><span class="radio"><span class="dot"></span>B · Windows 11 Fluent dark</span><span class="tag neutral">Alternative</span></div>
+      <div class="mock s-b" aria-hidden="true">
+        <div class="bar"><span class="logo">Fitz Launcher</span><span class="nav"><span class="on">Library</span><span>Telemetry</span><span>Emulation</span></span><span class="hud"><span><b>60</b> FPS</span><span>38°C</span><span>15 W</span></span></div>
+        <div class="body">
+          <div class="list"><div class="search">Search games</div><div class="chips"><span class="chip on">Installed</span><span class="chip">Emulators</span><span class="chip">Store apps</span><span class="chip">Favourites</span></div>
+            <div class="row sel"><span class="thumb art1"></span><span><div class="rt">Forza Horizon 5</div><div class="rs ok">60 FPS profile</div></span></div>
+            <div class="row"><span class="thumb art2"></span><span><div class="rt">Hades II</div><div class="rs">Played 2 h ago</div></span></div>
+            <div class="row"><span class="thumb art3"></span><span><div class="rt">Stardew Valley</div><div class="rs">Not optimised</div></span></div>
+            <div class="row"><span class="thumb art4"></span><span><div class="rt">Cyberpunk 2077</div><div class="rs ok">Upscaler on</div></span></div></div>
+          <div class="insp"><div class="hero art1"><h4>Forza Horizon 5</h4></div>
+            <div class="stat"><span class="pill ok">Profile applied</span><span class="pill">Grade A</span><span class="pill">Steam</span></div>
+            <div class="acts"><span class="btn play">Play</span><span class="btn">Optimise</span><span class="btn">Revert</span></div>
+            <div class="bento"><div class="tile"><small>CPU</small><b>3.8 GHz</b><div class="meter"><i style="width:72%"></i></div></div><div class="tile"><small>GPU</small><b>2.2 GHz</b><div class="meter"><i style="width:84%"></i></div></div><div class="tile"><small>RAM</small><b>11.4 GB</b><div class="meter"><i class="w" style="width:71%"></i></div></div><div class="tile"><small>Profile</small><div class="prof"><span>Turbo</span><span class="on">Bal</span><span>Save</span></div></div></div></div>
+        </div>
+      </div>
+      <div class="swatches"><span class="sw"><i style="background:#202020"></i>#202020</span><span class="sw"><i style="background:#2B2B2B"></i>#2B2B2B</span><span class="sw"><i style="background:#60CDFF"></i>#60CDFF</span><span class="sw"><i style="background:#6CCB5F"></i>#6CCB5F</span></div>
+      <ul class="pros"><li>Looks native next to Windows Settings and the Xbox app, using Segoe UI Variable.</li><li class="c">CLAUDE.md and windows-ui.md say not to swap the app’s own design system for stock Fluent, so choosing this would mean changing that rule.</li><li class="c">The neutral greys give games less personality, although the accent can still be retinted per game.</li></ul>
+    </label>
+
+    <label class="opt"><input type="radio" name="style" id="style-c" value="C">
+      <div class="top"><span class="radio"><span class="dot"></span>C · Minimalist monochrome</span><span class="tag neutral">Alternative</span></div>
+      <div class="mock s-c" aria-hidden="true">
+        <div class="bar"><span class="logo">FITZ_</span><span class="nav"><span class="on">LIBRARY</span><span>TELEMETRY</span><span>EMULATION</span></span><span class="hud"><span><b>60</b> FPS</span><span>38°C</span><span>15 W</span></span></div>
+        <div class="body">
+          <div class="list"><div class="search">/ search</div><div class="chips"><span class="chip on">INSTALLED</span><span class="chip">EMU</span><span class="chip">STORE</span><span class="chip">FAV</span></div>
+            <div class="row sel"><span class="thumb art1"></span><span><div class="rt">Forza Horizon 5</div><div class="rs ok">60 FPS profile</div></span></div>
+            <div class="row"><span class="thumb art2"></span><span><div class="rt">Hades II</div><div class="rs">Played 2 h ago</div></span></div>
+            <div class="row"><span class="thumb art3"></span><span><div class="rt">Stardew Valley</div><div class="rs">Not optimised</div></span></div>
+            <div class="row"><span class="thumb art4"></span><span><div class="rt">Cyberpunk 2077</div><div class="rs ok">Upscaler on</div></span></div></div>
+          <div class="insp"><div class="hero art1"><h4>FORZA HORIZON 5</h4></div>
+            <div class="stat"><span class="pill ok">PROFILE APPLIED</span><span class="pill">GRADE A</span><span class="pill">STEAM</span></div>
+            <div class="acts"><span class="btn play">PLAY</span><span class="btn">OPTIMISE</span><span class="btn">REVERT</span></div>
+            <div class="bento"><div class="tile"><small>CPU</small><b>3.8G</b><div class="meter"><i style="width:72%"></i></div></div><div class="tile"><small>GPU</small><b>2.2G</b><div class="meter"><i style="width:84%"></i></div></div><div class="tile"><small>RAM</small><b>11.4G</b><div class="meter"><i style="width:71%"></i></div></div><div class="tile"><small>Profile</small><div class="prof"><span>TRB</span><span class="on">BAL</span><span>SAV</span></div></div></div></div>
+        </div>
+      </div>
+      <div class="swatches"><span class="sw"><i style="background:#000"></i>#000000</span><span class="sw"><i style="background:#3a3a3a"></i>#3A3A3A</span><span class="sw"><i style="background:#fff"></i>#FFFFFF</span></div>
+      <ul class="pros"><li>Highest contrast, and true black saves power on OLED handhelds.</li><li class="x">Loses the accent retinted from each game’s art, which windows-ui.md §2 requires.</li><li class="x">Warning and normal states are told apart only by text or icons, never colour, so alerts are slower to spot.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Fonts -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 2 · Typefaces</span><h2>Which fonts?</h2><p class="mute">Theme.xaml uses Segoe UI Variable for text and Cascadia Mono for numbers today.</p></div>
+  <div class="grid two">
+    <label class="opt"><input type="radio" name="font" id="font-bundle" value="bundle" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>Bundle Outfit, Inter and JetBrains Mono</span><span class="tag rec">Recommended</span></div>
+      <div class="fontdemo"><span style="font:700 1.4rem var(--head)">Forza Horizon 5</span><span style="font:400 .9rem var(--ui)">Profile applied · Grade A</span><span style="font:700 1.2rem var(--mono);color:var(--mint)">60 FPS | 38°C | 15 W</span></div>
+      <ul class="pros"><li>Matches your typography rules: Outfit for titles, Inter for the interface, JetBrains Mono for live figures.</li><li>All three are under the SIL Open Font Licence and would ship as embedded resources in the App project.</li><li class="c">Adds roughly 1 MB to the download (estimate, not measured).</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="font" id="font-system" value="system">
+      <div class="top"><span class="radio"><span class="dot"></span>Keep the Windows system fonts</span><span class="tag neutral">Alternative</span></div>
+      <div class="fontdemo"><span style="font:600 1.4rem 'Segoe UI Variable Display','Segoe UI',var(--ui)">Forza Horizon 5</span><span style="font:400 .9rem 'Segoe UI Variable Text','Segoe UI',var(--ui)">Profile applied · Grade A</span><span style="font:700 1.2rem 'Cascadia Mono',Consolas,var(--mono);color:var(--mint)">60 FPS | 38°C | 15 W</span></div>
+      <ul class="pros"><li>Nothing to bundle, and the text renders crisply at 150–200 % scaling on handhelds.</li><li class="c">Less distinctive. The preview here only shows the real fonts if your browser has them.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Telemetry -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 3 · Live telemetry</span><h2>Where should the Bento telemetry row go?</h2><p class="mute">It reuses the existing ETW frame counter and sensors. The Telemetry page stays a separate tab in the nav (voted in §12, Y).</p></div>
+  <div class="grid">
+    <label class="opt"><input type="radio" name="bento" id="bento-insp" value="inspector" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>Replace the stats row in the game panel</span><span class="tag rec">Recommended</span></div>
+      <div class="sketch sk-wpf"><div></div><div class="pane"><span class="blk hero"></span><span class="blk row4 a"></span></div></div>
+      <ul class="pros"><li>Takes the place of today's average FPS / power limit / battery row, so the screen gets no busier.</li><li>Shows CPU, GPU, RAM and the profile switch next to the game you're about to play.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="bento" id="bento-top" value="topbar">
+      <div class="top"><span class="radio"><span class="dot"></span>Compact strip in the top bar</span><span class="tag neutral">Alternative</span></div>
+      <div class="sketch sk-wpf sk-top"><span class="strip a"></span><div></div><div class="pane"><span class="blk hero"></span></div></div>
+      <ul class="pros"><li>Visible on every page.</li><li class="c">Tight at the 980 px minimum width, where meters would shrink to numbers only.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="bento" id="bento-both" value="both">
+      <div class="top"><span class="radio"><span class="dot"></span>Both</span><span class="tag warn">Busier</span></div>
+      <div class="sketch sk-wpf sk-top"><span class="strip a"></span><div></div><div class="pane"><span class="blk hero"></span><span class="blk row4 a"></span></div></div>
+      <ul class="pros"><li class="c">Shows the same numbers twice on the Library page.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Profile -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 4 · Profile switch</span><h2>What should Turbo / Balanced / Battery Saver control?</h2><p class="mute">The app already has power, Auto TDP and cooling settings (CoolingMode: Off, Balanced, Cool, Coolest). The booster rules say to reuse them rather than add a second way to change the same setting.</p></div>
+  <div class="grid two">
+    <label class="opt"><input type="radio" name="profile" id="profile-reuse" value="reuse" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>A shortcut to the existing settings</span><span class="tag rec">Recommended</span></div>
+      <ul class="pros"><li>Each button applies a fixed combination of the existing power limit, Auto TDP and cooling options through the existing appliers.</li><li>Restore records and putting things back at session end keep working unchanged.</li><li class="c">I still need to confirm exactly which settings each button maps to before building it.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="profile" id="profile-display" value="display">
+      <div class="top"><span class="radio"><span class="dot"></span>Show the current state only</span><span class="tag neutral">Smallest change</span></div>
+      <ul class="pros"><li>The switch shows which mode is active, and tapping it opens the existing settings.</li><li class="c">You don't get one-tap switching.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Q3 -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 5 · Focus</span><h2>How should the focused tile show?</h2></div>
+  <div class="grid two">
+    <label class="opt"><input type="radio" name="focus" id="focus-ring" value="ring" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>3 px cyan ring, no scale</span><span class="tag rec">Recommended</span></div>
+      <div class="mini"><span class="t"></span><span class="t ring"></span><span class="t"></span></div>
+      <ul class="pros"><li>Navigation stays instant and you can see clearly where focus is, with a mouse, keyboard or controller.</li><li>Fits CLAUDE.md: no scale-on-focus animations.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="focus" id="focus-scale" value="scale">
+      <div class="top"><span class="radio"><span class="dot"></span>Ring + 1.05× scale</span><span class="tag bad">Breaks a rule</span></div>
+      <div class="mini"><span class="t"></span><span class="t scale"></span><span class="t"></span></div>
+      <ul class="pros"><li>The tile lifts, the way it does in console launchers.</li><li class="x">Conflicts with CLAUDE.md "Boundaries". Choosing this means changing that rule.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Q4 -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 6 · Glass effect</span><h2>How should glass panels be drawn?</h2></div>
+  <div class="grid two">
+    <label class="opt"><input type="radio" name="glass" id="glass-flat" value="flat" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>Flat translucent fill</span><span class="tag rec">Recommended</span></div>
+      <div class="mini flat"><span class="lbl">ALPHA FILL</span><span class="panel"></span></div>
+      <ul class="pros"><li>Draws in one fill, so it costs essentially nothing on a handheld GPU.</li><li>Uses the existing ArtScrim and ArtFade tokens.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="glass" id="glass-blur" value="blur">
+      <div class="top"><span class="radio"><span class="dot"></span>Live 16 px blur</span><span class="tag warn">Unprofiled cost</span></div>
+      <div class="mini blur"><span class="lbl">BACKDROP BLUR</span><span class="panel"></span></div>
+      <ul class="pros"><li>True frosted glass.</li><li class="c">WPF has no backdrop blur. BlurEffect is rendered in software and might take frame time from a game running in the background. Not measured yet.</li></ul>
+    </label>
+  </div>
+</section>
+
+<!-- Q5 -->
+<section>
+  <div class="qhead"><span class="eyebrow">Question 7 · Existing card</span><h2>What happens to the booster voting card?</h2><p class="mute">VOTING_CARD.html and .claude/VOTING_CARD.md still hold the booster vote (A + L2, 2026-11-26).</p></div>
+  <div class="grid two">
+    <label class="opt"><input type="radio" name="card" id="card-archive" value="archive" checked>
+      <div class="top"><span class="radio"><span class="dot"></span>Archive as VOTING_CARD.booster.html</span><span class="tag rec">Recommended</span></div>
+      <ul class="pros"><li>Keeps the record of that vote in the repository, not only in git history.</li></ul>
+    </label>
+    <label class="opt"><input type="radio" name="card" id="card-overwrite" value="overwrite">
+      <div class="top"><span class="radio"><span class="dot"></span>Overwrite</span><span class="tag neutral">Alternative</span></div>
+      <ul class="pros"><li>One card in the root. The old vote stays in git history (commit ab9a035).</li></ul>
+    </label>
+  </div>
+</section>
 </div>
 
-<h2>Vote 2: layout (instant switching, no animation)</h2>
-<div class="grid">
-<label class="opt"><span class="top"><input type="radio" name="layout" value="L1">L1: New Booster page</span>
-<div class="nav"><span>Library</span><span class="a">Booster</span><span>Telemetry</span><span>Settings</span></div>
-<div class="cards"><div class="c">Freezer<b>12 held</b></div><div class="c">Topology<b>P-cores</b></div><div class="c">Timer<b>0.500 ms</b></div><div class="c">Memory<b>Purged</b></div><div class="c">Power + Audio<b>Ultimate</b></div><div class="c">Pacing<b>1% 58</b></div><div class="c">Diagnostics<b>OFF</b></div></div></label>
-<label class="opt"><span class="top"><input type="radio" name="layout" value="L2">L2: Extend existing pages</span>
-<div class="nav"><span>Library</span><span>Telemetry</span><span class="a">Settings</span></div>
-<div class="cards"><div class="c">Game Mode<b>+ Audio EQ</b></div><div class="c">Telemetry<b>+ 1% low card</b></div><div class="c">Settings<b>+ Diagnostics</b></div></div></label>
+<div class="summary">
+  <code id="reply">A · bundle · inspector · reuse · ring · flat · archive</code>
+  <span class="note" id="copynote">Paste this into chat to record the vote.</span>
+  <button class="copy" id="copy" type="button">Copy vote</button>
 </div>
-<div id="out">Pick one option per vote, then reply in chat with your choices (for example "A, L2").</div>
-</main>
+
 <script>
-document.querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{
- const s=document.querySelector('input[name=scope]:checked'),l=document.querySelector('input[name=layout]:checked');
- document.getElementById('out').textContent='Your vote: '+(s?s.value:'?')+', '+(l?l.value:'?')+'\nReply in chat with this to record it.';}));
-</script></body></html>
+const names=["style","font","bento","profile","focus","glass","card"];
+function val(n){const e=document.querySelector(`input[name="${n}"]:checked`);return e?e.value:"?"}
+function render(){
+  document.getElementById("reply").textContent = names.map(val).join(" · ");
+  try{localStorage.setItem("fitz-ui-vote-win",JSON.stringify(Object.fromEntries(names.map(n=>[n,val(n)]))))}catch(e){}
+}
+try{const s=JSON.parse(localStorage.getItem("fitz-ui-vote-win")||"{}");for(const[n,v]of Object.entries(s)){const e=document.querySelector(`input[name="${n}"][value="${v}"]`);if(e)e.checked=true}}catch(e){}
+document.addEventListener("change",render);render();
+document.getElementById("copy").addEventListener("click",()=>{
+  const txt=document.getElementById("reply").textContent,note=document.getElementById("copynote");
+  navigator.clipboard.writeText(txt).then(()=>{note.textContent="Copied. Paste it into chat."}).catch(()=>{const r=document.createRange();r.selectNodeContents(document.getElementById("reply"));const s=getSelection();s.removeAllRanges();s.addRange(r);note.textContent="Selected. Press Ctrl+C."});
+});
+</script>

@@ -28,12 +28,22 @@ public sealed partial class CoolingChoice(CoolingMode? mode, string label, GameD
     public IRelayCommand PickCommand { get; } = new RelayCommand(() => owner.PickCooling(mode));
 }
 
+public sealed partial class ProfileChoice(PerformanceProfile profile, GameDetailsViewModel owner) : ObservableObject
+{
+    public PerformanceProfile Profile { get; } = profile;
+    public string Label { get; } = PerformanceProfiles.Label(profile);
+    [ObservableProperty] private bool _isSelected;
+    public IRelayCommand PickCommand { get; } = new RelayCommand(() => owner.PickProfile(profile));
+}
+
 /// <summary>Game page: FPS cap per PC and screen, and the cooling mode.</summary>
 public sealed partial class GameDetailsViewModel
 {
     public ObservableCollection<CapChoice> DeviceCapChoices { get; } = [];
     public ObservableCollection<SavedCapRow> SavedDeviceCaps { get; } = [];
     public ObservableCollection<CoolingChoice> CoolingChoices { get; } = [];
+    /// <summary>Turbo / Balanced / Battery saver: a shortcut onto Cooling and Auto TDP (SPEC §18).</summary>
+    public ObservableCollection<ProfileChoice> ProfileChoices { get; } = [];
     private DisplayInfo? _screen;
 
     public bool CapPerDevice
@@ -54,6 +64,7 @@ public sealed partial class GameDetailsViewModel
             foreach (var t in new[] { 60 }.Concat(LauncherSettings.FpsTargets)) DeviceCapChoices.Add(new CapChoice(t, t.ToString(), this));
             CoolingChoices.Add(new CoolingChoice(null, "Default", this));
             foreach (var m in Enum.GetValues<CoolingMode>()) CoolingChoices.Add(new CoolingChoice(m, m.ToString(), this));
+            foreach (var p in Enum.GetValues<PerformanceProfile>()) ProfileChoices.Add(new ProfileChoice(p, this));
         }
         var current = DeviceCaps.For(Game, Environment.MachineName, _screen);
         foreach (var c in DeviceCapChoices) c.IsSelected = c.Value == current;
@@ -63,6 +74,28 @@ public sealed partial class GameDetailsViewModel
         OnPropertyChanged(nameof(CapPerDevice));
         OnPropertyChanged(nameof(CurrentScreenText));
         OnPropertyChanged(nameof(CoolingText));
+        RefreshProfile();
+    }
+
+    private PerformanceProfile? CurrentProfile => PerformanceProfiles.Match(Game.Cooling, _s.Settings.DefaultCooling, Game.AutoTdp, ShowPower);
+
+    public string ProfileText => PerformanceProfiles.Describe(CurrentProfile, ShowPower);
+
+    private void RefreshProfile()
+    {
+        var current = CurrentProfile;
+        foreach (var p in ProfileChoices) p.IsSelected = p.Profile == current;
+        OnPropertyChanged(nameof(ProfileText));
+    }
+
+    /// <summary>Writes the profile's existing settings; the session applies them at the next Play.</summary>
+    public void PickProfile(PerformanceProfile profile)
+    {
+        var (cooling, autoTdp) = PerformanceProfiles.For(profile);
+        Game.Cooling = cooling;
+        if (ShowPower) AutoTdpChoice = autoTdp?.ToString() ?? "Default"; // saves, and turns on power management when needed
+        _s.SaveLibrary();
+        LoadCooling();
     }
 
     public void PickDeviceCap(int? cap)

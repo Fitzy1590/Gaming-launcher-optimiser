@@ -345,3 +345,32 @@ Audit in `FEATURE_PROGRESS.md` §12. Voting card: `VOTING_CARD.html` (root) and 
 - `UpscalerLibrary.BelowFloor` (DLSS 3.7, XeSS 1.3); the update tweak title notes an older-than-minimum DLL.
 - **Timer de-dup: not needed.** `timeBeginPeriod(1)` in `Controllers.cs` serves the controller poll loop; the finest request wins, so it does not conflict with the 0.5 ms request.
 - Not built: spatial/HRTF audio, FSR floor (version scheme unverified), `ffx_fsr3.dll`, Job Object restore, new nav tabs.
+
+## 18. Cyber Glass restyle, Windows only (requested 2026-11-27; **vote recorded: A · bundle · inspector · reuse · ring · flat · archive**)
+
+The first brief named Android / Compose TV; the user corrected it on 2026-11-27: **Windows (WPF) only**. Card: `VOTING_CARD.html` (the booster card is archived as `VOTING_CARD.booster.html`).
+
+**Standing rule (user, 2026-11-27): no option may affect game performance.** Anything that could is gated so it stops while a game runs, and can be switched off entirely with **Low-impact mode** (Settings → Look).
+
+### 18.1 Votes
+- Look: [x] **A** Cyber Glass + Bento · [ ] B Windows 11 Fluent dark · [ ] C Monochrome
+- Fonts: [x] **Bundle** Outfit / Inter / JetBrains Mono (SIL OFL 1.1) · [ ] Keep Segoe UI Variable / Cascadia Mono
+- Telemetry row: [x] **Inspector** (replaces the §11 stats row, which was never built) · [ ] Top bar · [ ] Both
+- Profile switch: [x] **Reuse** existing settings · [ ] Display only
+- Focus: [x] **3 px ring, no scale** · [ ] Ring + 1.05× scale
+- Glass: [x] **Flat translucent fill** · [ ] Live 16 px blur
+- Old card: [x] **Archive** · [ ] Overwrite
+
+### 18.2 Built
+- `Theme.xaml` token values: Bg `#0B0E14`, Deep `#070A0F`, Accent `#00F2FE`, Good `#10B981`, Warn `#F59E0B`, Bad `#EF4444`; `ArtPalette.Default` matches. Per-game retint unchanged. Fonts load from `Assets/Fonts` with Windows fonts as fallback.
+- Focus ring 3 px on library rows (padding trimmed so rows don't change size). Buttons and text boxes keep their 2 px focus ring: 3 px would resize them on focus (reviewer finding). Chips and checkboxes now show the accent ring on keyboard/pad focus (they showed none).
+- Bento row under the Play actions: CPU, GPU (clock, load, temperature), Memory, and the profile switch. Tiles use `BentoTile` (flat `GlassFill`, 8 px corners).
+- `Core/Telemetry/LiveReadout` (pure, tested): sensors are read every 2 s only when the launcher is the foreground window **and** the Library is showing **and** no game runs **and** not in safe mode **and** Low-impact mode is off. Otherwise the timer stops.
+- `Core/Optimization/PerformanceProfiles` (pure, tested): Turbo = Cooling Off + Auto TDP Off; Balanced = Cooling Balanced + Auto TDP default; Battery saver = Coolest + Auto TDP On (APUs only for Auto TDP). Writes `Game.Cooling` / `Game.AutoTdp` only; the existing session appliers and restore records apply them at the next Play.
+- `LauncherSettings.LowImpactMode` (default off): stops the live readings. The per-game colour swap is now always instant (the old 280 ms fade broke the zero-animation rule).
+
+### 18.3 Performance impact (honest list)
+- Colours, fonts, ring, flat tiles: drawn only when the launcher repaints; no cost while a game is in front. [PLAUSIBLE: WPF does not render a hidden or covered window's content; not measured.]
+- Live readings: same sensor path as the Hardware page (`TemperatureMonitor.Read`, a few ms per read). Gated off during play. A game started outside Fitz in a window *beside* the launcher, while the launcher has focus, would see the 2 s reads; Low-impact mode removes this.
+- Battery saver / Turbo change real power settings for the next session, by design; they reuse the existing, revertible appliers.
+- Not done: live blur (rejected), scale-on-focus (rejected).

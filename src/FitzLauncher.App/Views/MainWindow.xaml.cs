@@ -19,6 +19,8 @@ public partial class MainWindow : Window, FitzLauncher.App.Services.IGamepadAwar
     {
         InitializeComponent();
         DataContext = _vm = vm;
+        Activated += (_, _) => _vm.SetWindowActive(true);
+        Deactivated += (_, _) => _vm.SetWindowActive(false);
         FocusSearchCommand = new RelayCommand(() => { _vm.Page = Page.Library; SearchBox.Focus(); SearchBox.SelectAll(); });
         AddGameCommand = new RelayCommand(() => AddGame_Click(this, new RoutedEventArgs()));
         InputBindings.Add(new KeyBinding(FocusSearchCommand, Key.F, ModifierKeys.Control));

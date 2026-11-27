@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fitz Launcher Booster Vote</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=JetBrains+Mono:wght@500;700&family=Outfit:wght@600;700&display=swap">
+<style>
+:root{--bg:#0B0E14;--card:#121826;--line:#1f2937;--fg:#e6edf6;--mute:#8b98ad;--teal:#00F2FE;--ok:#10B981;--warn:#F59E0B;--ui:Inter,system-ui,sans-serif;--head:Outfit,Inter,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--ui);padding:24px max(16px,env(safe-area-inset-left))}
+main{max-width:1080px;margin:0 auto}
+h1,h2,h3{font-family:var(--head);margin:0}
+h1{font-size:clamp(24px,4vw,34px)}h2{font-size:20px;margin:32px 0 12px}
+.lead{color:var(--mute);max-width:70ch}
+.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr))}
+label.opt{display:flex;flex-direction:column;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;cursor:pointer;min-height:44px}
+label.opt:has(input:checked){border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+label.opt input{accent-color:var(--teal);width:20px;height:20px;margin-right:8px}
+.top{display:flex;align-items:center;font-family:var(--head);font-weight:700;font-size:17px}
+.badge{margin-left:auto;font:600 11px var(--mono);letter-spacing:.06em;color:var(--ok);border:1px solid var(--ok);border-radius:4px;padding:2px 6px}
+ul{margin:0;padding-left:18px;color:var(--mute);font-size:14px}
+.hud{background:#0a0d13;border:1px solid var(--line);border-radius:8px;padding:12px;display:grid;gap:8px;font-family:var(--mono);font-size:12px}
+.row{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line);padding:4px 0}
+.row:last-child{border:0}.v{color:var(--teal);font-weight:700}.on{color:var(--ok)}.am{color:var(--warn)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.c{background:rgba(18,24,38,.7);border:1px solid var(--line);border-radius:6px;padding:8px;font:11px var(--mono);color:var(--mute)}
+.c b{display:block;color:var(--fg);font-size:13px}
+.nav{display:flex;gap:4px;font:11px var(--mono)}.nav span{padding:4px 8px;border:1px solid var(--line);border-radius:4px;color:var(--mute)}.nav .a{color:var(--teal);border-color:var(--teal)}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}th{color:var(--mute);font-weight:600}
+.built{color:var(--ok)}.miss{color:var(--warn)}
+.note{border-left:3px solid var(--warn);background:var(--card);padding:10px 14px;color:var(--mute);font-size:14px}
+#out{font:13px var(--mono);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;margin-top:20px;white-space:pre-wrap}
+</style></head><body><main>
+<h1>Fitz Launcher: 7-Pillar Booster Update</h1>
+<p class="lead">Audit first: six of seven pillars already exist in the repo. The vote is therefore on the real gaps, not a rebuild. Details: <code>SPEC.md</code> §17.</p>
+
+<h2>Audit</h2>
+<table><tr><th>Pillar</th><th>Status</th><th>Existing code</th></tr>
+<tr><td>1 NtSuspend, services, restore</td><td class="built">Built</td><td>GameModeController, ResourceGuard</td></tr>
+<tr><td>2 P-core / V-Cache affinity, priority</td><td class="built">Built</td><td>CpuAffinityPlanner, CpuTopologyReader</td></tr>
+<tr><td>3 0.5 ms timer</td><td class="built">Built</td><td>NtSetTimerResolution(5000)</td></tr>
+<tr><td>4 Standby purge</td><td class="built">Built</td><td>MemoryCleaner</td></tr>
+<tr><td>5 Ultimate plan, core parking</td><td class="built">Built</td><td>PowerPlans, GameModeController</td></tr>
+<tr><td>5 Equalizer APO</td><td class="miss">Missing</td><td>none</td></tr>
+<tr><td>6 ETW frame pacing, DLL swapper</td><td class="built">Built</td><td>EtwFpsTracker, UpscalerLibrary</td></tr>
+<tr><td>7 Diagnostic logger + export</td><td class="miss">Missing</td><td>only launcher.log</td></tr></table>
+<p class="note">Flagged: Windows 11 limits 0.5 ms timer to the requesting process; <code>ffx_fsr3.dll</code> is not a name used in the repo (unverified); a second timer requester exists in <code>Controllers.cs</code>.</p>
+
+<h2>Vote 1: scope</h2>
+<div class="grid">
+<label class="opt"><span class="top"><input type="radio" name="scope" value="A">Option A: Delta of the 7-pillar engine<span class="badge">RECOMMENDED</span></span>
+<ul><li>Equalizer APO profile writer (backup + restore)</li><li>Diagnostic logger: off by default, secret redaction, 1-tap export</li><li>1% low and frame-time variance card (existing ETW)</li><li>DLL version floor checks, timer-requester de-dup</li></ul>
+<div class="hud"><div class="row"><span>Timer</span><span class="v">0.500 ms</span></div><div class="row"><span>1% low</span><span class="v">58.2 FPS</span></div><div class="row"><span>Affinity</span><span class="v">0x00FF · P-cores</span></div><div class="row"><span>Diagnostics</span><span class="am">OFF</span></div></div></label>
+<label class="opt"><span class="top"><input type="radio" name="scope" value="B">Option B: Minimal</span>
+<ul><li>Diagnostic logger + export only</li><li>No Equalizer APO, no new cards</li></ul>
+<div class="hud"><div class="row"><span>Diagnostics</span><span class="am">OFF</span></div><div class="row"><span>Export package</span><span class="on">READY</span></div></div></label>
+</div>
+
+<h2>Vote 2: layout (instant switching, no animation)</h2>
+<div class="grid">
+<label class="opt"><span class="top"><input type="radio" name="layout" value="L1">L1: New Booster page</span>
+<div class="nav"><span>Library</span><span class="a">Booster</span><span>Telemetry</span><span>Settings</span></div>
+<div class="cards"><div class="c">Freezer<b>12 held</b></div><div class="c">Topology<b>P-cores</b></div><div class="c">Timer<b>0.500 ms</b></div><div class="c">Memory<b>Purged</b></div><div class="c">Power + Audio<b>Ultimate</b></div><div class="c">Pacing<b>1% 58</b></div><div class="c">Diagnostics<b>OFF</b></div></div></label>
+<label class="opt"><span class="top"><input type="radio" name="layout" value="L2">L2: Extend existing pages</span>
+<div class="nav"><span>Library</span><span>Telemetry</span><span class="a">Settings</span></div>
+<div class="cards"><div class="c">Game Mode<b>+ Audio EQ</b></div><div class="c">Telemetry<b>+ 1% low card</b></div><div class="c">Settings<b>+ Diagnostics</b></div></div></label>
+</div>
+<div id="out">Pick one option per vote, then reply in chat with your choices (for example "A, L2").</div>
+</main>
+<script>
+document.querySelectorAll('input').forEach(i=>i.addEventListener('change',()=>{
+ const s=document.querySelector('input[name=scope]:checked'),l=document.querySelector('input[name=layout]:checked');
+ document.getElementById('out').textContent='Your vote: '+(s?s.value:'?')+', '+(l?l.value:'?')+'\nReply in chat with this to record it.';}));
+</script></body></html>

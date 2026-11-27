@@ -31,8 +31,8 @@ public sealed record ArtColours(Rgb Accent, Rgb Deep, Rgb Bg, bool FromArt);
 /// </summary>
 public static class ArtPalette
 {
-    public static readonly Rgb DefaultAccent = new(0x3F, 0xD0, 0xFF);
-    public static readonly ArtColours Default = new(DefaultAccent, new Rgb(0x07, 0x0B, 0x16), new Rgb(0x0B, 0x10, 0x20), false);
+    public static readonly Rgb DefaultAccent = new(0x00, 0xF2, 0xFE); // matches Theme.xaml AccentColor
+    public static readonly ArtColours Default = new(DefaultAccent, new Rgb(0x07, 0x0A, 0x0F), new Rgb(0x0B, 0x0E, 0x14), false);
     private static readonly Rgb OnAccent = new(0x04, 0x12, 0x1C);
 
     /// <param name="bgra">Pixels in BGRA order (4 bytes each), e.g. from a small thumbnail.</param>

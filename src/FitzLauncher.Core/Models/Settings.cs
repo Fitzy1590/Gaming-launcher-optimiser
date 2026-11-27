@@ -62,6 +62,11 @@ public sealed class LauncherSettings
 
     /// <summary>Accent and background colours follow the selected game's cover art.</summary>
     public bool MatchGameColours { get; set; } = true;
+    /// <summary>
+    /// Turns off every launcher effect that could cost a game anything (SPEC §18): today, the live sensor readings on
+    /// the game panel. Off by default because they already stop while a game runs or another window is in front.
+    /// </summary>
+    public bool LowImpactMode { get; set; }
 
     // ---- controllers
     /// <summary>Drive the launcher's menus with a controller (D-pad/stick, A select, B back, LB/RB tabs).</summary>

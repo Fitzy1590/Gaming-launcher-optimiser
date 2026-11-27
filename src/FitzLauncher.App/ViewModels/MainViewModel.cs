@@ -26,6 +26,9 @@ public sealed partial class MainViewModel : ObservableObject
     public ListCollectionView GamesView { get; }
     public ObservableCollection<string> AllTags { get; } = [];
     public HardwareViewModel Hardware { get; }
+    /// <summary>Live CPU / GPU / RAM row on the game panel; reads only while the launcher is in front and idle.</summary>
+    public LiveStatsViewModel Live { get; }
+    private bool _windowActive;
     public SessionsViewModel Sessions { get; }
     public SettingsViewModel Settings { get; }
     public HomeViewModel Home { get; }
@@ -172,8 +175,9 @@ public sealed partial class MainViewModel : ObservableObject
         GamesView.Filter = Filter;
         GamesView.CustomSort = new GameSorter(Sort);
         Hardware = new HardwareViewModel(services) { IsGameRunning = () => IsPlaying };
+        Live = new LiveStatsViewModel(services);
         Sessions = new SessionsViewModel(services);
-        Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync() };
+        Settings = new SettingsViewModel(services) { ShowUpdate = ShowUpdate, InstallUpdate = () => InstallUpdateAsync(), LowImpactChanged = RefreshLive };
         Home = new HomeViewModel(services, this);
         Storage = new StorageViewModel(services, this);
         Emulation = new EmulationViewModel(services, this);
@@ -207,7 +211,8 @@ public sealed partial class MainViewModel : ObservableObject
     partial void OnShowHiddenChanged(bool value) => GamesView.Refresh();
     partial void OnSortChanged(LibrarySort value) => GamesView.CustomSort = new GameSorter(value);
 
-    [RelayCommand] private void SetStatusFilter(string? status) =>
+    [RelayCommand]
+    private void SetStatusFilter(string? status) =>
         StatusFilter = Enum.TryParse<PlayStatus>(status, out var s) ? s : null;
 
     [RelayCommand] private void SetTagFilter(string? tag) => TagFilter = TagFilter == tag ? null : tag;
@@ -260,7 +265,19 @@ public sealed partial class MainViewModel : ObservableObject
         if (value == Page.Storage) _ = Storage.ReloadAsync();
         if (value == Page.Emulation) Emulation.Reload();
         Hardware.SetVisible(value == Page.Hardware);
+        RefreshLive();
     }
+
+    partial void OnIsPlayingChanged(bool value) => RefreshLive();
+
+    /// <summary>Called by the main window when it gains or loses the foreground.</summary>
+    public void SetWindowActive(bool active)
+    {
+        _windowActive = active;
+        RefreshLive();
+    }
+
+    private void RefreshLive() => Live?.Update(IsPlaying, _windowActive, Page == Page.Library, SafeMode);
 
     [RelayCommand] private void Navigate(Page page) => Page = page;
     [RelayCommand] private void DismissToast() => HasToast = false;
@@ -294,8 +311,12 @@ public sealed partial class MainViewModel : ObservableObject
             problem ??= why;
             games.AddRange(apps.Select(a => new Game
             {
-                Name = a.Name, ExePath = install.PlayerPath, InstallDir = install.InstallDir,
-                AndroidPackage = a.Package, BlueStacksInstance = instance.Id, Lsfg2x = true,
+                Name = a.Name,
+                ExePath = install.PlayerPath,
+                InstallDir = install.InstallDir,
+                AndroidPackage = a.Package,
+                BlueStacksInstance = instance.Id,
+                Lsfg2x = true,
             }));
         }
         if (games.Count == 0) { ShowToast(problem ?? "No BlueStacks instances found."); return; }
@@ -548,9 +569,12 @@ public sealed partial class MainViewModel : ObservableObject
                 : autoTdp == AutoTdpMode.On ? autoStart
                 : Math.Max(10, (int)Math.Round(PowerTuner.WattsFor(game, _s.Settings, sessionCap ?? game.FpsTarget) * coolingPlan.PowerScale)),
             ClosedLoop = SafeMode ? ClosedLoopMode.Off : game.ClosedLoop ?? _s.Settings.ClosedLoop,
-            AutoTdp = autoTdp, AutoTdpMinWatts = autoMin, AutoTdpMaxWatts = autoMax,
+            AutoTdp = autoTdp,
+            AutoTdpMinWatts = autoMin,
+            AutoTdpMaxWatts = autoMax,
             AutoTdpFallbackTarget = _s.Settings.DefaultFpsTarget,
-            AutoTdpLearnedTypical = autoTarget is { } lt && game.AutoTdpProfiles.TryGetValue(lt, out var lp) && lp.Typical > 0 ? lp.Typical : null, AutoTdpWhyNot = autoWhyNot,
+            AutoTdpLearnedTypical = autoTarget is { } lt && game.AutoTdpProfiles.TryGetValue(lt, out var lp) && lp.Typical > 0 ? lp.Typical : null,
+            AutoTdpWhyNot = autoWhyNot,
             PowerMaxWatts = _s.Settings.PowerMaxWatts,
             PowerMinWatts = _s.Settings.PowerMinWatts,
             LivePowerTuning = _s.Settings.LivePowerTuning && game.PowerAuto && coolingPlan.PowerScale >= 1,
@@ -781,8 +805,11 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 var r = _s.Tweaks.Apply(game.AppliedChanges, new Tweak
                 {
-                    Id = DisplayPlanner.TweakId, Title = "Resolution for the active screen", Description = plan.Summary,
-                    Category = TweakCategory.Graphics, Actions = plan.Actions,
+                    Id = DisplayPlanner.TweakId,
+                    Title = "Resolution for the active screen",
+                    Description = plan.Summary,
+                    Category = TweakCategory.Graphics,
+                    Actions = plan.Actions,
                 }, game);
                 if (!r.Success) _s.Log.Write($"[{game.Name}] display: {r.Message}");
             }
@@ -933,8 +960,14 @@ public sealed partial class MainViewModel : ObservableObject
             var vm = new ModsViewModel(_s, game, Details?.Game == game ? Details.Hero : null);
             await vm.InstallFileAsync(path, new InstalledMod
             {
-                Source = ModSource.Nexus, SourceId = link.ModId.ToString(), FileId = link.FileId.ToString(), Name = mod.Name,
-                Version = file?.Version ?? mod.Version, Author = mod.Author, PageUrl = mod.PageUrl, Summary = mod.Summary,
+                Source = ModSource.Nexus,
+                SourceId = link.ModId.ToString(),
+                FileId = link.FileId.ToString(),
+                Name = mod.Name,
+                Version = file?.Version ?? mod.Version,
+                Author = mod.Author,
+                PageUrl = mod.PageUrl,
+                Summary = mod.Summary,
             });
             ShowToast($"{game.Name}: {vm.Status}");
             Details?.Reload();
@@ -980,7 +1013,10 @@ public sealed partial class MainViewModel : ObservableObject
         var exe = Path.GetFileName(game.LastScan?.RenderExePath ?? game.ExePath);
         var r = _s.Tweaks.Apply(game.AppliedChanges, new Tweak
         {
-            Id = "rtss-limiter-mode", Title = "RTSS limiter mode", Description = PacingTuner.Name(mode), Category = TweakCategory.FrameCap,
+            Id = "rtss-limiter-mode",
+            Title = "RTSS limiter mode",
+            Description = PacingTuner.Name(mode),
+            Category = TweakCategory.FrameCap,
             Actions = [new IniSetAction { FilePath = Path.Combine(rtss, "Profiles", exe + ".cfg"), Section = "Framerate", Key = "SyncLimiter", Value = mode.ToString() }],
         }, game);
         return r.Success ? mode : null;

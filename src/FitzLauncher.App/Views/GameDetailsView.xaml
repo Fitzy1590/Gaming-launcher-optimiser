@@ -29,6 +29,64 @@
                     </StackPanel>
                 </DockPanel>
 
+                <!-- Live readings + profile switch (SPEC §18). Flat glass tiles; readings stop while a game runs,
+                     when another window is in front, or in Low-impact mode. -->
+                <Grid Margin="0,16,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="1.3*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.ColumnSpan="3" DataContext="{Binding DataContext.Live, RelativeSource={RelativeSource AncestorType=Window}}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                    <Border Grid.Column="0" Style="{StaticResource BentoTile}" Margin="0,0,8,0" AutomationProperties.Name="CPU" ToolTip="CPU clock, load and temperature">
+                        <StackPanel>
+                            <TextBlock Text="CPU" Style="{StaticResource BentoLabel}" />
+                            <TextBlock Text="{Binding CpuClock}" Style="{StaticResource BentoFigure}" />
+                            <TextBlock Text="{Binding CpuDetail}" Style="{StaticResource Wrap}" Foreground="{StaticResource Muted}" FontSize="12" />
+                            <ProgressBar Value="{Binding CpuMeter, Mode=OneWay}" Maximum="100" Height="4" Margin="0,8,0,0" Foreground="{StaticResource Secondary}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource BentoTile}" Margin="0,0,8,0" AutomationProperties.Name="GPU" ToolTip="GPU clock, load and temperature">
+                        <StackPanel>
+                            <TextBlock Text="GPU" Style="{StaticResource BentoLabel}" />
+                            <TextBlock Text="{Binding GpuClock}" Style="{StaticResource BentoFigure}" />
+                            <TextBlock Text="{Binding GpuDetail}" Style="{StaticResource Wrap}" Foreground="{StaticResource Muted}" FontSize="12" />
+                            <ProgressBar Value="{Binding GpuMeter, Mode=OneWay}" Maximum="100" Height="4" Margin="0,8,0,0" Foreground="{StaticResource Secondary}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Style="{StaticResource BentoTile}" Margin="0,0,8,0" AutomationProperties.Name="Memory" ToolTip="Memory in use / installed">
+                        <StackPanel>
+                            <TextBlock Text="MEMORY" Style="{StaticResource BentoLabel}" />
+                            <TextBlock Text="{Binding Memory}" Style="{StaticResource BentoFigure}" />
+                            <TextBlock Text="in use" Style="{StaticResource MutedText}" FontSize="12" />
+                            <ProgressBar Value="{Binding MemoryMeter, Mode=OneWay}" Maximum="100" Height="4" Margin="0,8,0,0" Foreground="{StaticResource Secondary}" />
+                        </StackPanel>
+                    </Border>
+                    </Grid>
+                    <Border Grid.Column="3" Style="{StaticResource BentoTile}" AutomationProperties.Name="Performance profile">
+                        <StackPanel>
+                            <TextBlock Text="PROFILE" Style="{StaticResource BentoLabel}" />
+                            <ItemsControl ItemsSource="{Binding ProfileChoices}" Margin="0,4,0,0" IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <RadioButton Style="{StaticResource ChipToggle}" GroupName="profile" MinHeight="32" VerticalContentAlignment="Center" Content="{Binding Label}" IsChecked="{Binding IsSelected, Mode=OneWay}" Command="{Binding PickCommand}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+                <TextBlock DataContext="{Binding DataContext.Live, RelativeSource={RelativeSource AncestorType=Window}}" Text="{Binding PausedText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0"
+                           Visibility="{Binding PausedText, Converter={StaticResource HasValue}}" />
+                <TextBlock Text="{Binding ProfileText}" Style="{StaticResource Wrap}" FontSize="12" Margin="0,8,0,0" />
+
                 <!-- Status / busy -->
                 <TextBlock Text="{Binding BusyText}" Foreground="{StaticResource Secondary}" Margin="0,12,0,0" Visibility="{Binding IsBusy, Converter={StaticResource Vis}}" />
                 <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,12,0,0" Visibility="{Binding Status, Converter={StaticResource HasValue}}">

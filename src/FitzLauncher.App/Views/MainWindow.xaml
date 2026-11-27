@@ -234,7 +234,7 @@
                                 <Setter.Value>
                                     <!-- Selected or focused row gets an accent ring (drawn by the triggers below); no animation -->
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <Border x:Name="ring" CornerRadius="8" BorderThickness="2" BorderBrush="Transparent" Background="{StaticResource Surface}" Padding="4">
+                                        <Border x:Name="ring" CornerRadius="8" BorderThickness="3" BorderBrush="Transparent" Background="{StaticResource Surface}" Padding="3">
                                             <ContentPresenter />
                                         </Border>
                                         <ControlTemplate.Triggers>

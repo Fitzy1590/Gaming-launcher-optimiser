@@ -9,24 +9,24 @@
       Kept from the earlier pass: 4px spacing grid, Fluent icons, no emoji, mono figures for numbers.
     -->
 
-    <!-- Navy ramp -->
-    <Color x:Key="DeepColor">#070B16</Color>
-    <Color x:Key="BgColor">#0B1020</Color>
-    <Color x:Key="SurfaceColor">#111A2C</Color>
-    <Color x:Key="Surface2Color">#1A2540</Color>
+    <!-- Cyber Glass ramp (SPEC §18, vote A): deep obsidian; "glass" is flat translucent fills, never live blur -->
+    <Color x:Key="DeepColor">#070A0F</Color>
+    <Color x:Key="BgColor">#0B0E14</Color>
+    <Color x:Key="SurfaceColor">#131922</Color>
+    <Color x:Key="Surface2Color">#1B2230</Color>
     <Color x:Key="TextColor">#F4F7FB</Color>
     <Color x:Key="SecondaryColor">#C9D3E0</Color>
-    <Color x:Key="MutedColor">#93A4BC</Color>
-    <!-- Focus cyan: the only accent -->
-    <Color x:Key="AccentColor">#3FD0FF</Color>
-    <Color x:Key="GoodColor">#4CD9A0</Color>
-    <Color x:Key="WarnColor">#F2B65A</Color>
-    <Color x:Key="BadColor">#FF6B6B</Color>
+    <Color x:Key="MutedColor">#8B98AD</Color>
+    <!-- Electric cyan: the only accent -->
+    <Color x:Key="AccentColor">#00F2FE</Color>
+    <Color x:Key="GoodColor">#10B981</Color>
+    <Color x:Key="WarnColor">#F59E0B</Color>
+    <Color x:Key="BadColor">#EF4444</Color>
 
     <SolidColorBrush x:Key="Deep" Color="{StaticResource DeepColor}" />
     <SolidColorBrush x:Key="Bg" Color="{StaticResource BgColor}" />
     <!-- Translucent details pane over game art (retinted per game) -->
-    <SolidColorBrush x:Key="PaneBg" Color="#E60B1020" />
+    <SolidColorBrush x:Key="PaneBg" Color="#E60B0E14" />
     <SolidColorBrush x:Key="Surface" Color="{StaticResource SurfaceColor}" />
     <SolidColorBrush x:Key="Surface2" Color="{StaticResource Surface2Color}" />
     <SolidColorBrush x:Key="Text" Color="{StaticResource TextColor}" />
@@ -34,7 +34,7 @@
     <SolidColorBrush x:Key="Muted" Color="{StaticResource MutedColor}" />
     <SolidColorBrush x:Key="Accent" Color="{StaticResource AccentColor}" />
     <SolidColorBrush x:Key="OnAccent" Color="#04121C" />
-    <SolidColorBrush x:Key="AccentSoft" Color="#263FD0FF" />
+    <SolidColorBrush x:Key="AccentSoft" Color="#2600F2FE" />
     <SolidColorBrush x:Key="Good" Color="{StaticResource GoodColor}" />
     <SolidColorBrush x:Key="Warn" Color="{StaticResource WarnColor}" />
     <SolidColorBrush x:Key="Bad" Color="{StaticResource BadColor}" />
@@ -44,18 +44,19 @@
     <SolidColorBrush x:Key="Hover" Color="#14F4F7FB" />
     <!-- Scrim over full-bleed game art: dark on the left where text sits -->
     <LinearGradientBrush x:Key="ArtScrim" StartPoint="0,0" EndPoint="1,0">
-        <GradientStop Color="#F0070B16" Offset="0" />
-        <GradientStop Color="#A6070B16" Offset="0.55" />
-        <GradientStop Color="#59070B16" Offset="1" />
+        <GradientStop Color="#F0070A0F" Offset="0" />
+        <GradientStop Color="#A6070A0F" Offset="0.55" />
+        <GradientStop Color="#59070A0F" Offset="1" />
     </LinearGradientBrush>
     <LinearGradientBrush x:Key="ArtFade" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#00070B16" Offset="0.45" />
-        <GradientStop Color="#FF070B16" Offset="1" />
+        <GradientStop Color="#00070A0F" Offset="0.45" />
+        <GradientStop Color="#FF070A0F" Offset="1" />
     </LinearGradientBrush>
 
-    <FontFamily x:Key="UiFont">Segoe UI Variable Text, Segoe UI</FontFamily>
-    <FontFamily x:Key="DisplayFont">Segoe UI Variable Display, Segoe UI</FontFamily>
-    <FontFamily x:Key="MonoFont">Cascadia Mono, Consolas</FontFamily>
+    <!-- Bundled (SIL OFL, Assets/Fonts); Windows fonts are the fallback if a face fails to load -->
+    <FontFamily x:Key="UiFont">pack://application:,,,/FitzLauncher;component/Assets/Fonts/#Inter, Segoe UI Variable Text, Segoe UI</FontFamily>
+    <FontFamily x:Key="DisplayFont">pack://application:,,,/FitzLauncher;component/Assets/Fonts/#Outfit, Segoe UI Variable Display, Segoe UI</FontFamily>
+    <FontFamily x:Key="MonoFont">pack://application:,,,/FitzLauncher;component/Assets/Fonts/#JetBrains Mono, Cascadia Mono, Consolas</FontFamily>
     <!-- Windows' own line icon set (Windows 11), falling back to MDL2 on Windows 10 -->
     <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
 
@@ -241,6 +242,9 @@
                             <Setter TargetName="b" Property="BorderBrush" Value="{StaticResource BorderBrush}" />
                             <Setter Property="Foreground" Value="{StaticResource Text}" />
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="b" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                        </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
@@ -411,6 +415,9 @@
                             <Setter TargetName="dot" Property="HorizontalAlignment" Value="Right" />
                             <Setter TargetName="dot" Property="Fill" Value="{DynamicResource Bg}" />
                         </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="box" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                        </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4" />
                         </Trigger>
@@ -552,6 +559,28 @@
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
+    </Style>
+
+    <!-- Bento tile (SPEC §18): "glass" as a flat translucent fill, never a blur, so it costs nothing to draw -->
+    <SolidColorBrush x:Key="GlassFill" Color="#0FFFFFFF" />
+    <SolidColorBrush x:Key="GlassBorder" Color="#1FFFFFFF" />
+    <Style x:Key="BentoTile" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource GlassFill}" />
+        <Setter Property="BorderBrush" Value="{StaticResource GlassBorder}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+    </Style>
+    <Style x:Key="BentoLabel" TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{StaticResource Muted}" />
+    </Style>
+    <Style x:Key="BentoFigure" TargetType="TextBlock" BasedOn="{StaticResource Figure}">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource Text}" />
+        <Setter Property="Margin" Value="0,4,0,0" />
     </Style>
 
     <Style x:Key="Card" TargetType="Border">

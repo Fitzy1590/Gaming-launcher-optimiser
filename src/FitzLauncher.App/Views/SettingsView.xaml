@@ -259,6 +259,8 @@
             <Border Style="{StaticResource Card}">
                 <StackPanel>
                     <CheckBox Content="Match colours to the selected game (accent and background come from its cover art)" IsChecked="{Binding MatchGameColours}" />
+                    <CheckBox Content="Low-impact mode: turn off the live CPU, GPU and memory readings on the game panel" IsChecked="{Binding LowImpactMode}" Margin="0,8,0,0" />
+                    <TextBlock Text="They already stop while a game runs or another window is in front. Tick this if you'd rather the launcher never reads sensors on its own." Style="{StaticResource Wrap}" FontSize="12" Margin="28,4,0,0" />
                 </StackPanel>
             </Border>
 

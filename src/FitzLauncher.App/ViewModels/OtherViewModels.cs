@@ -559,6 +559,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         }
     }
 
+    /// <summary>Set by the main view model: re-checks the live readings when Low-impact mode changes.</summary>
+    public Action? LowImpactChanged { get; init; }
+
+    public bool LowImpactMode
+    {
+        get => _s.Settings.LowImpactMode;
+        set
+        {
+            _s.Settings.LowImpactMode = value;
+            _s.SaveSettings();
+            LowImpactChanged?.Invoke();
+            OnPropertyChanged();
+        }
+    }
+
     public bool MatchGameColours
     {
         get => _s.Settings.MatchGameColours;

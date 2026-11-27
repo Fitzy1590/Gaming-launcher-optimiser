@@ -27,5 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\fitz.ico" />
+    <Resource Include="Assets\Fonts\*.ttf" />
+    <!-- SIL OFL 1.1 requires the licence to travel with the fonts -->
+    <Content Include="Assets\Fonts\OFL-*.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
